@@ -17,6 +17,7 @@ import {
   UsersPage,
   WorkReportPage,
 } from './pages/placeholders'
+import { UiKitDemoPage } from './pages/UiKitDemo'
 
 export function AppRoutes() {
   return (
@@ -24,6 +25,7 @@ export function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="dev/ui" element={<UiKitDemoPage />} />
 
         <Route path="tickets" element={<TicketListPage />} />
         <Route path="tickets/raise" element={<TicketRaisePage />} />
