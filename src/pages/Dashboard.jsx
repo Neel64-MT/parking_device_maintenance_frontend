@@ -95,7 +95,7 @@ export default function Dashboard() {
 
           <div className="legend">
             {FLEET.legend.map((item) => (
-              <div key={item.label} style={item.push ? { marginLeft: 'auto' } : undefined}>
+              <div key={item.label} className={item.push ? 'legend-push' : undefined}>
                 {item.dot ? <i className={`dot ${item.dot}`} /> : null}
                 <Link to={item.to}>
                   <b>{item.value}</b>

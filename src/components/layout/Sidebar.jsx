@@ -24,15 +24,25 @@ export function Sidebar({ open, onNavigate }) {
   return (
     <aside className={`rail${open ? ' show' : ''}`} id="rail">
       <div className="brand">
-        <div className="mark">
-          <div className="glyph">P</div>
-          <h1>
-            {APP.nameLines[0]}
-            <br />
-            {APP.nameLines[1]}
-          </h1>
+        <div className="brand-text">
+          <div className="mark">
+            <div className="glyph">P</div>
+            <h1>
+              {APP.nameLines[0]}
+              <br />
+              {APP.nameLines[1]}
+            </h1>
+          </div>
+          <p>{APP.sub}</p>
         </div>
-        <p>{APP.sub}</p>
+        <button
+          type="button"
+          className="rail-close"
+          aria-label="Close menu"
+          onClick={onNavigate}
+        >
+          <NavIcon name="close" />
+        </button>
       </div>
 
       <nav className="nav">

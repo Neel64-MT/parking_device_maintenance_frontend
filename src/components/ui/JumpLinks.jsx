@@ -7,12 +7,14 @@ import { Link } from 'react-router-dom'
 export function JumpLinks({ label = 'Go to', links }) {
   return (
     <div className="jump">
-      {label}
-      {links.map((l) => (
-        <Link key={l.to + l.label} to={l.to}>
-          {l.label}
-        </Link>
-      ))}
+      <span className="jump-label">{label}</span>
+      <div className="jump-links">
+        {links.map((l) => (
+          <Link key={l.to + l.label} to={l.to}>
+            {l.label}
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }

@@ -10,21 +10,23 @@
 - [x] **Phase 5 — Devices**
 - [x] **Phase 6 — Masters**
 - [x] **Phase 7 — Users & roles**
-  - `Users.jsx` — tiles, Users / Roles tabs, role help, add-user form, search
-  - Roles list + permission matrix (`showRole` / ROLES encoding)
-  - Data: `src/data/users.js`
-  - CSS: `.perm`, `.role-note`
-  - Placeholders removed (all 15 screens live)
+- [x] **Phase 8 — Responsive & interaction polish**
+  - Audited breakpoints vs original / DESIGN.md: 820, 760, 900, 940, 1080 all present
+  - `class-pair` stack restored to ≤760 (was incorrectly under 820)
+  - Sticky bars offset by `--rail` ≥821; mobile ticket flows keep `.mobile` + sticky-bar
+  - Topbar actions hidden ≤820; menu button + off-canvas rail
+  - `:focus-visible` + `prefers-reduced-motion` already in place
+  - Rail closes on resize to desktop, Escape, and navigate; menu `aria-expanded`
+  - Breakpoint map commented on the §§14 block in `index.css`
 
 ## Currently working on
 
-- **Phase:** Phase 7 complete. Ready for Phase 8 (Responsive) when approved.
+- **Phase:** Phase 8 complete. Ready for Phase 9 (Final QA) when approved.
 - **Task:** —
 - **File:** —
 
 ## Pending
 
-- [ ] Phase 8: Responsive + parity QA
 - [ ] Phase 9: Final QA / MEMORY update
 
 ## Important decisions
@@ -38,15 +40,30 @@
 7. Issue master: category click re-renders subs; topbar search filters the current category’s sub table; deactivate/delete toasts match USAGE.
 8. Road list zone/status filters are UI-only; search filters the table (same as original).
 9. Users: topbar search filters the users table; permission matrix checkboxes follow ROLES codes from the original; default role shown is Technician.
+10. Responsive: no invented mobile chrome (no drawer scrim); Escape/resize close are drawer hygiene only.
+11. QA breakpoints (user-specified): fleet legend is 1 column ≤428px, 2-column grid 430–1082px, original row with pushed “open > 3 days” above 1082px. Topbar 831–1186px keeps road/date controls on one row and shows the user avatar only.
 
 ## Known issues / gaps
 
 | Gap | Detail |
 |-----|--------|
-| Dashboard filters | No client filter logic (original had none either) |
-| Ticket / device / road list filter bars | Non-search selects are UI-only (original had no filter JS) |
-| Permission matrix | Checkboxes are display-bound to role codes; Save shows toast only (same as original) |
+| Dashboard / list filter selects | UI-only where original had no filter JS |
+| Permission matrix Save | Toast only (same as original) |
+| Topbar actions on ≤820 | Hidden by design — use in-page / sticky actions on field flows |
+
+## Phase 8 resize checklist (DESIGN.md)
+
+| Width | Expected | Status |
+|-------|----------|--------|
+| ≤820 | Rail off-canvas, menu btn, hide topbar-actions, page pad, facts 2-col, fleet 28px | OK |
+| ≥821 | Sticky bar `left: var(--rail)` | OK |
+| ≤760 | Form grid + class-pair stack | OK |
+| ≤900 | Tiles → 2 columns | OK |
+| ≤940 | Master grid stacks | OK |
+| ≤1080 | `.grid-2` / `.grid-2-even` stack | OK |
+| Field pages | `.mobile` inputs 46px / sticky bar | OK |
+| Focus / motion | `:focus-visible` teal; reduced-motion kills transitions | OK |
 
 ## Handoff notes
 
-Walk `/users` — Users tab (search, role help, add user) and Roles tab (Permissions per role, matrix). Next: **Phase 8 — Responsive**. Do not write into `parking_maintenance/`.
+Resize the shell at the widths above; walk raise/update/close on a narrow viewport. Next: **Phase 9 — Final QA**. Do not write into `parking_maintenance/`.

@@ -5,7 +5,7 @@
 
 export const APP = {
   nameLines: ['Parking Device', 'Maintenance'],
-  sub: 'AMC Flap Based Parking · 1,000 devices',
+  sub: 'AMC Flap Based Parking',
   user: { name: 'Alkesh P.', role: 'Project manager', initials: 'AP' },
   footerLines: ['EXILIO Technology', 'v0.1 · design preview'],
 }

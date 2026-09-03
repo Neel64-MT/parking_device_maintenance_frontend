@@ -118,3 +118,7 @@ Fleet strip, ranked bars, filterbar, panels, tables (incl. `.split`), tabs, view
 | Exact Archivo metric rendering across browsers | Needs verification on device |
 | Print QR label output | Toast-only in original |
 | Real camera scan chrome | Needs verification when implemented |
+
+## Phase 8 — Responsive verification
+
+Signed off in MEMORY.md against the breakpoint table above. CSS lives in `src/index.css` (layout §§3–4, forms §§5, grids, tiles, mobile §§25, sticky-bar, responsive §§14). Drawer Escape/resize close is React-only hygiene; visuals match the original.
