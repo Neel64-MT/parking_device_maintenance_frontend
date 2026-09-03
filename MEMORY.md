@@ -9,22 +9,21 @@
 - [x] **Phase 4 — Tickets**
 - [x] **Phase 5 — Devices**
 - [x] **Phase 6 — Masters**
-  - `IssueMaster` — category pick list, sub table, USAGE counts, search, inline add forms
-  - `RoadList` — filters, search, table
-  - `RoadAdd` — multi-panel form + save toasts
-  - Data: `ISSUE_USAGE` in `issueMaster.js`, `roads.js`
-  - CSS: `.grid-master`, `.pick` / `.pick-list`
-  - Master placeholders removed (Users remains)
+- [x] **Phase 7 — Users & roles**
+  - `Users.jsx` — tiles, Users / Roles tabs, role help, add-user form, search
+  - Roles list + permission matrix (`showRole` / ROLES encoding)
+  - Data: `src/data/users.js`
+  - CSS: `.perm`, `.role-note`
+  - Placeholders removed (all 15 screens live)
 
 ## Currently working on
 
-- **Phase:** Phase 6 complete. Ready for Phase 7 (Users & roles) when approved.
+- **Phase:** Phase 7 complete. Ready for Phase 8 (Responsive) when approved.
 - **Task:** —
 - **File:** —
 
 ## Pending
 
-- [ ] Phase 7: Users & roles
 - [ ] Phase 8: Responsive + parity QA
 - [ ] Phase 9: Final QA / MEMORY update
 
@@ -38,6 +37,7 @@
 6. Device detail is the PD-0428 preview for every `/devices/:id` route (same as original single sample page).
 7. Issue master: category click re-renders subs; topbar search filters the current category’s sub table; deactivate/delete toasts match USAGE.
 8. Road list zone/status filters are UI-only; search filters the table (same as original).
+9. Users: topbar search filters the users table; permission matrix checkboxes follow ROLES codes from the original; default role shown is Technician.
 
 ## Known issues / gaps
 
@@ -45,8 +45,8 @@
 |-----|--------|
 | Dashboard filters | No client filter logic (original had none either) |
 | Ticket / device / road list filter bars | Non-search selects are UI-only (original had no filter JS) |
-| Users page | Still a placeholder |
+| Permission matrix | Checkboxes are display-bound to role codes; Save shows toast only (same as original) |
 
 ## Handoff notes
 
-Walk `/masters/issues` (category switch, search, deactivate toasts) and `/masters/roads` → add against the original HTML. Next: **Phase 7 — Users**. Do not write into `parking_maintenance/`.
+Walk `/users` — Users tab (search, role help, add user) and Roles tab (Permissions per role, matrix). Next: **Phase 8 — Responsive**. Do not write into `parking_maintenance/`.

@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './layouts/AppLayout'
 import Dashboard from './pages/Dashboard'
-import { UsersPage } from './pages/placeholders'
+import Users from './pages/Users'
 import DeviceList from './pages/devices/DeviceList'
 import DeviceDetail from './pages/devices/DeviceDetail'
 import DeviceAdd from './pages/devices/DeviceAdd'
@@ -41,7 +41,7 @@ export function AppRoutes() {
         <Route path="masters/roads" element={<RoadList />} />
         <Route path="masters/roads/add" element={<RoadAdd />} />
 
-        <Route path="users" element={<UsersPage />} />
+        <Route path="users" element={<Users />} />
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>

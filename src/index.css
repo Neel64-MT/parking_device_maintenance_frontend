@@ -1605,6 +1605,40 @@ a.rank-row:hover .name {
   background: var(--warn);
 }
 
+/* ---------- Role note + permission matrix (original §§31) ---------- */
+.role-note {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 3px;
+}
+
+.perm td,
+.perm th {
+  text-align: center;
+}
+.perm td:first-child,
+.perm th:first-child {
+  text-align: left;
+  font-weight: 500;
+}
+.perm input[type='checkbox'] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--teal-dk);
+  cursor: pointer;
+}
+.perm tbody tr:hover {
+  background: var(--hover);
+}
+.perm .grp-row td {
+  background: #f3f6f8;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  text-align: left;
+  padding: 7px 10px;
+}
+
 /* ---------- Scan box (original §§19) ---------- */
 .scanbox {
   border: 2px dashed var(--line);
