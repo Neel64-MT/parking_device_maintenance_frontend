@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './layouts/AppLayout'
+import Dashboard from './pages/Dashboard'
 import {
-  DashboardPage,
   DeviceAddPage,
   DeviceDetailPage,
   DeviceListPage,
@@ -24,7 +24,7 @@ export function AppRoutes() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="dashboard" element={<Dashboard />} />
         <Route path="dev/ui" element={<UiKitDemoPage />} />
 
         <Route path="tickets" element={<TicketListPage />} />

@@ -22,17 +22,6 @@ function Placeholder({ pageId, title, crumb, label }) {
   )
 }
 
-export function DashboardPage() {
-  return (
-    <Placeholder
-      pageId="dashboard"
-      title="Dashboard"
-      crumb="Fleet status as on 01 Sep 2026, 10:42 AM"
-      label="Dashboard (Phase 1 placeholder)"
-    />
-  )
-}
-
 export function TicketListPage() {
   return (
     <Placeholder

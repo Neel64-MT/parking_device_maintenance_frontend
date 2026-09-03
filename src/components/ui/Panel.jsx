@@ -12,6 +12,7 @@ export function Panel({
   flush = false,
   foot,
   className = '',
+  bodyStyle,
   children,
 }) {
   const hasHead = title || subtitle || link || linkTo || actions
@@ -36,7 +37,9 @@ export function Panel({
           {actions ? <div className="actions">{actions}</div> : null}
         </div>
       ) : null}
-      <div className={`panel-body${flush ? ' flush' : ''}`}>{children}</div>
+      <div className={`panel-body${flush ? ' flush' : ''}`} style={bodyStyle}>
+        {children}
+      </div>
       {foot ? <div className="foot-note">{foot}</div> : null}
     </section>
   )
