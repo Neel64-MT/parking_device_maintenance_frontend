@@ -33,7 +33,7 @@ Where scope and code differ, see **Gaps vs Claude scope** below.
 | **Admin** | Full control including users and roles |
 | **AMC officer** | View-only across roads |
 
-Preview UI currently hardcodes user **Alkesh P. / Project manager** in the sidebar. There is **no login/signup page** in the original.
+Preview UI originally hardcoded user **Alkesh P. / Project manager** in the sidebar. **Phase 10** adds real login (email or mobile + password) against the sibling backend API. `/signup` is informational only — Admin creates accounts.
 
 ---
 
@@ -105,16 +105,16 @@ Preview UI currently hardcodes user **Alkesh P. / Project manager** in the sideb
 
 | Item | Notes |
 |------|--------|
-| Real login / session / tokens | No auth pages; mock user only |
+| Real login / session / tokens | **Phase 10 done** — `/login`, Bearer JWT, `/signup` ask-admin only |
 | Live camera QR scanning | Simulated button only |
-| Backend APIs / persistence | Hardcoded HTML + JS data |
-| Empty / loading / error states for async | Mostly static; empty exists on scan miss |
+| Backend APIs / persistence | Auth wired; most screens still use mock `src/data/` |
+| Empty / loading / error states for async | Auth boot + login errors; other screens mostly static |
 | Enforce “one open ticket” server-side | UI warning only in preview |
 | 7-day reopen same ticket | Documented in copy; not implemented |
 | OEM role | Spec lists OEM; original roles use Site attendant instead |
 | TypeScript domain types | Recommended for React; not in original |
 
-Treat these as **future / backend-connected** work unless explicitly approved for this migration phase. Migration phase 1 reproduces the **design preview** parity.
+Auth and further API wiring are approved beyond migration parity. Migration phases 0–9 reproduce the **design preview**; Phase 10 is the first backend-connected work.
 
 ### Explicitly out of scope (do not add)
 
@@ -159,3 +159,13 @@ A reviewer comparing original HTML pages side-by-side with React routes cannot s
 | Production build | Pass |
 | Original `parking_maintenance/` unmodified | Pass (read-only throughout) |
 | Known preview gaps documented | Pass — see MEMORY.md |
+
+### Phase 10 — Auth (approved)
+
+| Criterion | Result |
+|-----------|--------|
+| `/login` email or mobile + password | Pass — `POST /api/auth/login` via Vite proxy |
+| `/signup` informational (no self-register) | Pass |
+| RequireAuth wall on app routes | Pass |
+| Topbar user from session + Log out | Pass |
+| Sibling backend on port 5000 | Required for login (`../backend`) |

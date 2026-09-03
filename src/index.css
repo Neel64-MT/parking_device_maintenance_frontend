@@ -412,6 +412,7 @@ input[type='number'],
 input[type='search'],
 input[type='email'],
 input[type='tel'],
+input[type='password'],
 textarea {
   font: inherit;
   font-size: 13px;
@@ -1497,7 +1498,9 @@ a.rank-row:hover .name {
 .mobile input[type='tel'],
 .mobile input[type='date'],
 .mobile input[type='number'],
-.mobile input[type='search'] {
+.mobile input[type='search'],
+.mobile input[type='password'],
+.mobile input[type='email'] {
   height: 46px;
   font-size: 15px;
   padding: 0 12px;
@@ -1951,3 +1954,120 @@ table.split tfoot td {
     border-left: 0;
   }
 }
+
+/* ---------- Auth pages (login / signup — no rail) ---------- */
+.auth-shell {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 16px 40px;
+  background: var(--bg);
+}
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+}
+.auth-brand {
+  margin-bottom: 18px;
+  padding: 4px 2px 0;
+}
+.auth-brand .mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.auth-brand .glyph {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: var(--teal);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  flex: none;
+}
+.auth-brand h1 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.25;
+}
+.auth-brand p {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 8px;
+}
+.auth-form label.fld:last-of-type {
+  margin-bottom: 6px;
+}
+.auth-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+.auth-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+.auth-footer {
+  margin-top: 16px;
+  font-size: 13px;
+}
+.auth-link {
+  color: var(--teal-dk);
+  font-weight: 500;
+}
+.auth-link:hover {
+  text-decoration: underline;
+}
+.auth-error {
+  background: var(--bad-bg);
+  border-color: #e8c4c0;
+  color: var(--bad);
+}
+.auth-boot {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.who-logout {
+  margin-left: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+}
+.who-logout:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--hover);
+}
+.who-logout:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 820px) {
+  .auth-shell {
+    align-items: flex-start;
+    padding-top: 40px;
+  }
+  .auth-card input[type='text'],
+  .auth-card input[type='password'],
+  .auth-card input[type='email'],
+  .auth-card input[type='tel'] {
+    height: 46px;
+    font-size: 15px;
+    padding: 0 12px;
+  }
+}
+

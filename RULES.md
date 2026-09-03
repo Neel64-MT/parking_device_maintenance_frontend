@@ -24,7 +24,8 @@
 - No purple gradients, cream+serif trends, or unrelated design systems.
 - No unnecessary libraries or state managers.
 - No modifying the original source project.
-- No inventing APIs, login, or features not in original or explicitly requested.
+- No inventing APIs or features not in original or explicitly requested.
+- Login / session were approved in Phase 10 (email or mobile + password; no self-register). Do not add OTP or third-party auth without asking.
 - No reintroducing stripped features (inventory, SLA maps, SIM/battery fields, issue codes, etc.).
 - No turning flow screens into top-level menu items.
 - No merging multiple screens into one page.
