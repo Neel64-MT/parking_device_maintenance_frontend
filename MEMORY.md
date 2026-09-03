@@ -6,34 +6,24 @@
 - [x] **Phase 1 — React app foundation** (shell, router, toast, placeholders).
 - [x] **Phase 2 — Shared UI primitives + data modules** (`/dev/ui` scratch).
 - [x] **Phase 3 — Dashboard**
-  - `src/pages/Dashboard.jsx` — fleet strip, why-down ranks, road-wise table, open tickets
-  - `src/data/dashboard.js` — static preview data from `dashboard.html`
-  - Fleet / rank-row CSS in `src/index.css`
-  - Topbar road + date filters via `PageMeta` actions
-  - Links to `/tickets`, `/devices/:id`, `/tickets/:id`, `/masters/roads`, raise flow
-  - Lint + build pass
 - [x] **Phase 4 — Tickets**
-  - List (tabs, tiles, filters, search), raise, detail, update, close, work report
-  - Data: `slots.js`, `tickets.js`, `ticketDetail.js`, `workReport.js`
-  - Routes wired to real pages; ticket placeholders removed
 - [x] **Phase 5 — Devices**
-  - `DeviceList` — tiles (linked), filter bar, search, table
-  - `DeviceDetail` — PD-0428 history (split table, parts, fail ranks)
-  - `DeviceAdd` — identity / location / installation + save toasts
-  - `ScanQr` — simulate/manual find; hit on QR-PD0428 / PD-0428 / S2-114
-  - Data: `devices.js`, `deviceDetail.js`
-  - CSS: `.scanbox`, `table.split`
-  - Device placeholders removed from `placeholders.jsx`
+- [x] **Phase 6 — Masters**
+  - `IssueMaster` — category pick list, sub table, USAGE counts, search, inline add forms
+  - `RoadList` — filters, search, table
+  - `RoadAdd` — multi-panel form + save toasts
+  - Data: `ISSUE_USAGE` in `issueMaster.js`, `roads.js`
+  - CSS: `.grid-master`, `.pick` / `.pick-list`
+  - Master placeholders removed (Users remains)
 
 ## Currently working on
 
-- **Phase:** Phase 5 complete. Ready for Phase 6 (Masters) when approved.
+- **Phase:** Phase 6 complete. Ready for Phase 7 (Users & roles) when approved.
 - **Task:** —
 - **File:** —
 
 ## Pending
 
-- [ ] Phase 6: Masters (issue, roads)
 - [ ] Phase 7: Users & roles
 - [ ] Phase 8: Responsive + parity QA
 - [ ] Phase 9: Final QA / MEMORY update
@@ -46,16 +36,17 @@
 4. Panel supports `bodyStyle` for cases like rank-list `padding-top: 6px`.
 5. Device list filters (road / status / repeats) are UI-only; search filters the table (same as original `bindTableSearch`).
 6. Device detail is the PD-0428 preview for every `/devices/:id` route (same as original single sample page).
+7. Issue master: category click re-renders subs; topbar search filters the current category’s sub table; deactivate/delete toasts match USAGE.
+8. Road list zone/status filters are UI-only; search filters the table (same as original).
 
 ## Known issues / gaps
 
 | Gap | Detail |
 |-----|--------|
 | Dashboard filters | No client filter logic (original had none either) |
-| Ticket list filter bar | Road / status / category / assignee are UI-only (original had no filter JS) |
-| Device list filter bar | Road / status / repeats are UI-only (original had no filter JS) |
-| Master / user pages | Still placeholders |
+| Ticket / device / road list filter bars | Non-search selects are UI-only (original had no filter JS) |
+| Users page | Still a placeholder |
 
 ## Handoff notes
 
-Walk `/devices` → history → add → scan (hit/miss) against the original HTML. Next: **Phase 6 — Masters**. Do not write into `parking_maintenance/`.
+Walk `/masters/issues` (category switch, search, deactivate toasts) and `/masters/roads` → add against the original HTML. Next: **Phase 7 — Users**. Do not write into `parking_maintenance/`.

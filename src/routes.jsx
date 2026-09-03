@@ -1,16 +1,14 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './layouts/AppLayout'
 import Dashboard from './pages/Dashboard'
-import {
-  IssueMasterPage,
-  RoadAddPage,
-  RoadListPage,
-  UsersPage,
-} from './pages/placeholders'
+import { UsersPage } from './pages/placeholders'
 import DeviceList from './pages/devices/DeviceList'
 import DeviceDetail from './pages/devices/DeviceDetail'
 import DeviceAdd from './pages/devices/DeviceAdd'
 import ScanQr from './pages/devices/ScanQr'
+import IssueMaster from './pages/masters/IssueMaster'
+import RoadList from './pages/masters/RoadList'
+import RoadAdd from './pages/masters/RoadAdd'
 import TicketList from './pages/tickets/TicketList'
 import TicketRaise from './pages/tickets/TicketRaise'
 import TicketUpdate from './pages/tickets/TicketUpdate'
@@ -39,9 +37,9 @@ export function AppRoutes() {
         <Route path="devices/scan" element={<ScanQr />} />
         <Route path="devices/:deviceId" element={<DeviceDetail />} />
 
-        <Route path="masters/issues" element={<IssueMasterPage />} />
-        <Route path="masters/roads" element={<RoadListPage />} />
-        <Route path="masters/roads/add" element={<RoadAddPage />} />
+        <Route path="masters/issues" element={<IssueMaster />} />
+        <Route path="masters/roads" element={<RoadList />} />
+        <Route path="masters/roads/add" element={<RoadAdd />} />
 
         <Route path="users" element={<UsersPage />} />
 

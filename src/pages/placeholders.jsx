@@ -22,39 +22,6 @@ function Placeholder({ pageId, title, crumb, label }) {
   )
 }
 
-export function IssueMasterPage() {
-  return (
-    <Placeholder
-      pageId="issue-master"
-      title="Issue master"
-      crumb="Masters › Issue category and sub-category"
-      label="Issue master (Phase 1 placeholder)"
-    />
-  )
-}
-
-export function RoadListPage() {
-  return (
-    <Placeholder
-      pageId="road-list"
-      title="Road master"
-      crumb="5 roads · 1,000 devices mapped"
-      label="Road master (Phase 1 placeholder)"
-    />
-  )
-}
-
-export function RoadAddPage() {
-  return (
-    <Placeholder
-      pageId="road-add"
-      title="Add road"
-      crumb="Road master › New road"
-      label="Add road (Phase 1 placeholder)"
-    />
-  )
-}
-
 export function UsersPage() {
   return (
     <Placeholder
