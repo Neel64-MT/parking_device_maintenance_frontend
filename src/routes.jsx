@@ -2,15 +2,15 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './layouts/AppLayout'
 import Dashboard from './pages/Dashboard'
 import {
-  DeviceAddPage,
-  DeviceDetailPage,
-  DeviceListPage,
   IssueMasterPage,
   RoadAddPage,
   RoadListPage,
-  ScanQrPage,
   UsersPage,
 } from './pages/placeholders'
+import DeviceList from './pages/devices/DeviceList'
+import DeviceDetail from './pages/devices/DeviceDetail'
+import DeviceAdd from './pages/devices/DeviceAdd'
+import ScanQr from './pages/devices/ScanQr'
 import TicketList from './pages/tickets/TicketList'
 import TicketRaise from './pages/tickets/TicketRaise'
 import TicketUpdate from './pages/tickets/TicketUpdate'
@@ -34,10 +34,10 @@ export function AppRoutes() {
         <Route path="tickets/report" element={<WorkReport />} />
         <Route path="tickets/:ticketId" element={<TicketDetail />} />
 
-        <Route path="devices" element={<DeviceListPage />} />
-        <Route path="devices/add" element={<DeviceAddPage />} />
-        <Route path="devices/scan" element={<ScanQrPage />} />
-        <Route path="devices/:deviceId" element={<DeviceDetailPage />} />
+        <Route path="devices" element={<DeviceList />} />
+        <Route path="devices/add" element={<DeviceAdd />} />
+        <Route path="devices/scan" element={<ScanQr />} />
+        <Route path="devices/:deviceId" element={<DeviceDetail />} />
 
         <Route path="masters/issues" element={<IssueMasterPage />} />
         <Route path="masters/roads" element={<RoadListPage />} />

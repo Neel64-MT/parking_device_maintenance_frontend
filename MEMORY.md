@@ -16,16 +16,23 @@
   - List (tabs, tiles, filters, search), raise, detail, update, close, work report
   - Data: `slots.js`, `tickets.js`, `ticketDetail.js`, `workReport.js`
   - Routes wired to real pages; ticket placeholders removed
+- [x] **Phase 5 — Devices**
+  - `DeviceList` — tiles (linked), filter bar, search, table
+  - `DeviceDetail` — PD-0428 history (split table, parts, fail ranks)
+  - `DeviceAdd` — identity / location / installation + save toasts
+  - `ScanQr` — simulate/manual find; hit on QR-PD0428 / PD-0428 / S2-114
+  - Data: `devices.js`, `deviceDetail.js`
+  - CSS: `.scanbox`, `table.split`
+  - Device placeholders removed from `placeholders.jsx`
 
 ## Currently working on
 
-- **Phase:** Phase 4 complete. Ready for Phase 5 (Devices) when approved.
+- **Phase:** Phase 5 complete. Ready for Phase 6 (Masters) when approved.
 - **Task:** —
 - **File:** —
 
 ## Pending
 
-- [ ] Phase 5: Devices (list → detail → add → scan)
 - [ ] Phase 6: Masters (issue, roads)
 - [ ] Phase 7: Users & roles
 - [ ] Phase 8: Responsive + parity QA
@@ -37,6 +44,8 @@
 2. Ticket list table filters by tab + topbar search (same as original `setTab` / `bindTableSearch`). Filter bar Reset clears the selects and search; those selects do not change the table yet.
 3. Ticket detail content is the TK-1042 preview for every `/tickets/:id` route (same sample record as original).
 4. Panel supports `bodyStyle` for cases like rank-list `padding-top: 6px`.
+5. Device list filters (road / status / repeats) are UI-only; search filters the table (same as original `bindTableSearch`).
+6. Device detail is the PD-0428 preview for every `/devices/:id` route (same as original single sample page).
 
 ## Known issues / gaps
 
@@ -44,8 +53,9 @@
 |-----|--------|
 | Dashboard filters | No client filter logic (original had none either) |
 | Ticket list filter bar | Road / status / category / assignee are UI-only (original had no filter JS) |
-| Device / master / user pages | Still placeholders |
+| Device list filter bar | Road / status / repeats are UI-only (original had no filter JS) |
+| Master / user pages | Still placeholders |
 
 ## Handoff notes
 
-Walk `/tickets` → raise → update → close and `/tickets/report` against the original HTML. Next: **Phase 5 — Devices**. Do not write into `parking_maintenance/`.
+Walk `/devices` → history → add → scan (hit/miss) against the original HTML. Next: **Phase 6 — Masters**. Do not write into `parking_maintenance/`.

@@ -22,50 +22,6 @@ function Placeholder({ pageId, title, crumb, label }) {
   )
 }
 
-export function DeviceListPage() {
-  return (
-    <Placeholder
-      pageId="device-list"
-      title="Device list"
-      crumb="1,000 devices across 5 roads"
-      label="Device list (Phase 1 placeholder)"
-    />
-  )
-}
-
-export function DeviceDetailPage() {
-  return (
-    <Placeholder
-      pageId="device-detail"
-      title="Device history"
-      crumb="Devices › PD-0428 › Science City, Slot S2-114"
-      label="Device history (Phase 1 placeholder)"
-    />
-  )
-}
-
-export function DeviceAddPage() {
-  return (
-    <Placeholder
-      pageId="device-add"
-      title="Add device"
-      crumb="Devices › New device"
-      label="Add device (Phase 1 placeholder)"
-    />
-  )
-}
-
-export function ScanQrPage() {
-  return (
-    <Placeholder
-      pageId="scan-qr"
-      title="Scan QR"
-      crumb="Devices › Scan a QR sticker"
-      label="Scan QR (Phase 1 placeholder)"
-    />
-  )
-}
-
 export function IssueMasterPage() {
   return (
     <Placeholder

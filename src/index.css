@@ -1543,6 +1543,71 @@ a.rank-row:hover .name {
   background: var(--warn);
 }
 
+/* ---------- Scan box (original §§19) ---------- */
+.scanbox {
+  border: 2px dashed var(--line);
+  border-radius: var(--r);
+  background: #fff;
+  padding: 44px 20px;
+  text-align: center;
+}
+.scanbox .frame {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto 18px;
+  border-radius: 10px;
+  border: 2px solid var(--navy-3);
+  position: relative;
+}
+.scanbox .frame::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 50%;
+  height: 2px;
+  background: var(--teal);
+}
+.scanbox h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.scanbox p {
+  font-size: 13px;
+  color: var(--ink-3);
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+/* ---------- Split history table (original §§21) ---------- */
+table.split th.grp {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: #f3f6f8;
+  border-bottom: 1px solid var(--line);
+  padding: 7px 10px;
+}
+table.split th.grp-alt {
+  background: #eaf3f2;
+  color: var(--teal-dk);
+}
+table.split th.sep,
+table.split td.sep {
+  border-left: 2px solid var(--line);
+}
+table.split td.sep {
+  color: var(--ink-2);
+  min-width: 230px;
+}
+table.split tfoot td {
+  border-top: 1px solid var(--line);
+  padding: 11px 10px;
+  font-size: 13px;
+  background: #f7f9fb;
+}
+
 /* ---------- Responsive rail (original §§14) ---------- */
 @media (max-width: 820px) {
   :root {
