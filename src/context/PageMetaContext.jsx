@@ -1,6 +1,6 @@
 /* Context modules export hooks alongside providers — expected pattern. */
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState } from 'react'
 
 const PageMetaContext = createContext(null)
 
@@ -14,13 +14,21 @@ const DEFAULT_META = {
 export function PageMetaProvider({ children }) {
   const [meta, setMeta] = useState(DEFAULT_META)
 
+  const setPageMeta = useCallback((next) => {
+    setMeta(next)
+  }, [])
+
+  const resetPageMeta = useCallback(() => {
+    setMeta(DEFAULT_META)
+  }, [])
+
   const value = useMemo(
     () => ({
       ...meta,
-      setPageMeta: setMeta,
-      resetPageMeta: () => setMeta(DEFAULT_META),
+      setPageMeta,
+      resetPageMeta,
     }),
-    [meta],
+    [meta, setPageMeta, resetPageMeta],
   )
 
   return <PageMetaContext.Provider value={value}>{children}</PageMetaContext.Provider>
@@ -37,12 +45,11 @@ export function usePageMeta() {
  * Place once at the top of each page component.
  */
 export function PageMeta({ pageId, title, crumb = null, actions = null }) {
-  const { setPageMeta, resetPageMeta } = usePageMeta()
+  const { setPageMeta } = usePageMeta()
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setPageMeta({ pageId, title, crumb, actions })
-    return () => resetPageMeta()
-  }, [pageId, title, crumb, actions, setPageMeta, resetPageMeta])
+  }, [pageId, title, crumb, actions, setPageMeta])
 
   return null
 }

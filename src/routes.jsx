@@ -9,14 +9,14 @@ import {
   RoadAddPage,
   RoadListPage,
   ScanQrPage,
-  TicketClosePage,
-  TicketDetailPage,
-  TicketListPage,
-  TicketRaisePage,
-  TicketUpdatePage,
   UsersPage,
-  WorkReportPage,
 } from './pages/placeholders'
+import TicketList from './pages/tickets/TicketList'
+import TicketRaise from './pages/tickets/TicketRaise'
+import TicketUpdate from './pages/tickets/TicketUpdate'
+import TicketClose from './pages/tickets/TicketClose'
+import TicketDetail from './pages/tickets/TicketDetail'
+import WorkReport from './pages/tickets/WorkReport'
 import { UiKitDemoPage } from './pages/UiKitDemo'
 
 export function AppRoutes() {
@@ -27,12 +27,12 @@ export function AppRoutes() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="dev/ui" element={<UiKitDemoPage />} />
 
-        <Route path="tickets" element={<TicketListPage />} />
-        <Route path="tickets/raise" element={<TicketRaisePage />} />
-        <Route path="tickets/update" element={<TicketUpdatePage />} />
-        <Route path="tickets/close" element={<TicketClosePage />} />
-        <Route path="tickets/report" element={<WorkReportPage />} />
-        <Route path="tickets/:ticketId" element={<TicketDetailPage />} />
+        <Route path="tickets" element={<TicketList />} />
+        <Route path="tickets/raise" element={<TicketRaise />} />
+        <Route path="tickets/update" element={<TicketUpdate />} />
+        <Route path="tickets/close" element={<TicketClose />} />
+        <Route path="tickets/report" element={<WorkReport />} />
+        <Route path="tickets/:ticketId" element={<TicketDetail />} />
 
         <Route path="devices" element={<DeviceListPage />} />
         <Route path="devices/add" element={<DeviceAddPage />} />

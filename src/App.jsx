@@ -5,7 +5,7 @@ import { AppRoutes } from './routes'
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter useTransitions={false}>
       <ToastProvider>
         <PageMetaProvider>
           <AppRoutes />
