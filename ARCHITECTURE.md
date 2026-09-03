@@ -53,68 +53,37 @@ Prefer page-centric, shallow structure. Adapt as files are added; do not invent 
 
 ```text
 frontend/
-├── PR.md, ARCHITECTURE.md, RULES.md, DESIGN.md, MEMORY.md, PHASES.md, SKILLS.md
+├── PR.md, ARCHITECTURE.md, RULES.md, DESIGN.md, MEMORY.md, PHASES.md, SKILL(S).md
 ├── package.json
 ├── vite.config.js
 ├── index.html
 ├── public/
 └── src/
     ├── main.jsx
-    ├── App.jsx                 # Router + ToastProvider (if any)
-    ├── index.css               # Tailwind + any unavoidable custom CSS
-    ├── assets/                 # SVGs / static imports if needed
+    ├── App.jsx                 # BrowserRouter + ToastProvider + PageMetaProvider
+    ├── routes.jsx              # Route table (15 screens + /dev/ui)
+    ├── index.css               # Tailwind + ported original CSS
     ├── config/
-    │   └── nav.js              # MENU, APP, ICON paths (from nav.js)
-    ├── data/
-    │   ├── issueMaster.js
-    │   ├── partMaster.js
-    │   ├── team.js
-    │   ├── workReport.js
-    │   └── …sample lists as needed
+    │   └── nav.js              # MENU, APP (from nav.js)
+    ├── context/
+    │   ├── PageMetaContext.jsx
+    │   └── ToastContext.jsx
+    ├── data/                   # ISSUE_MASTER, tickets, devices, roads, users, …
     ├── layouts/
     │   └── AppLayout.jsx       # rail + shell + outlet
     ├── components/
-    │   ├── layout/
-    │   │   ├── Sidebar.jsx
-    │   │   └── Topbar.jsx
-    │   └── ui/                 # only genuinely shared pieces
-    │       ├── Button.jsx
-    │       ├── Panel.jsx
-    │       ├── Pill.jsx
-    │       ├── Toast.jsx
-    │       ├── JumpLinks.jsx
-    │       ├── FilterBar.jsx
-    │       ├── Tabs.jsx
-    │       ├── PhotoPicker.jsx
-    │       ├── IssueSelects.jsx
-    │       ├── DeviceCard.jsx
-    │       ├── EmptyState.jsx
-    │       └── Icons.jsx
+    │   ├── layout/             # Sidebar, Topbar
+    │   ├── icons/
+    │   └── ui/                 # Button, Panel, Pill, JumpLinks, …
     ├── pages/
     │   ├── Dashboard.jsx
+    │   ├── Users.jsx
+    │   ├── UiKitDemo.jsx       # /dev/ui scratch (not in menu)
     │   ├── tickets/
-    │   │   ├── TicketList.jsx
-    │   │   ├── TicketRaise.jsx
-    │   │   ├── TicketUpdate.jsx
-    │   │   ├── TicketClose.jsx
-    │   │   ├── TicketDetail.jsx
-    │   │   └── WorkReport.jsx
     │   ├── devices/
-    │   │   ├── DeviceList.jsx
-    │   │   ├── DeviceDetail.jsx
-    │   │   ├── DeviceAdd.jsx
-    │   │   └── ScanQr.jsx
-    │   ├── masters/
-    │   │   ├── IssueMaster.jsx
-    │   │   ├── RoadList.jsx
-    │   │   └── RoadAdd.jsx
-    │   └── Users.jsx
-    ├── hooks/                  # only if reused 2+ times (e.g. useTableSearch)
-    ├── services/               # empty or stubs until API exists
-    ├── utils/
-    │   └── toast.js            # if not context-based
-    └── routes/
-        └── index.jsx           # route table
+    │   └── masters/
+    └── hooks/
+        └── useTableSearch.js
 ```
 
 ### Maintainability rule

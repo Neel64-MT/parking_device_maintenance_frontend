@@ -1,16 +1,38 @@
-# React + Vite
+# Parking Device Maintenance — React frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Design-preview migration of the vanilla HTML/CSS/JS site at  
+`parking_maintenance/` → **React + Vite + Tailwind v4 + React Router**.
 
-Currently, two official plugins are available:
+This is a **migration, not a redesign**. Visuals and interactions match the original preview; there is no backend yet.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Scripts
 
-## React Compiler
+```bash
+npm install
+npm run dev      # local preview
+npm run build    # production build
+npm run lint     # ESLint (ignores dist / .vite)
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Routes (15 screens)
 
-## Expanding the ESLint configuration
+| Path | Screen |
+|------|--------|
+| `/dashboard` | Dashboard |
+| `/tickets` | All tickets |
+| `/tickets/raise` · `/update` · `/close` · `/:id` · `/report` | Ticket flows + work report |
+| `/devices` · `/add` · `/scan` · `/:id` | Device list, add, scan, history |
+| `/masters/issues` · `/masters/roads` · `/masters/roads/add` | Masters |
+| `/users` | Users & roles |
+| `/dev/ui` | Shared UI scratch (not in menu) |
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Docs
+
+`PR.md`, `Architecture.md`, `Rules.md`, `Design.md`, `Memory.md`, `Phases.md`, `SKILL.md` / `SKILLS.md`
+
+## Source of truth
+
+- **Original UI (read-only):** `../parking_maintenance/`
+- **Product rules:** `SKILL.md`
+
+Do not modify the original `parking_maintenance` tree.

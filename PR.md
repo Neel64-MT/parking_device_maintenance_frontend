@@ -144,3 +144,18 @@ Per product skill — unless the user asks again:
 ## Success criteria
 
 A reviewer comparing original HTML pages side-by-side with React routes cannot spot intentional redesign differences in layout, typography, color, spacing, or primary interactions. All 15 screens exist as routes. Shared nav/menu matching works. Field flows remain mobile-first with sticky bars.
+
+### Phase 9 verification (signed off)
+
+| Criterion | Result |
+|-----------|--------|
+| 15 screens as React routes | Pass — see `src/routes.jsx` |
+| No `.html` hrefs in app code | Pass |
+| Nav `pageId` / `match` highlights | Pass |
+| Forms `preventDefault` + toast | Pass |
+| Tabs (tickets, users, report views) | Pass |
+| Scan QR hit/miss | Pass |
+| Lint clean (`npm run lint`) | Pass (`.vite` / `dist` ignored) |
+| Production build | Pass |
+| Original `parking_maintenance/` unmodified | Pass (read-only throughout) |
+| Known preview gaps documented | Pass — see MEMORY.md |

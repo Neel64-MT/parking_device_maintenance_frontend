@@ -143,6 +143,8 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 **Completion:** Migration approved for use as React design preview; original still unmodified.
 
+**Status:** Phase 9 signed off — see MEMORY.md Final QA checklist and PR.md success criteria.
+
 ---
 
 ## Suggested calendar dependency graph
