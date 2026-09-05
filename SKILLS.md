@@ -70,16 +70,19 @@ Project-specific practices for migrating Parking Device Maintenance from HTML/CS
 
 ### API / auth
 
-- Preserve mock data modules.
-- Do not add fetch until a real API exists.
-- Do not add login UI without request.
+- Auth is wired: `src/services/api.js` + `auth.js`, `AuthContext`, `/login` + `/signup`.
+- Login: email or mobile + password against sibling backend (`POST /api/auth/login`).
+- Store Bearer JWT in `localStorage`; Vite proxies `/api` to `http://localhost:5000`.
+- `/signup` is informational — Admin creates users; no self-register.
+- Preserve mock data modules until each screen is explicitly wired to APIs.
+- Context is allowed for toast and auth only.
 
 ## Maintainable coding skills
 
 - One screen → one file under `pages/`.
 - Shared only if used twice+.
 - Explicit names: `TicketList`, not `ListView`.
-- Avoid context except toast (optional) and maybe auth later.
+- Avoid context except toast and auth.
 - Avoid custom “framework” wrappers around Router or forms.
 - Prefer boring code over clever code.
 - Comment only where original business rule is non-obvious (e.g. match arrays for nav highlight).
@@ -97,6 +100,24 @@ Read original page + CSS section
 ```
 
 AI must not invent screens, redesign, or depend on chat memory in place of MEMORY.md / source files.
+
+## Backend / auth skills (Phase 11+)
+
+- API analysis before change; reuse Express routes + `lib/auth.ts` (bcrypt, JWT, reset tokens).
+- Database: SQL migrations only; extend status CHECK carefully; never lock out Active users.
+- Authorization: `authorize(screen, flag)` — Users `e` for approve/password.
+- Forgot password: reuse existing token email flow; do not invent OTP.
+- Frontend: AuthLayout forms; Users page live list via `services/users.js`.
+- Preferred workflow:
+
+```text
+Inspect existing code
+→ Understand existing flow
+→ Reuse existing patterns
+→ Make minimal changes
+→ Test new + existing auth
+→ Update documentation
+```
 
 ## Definition of done (per page)
 

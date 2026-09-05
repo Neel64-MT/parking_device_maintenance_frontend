@@ -3,21 +3,38 @@
 Design-preview migration of the vanilla HTML/CSS/JS site at  
 `parking_maintenance/` → **React + Vite + Tailwind v4 + React Router**.
 
-This is a **migration, not a redesign**. Visuals and interactions match the original preview; there is no backend yet.
+This is a **migration, not a redesign**. Visuals match the original preview. Phase 10 adds login against the sibling backend.
 
 ## Scripts
 
 ```bash
 npm install
-npm run dev      # local preview
+npm run dev      # local preview (proxies /api → localhost:5000)
 npm run build    # production build
 npm run lint     # ESLint (ignores dist / .vite)
 ```
 
-## Routes (15 screens)
+Start the API first:
+
+```bash
+cd ../backend
+npm run dev      # http://localhost:5000
+```
+
+### Demo login (seed)
+
+| Field | Value |
+|-------|-------|
+| Mobile | `9825012345` |
+| Email | `alkesh.patel@pdm.local` |
+| Password | `Password123` |
+
+## Routes
 
 | Path | Screen |
 |------|--------|
+| `/login` | Sign in (email or mobile + password) |
+| `/signup` | Ask admin (no self-registration) |
 | `/dashboard` | Dashboard |
 | `/tickets` | All tickets |
 | `/tickets/raise` · `/update` · `/close` · `/:id` · `/report` | Ticket flows + work report |
@@ -33,6 +50,7 @@ npm run lint     # ESLint (ignores dist / .vite)
 ## Source of truth
 
 - **Original UI (read-only):** `../parking_maintenance/`
+- **Backend API:** `../backend/` (port 5000)
 - **Product rules:** `SKILL.md`
 
 Do not modify the original `parking_maintenance` tree.

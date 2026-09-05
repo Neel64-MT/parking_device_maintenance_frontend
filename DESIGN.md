@@ -122,3 +122,16 @@ Fleet strip, ranked bars, filterbar, panels, tables (incl. `.split`), tabs, view
 ## Phase 8 — Responsive verification
 
 Signed off in MEMORY.md against the breakpoint table above. CSS lives in `src/index.css` (layout §§3–4, forms §§5, grids, tiles, mobile §§25, sticky-bar, responsive §§14). Drawer Escape/resize close is React-only hygiene; visuals match the original.
+
+## Phase 11 — Auth UI states
+
+Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual system).
+
+| State | Pattern |
+|-------|---------|
+| Pending signup success | Hint strip: wait for admin approval; link to login |
+| Login Pending error | `.auth-error`: "Please ask the admin to approve your request." |
+| Forgot password | Email field → generic success message (no account enumeration) |
+| Reset password | Token from query + new password (+ confirm in UI) |
+| Admin change password | Inline form on Users row/panel; toast on success |
+| Pending users | Pill tone warn/grey; **Approve** action when status is Pending |

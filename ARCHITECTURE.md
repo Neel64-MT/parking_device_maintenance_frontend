@@ -4,12 +4,12 @@
 
 ```text
 Browser
-  → React Router (one route per original HTML page)
-  → AppLayout (Sidebar + Topbar + Outlet)
+  → React Router
+  → /login|/signup (AuthLayout, no rail)  OR  RequireAuth → AppLayout
   → Page component (Dashboard, TicketList, …)
   → Page-local UI + shared components
-  → data/ mock modules (ISSUE_MASTER, REPORT, sample tables)
-  → toast helper (no backend yet)
+  → data/ mock modules (most screens) + services/auth for session
+  → toast helper
 ```
 
 ### Page flow (product)
@@ -25,25 +25,30 @@ Landing pages are menu destinations. Flow screens are routes reached by buttons/
 | Cascading issue selects | Local state or small controlled pair component |
 | Photo picker count | Local state in PhotoPicker |
 | Toast | Tiny module or React context (one provider max) |
-| Auth / session | None in original — keep mock `APP.user`; no auth library yet |
-| Global store (Redux/Zustand) | **Not needed** for preview parity |
+| Auth / session | `AuthContext` + Bearer JWT in `localStorage`; login via sibling backend |
+| Global store (Redux/Zustand) | **Not needed** |
 
 ### Data flow
 
-Original is a design preview: data lives in HTML rows and `app.js` / page scripts. React migration should:
+Original is a design preview: data lives in HTML rows and `app.js` / page scripts. React migration:
 
 1. Move `ISSUE_MASTER`, `PART_MASTER`, `TEAM`, report datasets into `src/data/`.
 2. Keep sample table rows as typed/plain JS arrays colocated with the page or under `src/data/`.
-3. Leave a clear seam (`src/services/`) for future API calls without wiring fake fetch until a backend exists.
+3. API seam in `src/services/` — auth is wired; other screens still use mocks until connected.
 
 ### Routing
 
-React Router. Paths mirror original filenames without `.html` (and use path params where ids appear later).
+React Router. Paths mirror original filenames without `.html`. Auth routes: `/login`, `/signup`, `/forgot-password`, `/reset-password`.
 
 ### Authentication / authorization
 
 - **Original:** Hardcoded user chip; permission matrix is UI-only on Users → Roles.
-- **React:** Preserve matrix UI and role help tables. Do not invent a login wall during migration unless approved. When APIs arrive, backend remains authoritative; UI checks mirror roles.
+- **React (Phase 10–11):** Login with email or mobile + password against `../backend`. JWT Bearer token.
+- **Signup approval:** `POST /api/auth/signup` creates `status=Pending` (default role Site attendant). Admin reviews on Users, may PATCH details/role, then `PATCH { status: 'Active' }`. Login rejects Pending with `PENDING_APPROVAL`.
+- **Forgot/reset:** Existing backend `POST /api/auth/forgot-password` + `reset-password` (SHA-256 token, 1h TTL, bcrypt). FE: `/forgot-password`, `/reset-password`.
+- **Admin change password:** Reuse `PATCH /api/users/:id` with `password` (requires Users edit). Increments `password_version` (invalidates JWTs).
+- **Existing users:** Migration adds `Pending` to status CHECK; seeded Active users unchanged.
+- Menu visibility by role is not fully enforced in the UI yet — backend remains authoritative.
 
 ---
 
@@ -55,27 +60,33 @@ Prefer page-centric, shallow structure. Adapt as files are added; do not invent 
 frontend/
 ├── PR.md, ARCHITECTURE.md, RULES.md, DESIGN.md, MEMORY.md, PHASES.md, SKILL(S).md
 ├── package.json
-├── vite.config.js
+├── vite.config.js            # /api + /uploads → localhost:5000
 ├── index.html
 ├── public/
 └── src/
     ├── main.jsx
-    ├── App.jsx                 # BrowserRouter + ToastProvider + PageMetaProvider
-    ├── routes.jsx              # Route table (15 screens + /dev/ui)
-    ├── index.css               # Tailwind + ported original CSS
+    ├── App.jsx                 # BrowserRouter + Toast + Auth + PageMeta
+    ├── routes.jsx              # Auth routes + 15 screens + /dev/ui
+    ├── index.css               # Tailwind + ported original CSS + auth layout
     ├── config/
     │   └── nav.js              # MENU, APP (from nav.js)
     ├── context/
+    │   ├── AuthContext.jsx
     │   ├── PageMetaContext.jsx
     │   └── ToastContext.jsx
+    ├── services/
+    │   ├── api.js
+    │   └── auth.js
     ├── data/                   # ISSUE_MASTER, tickets, devices, roads, users, …
     ├── layouts/
-    │   └── AppLayout.jsx       # rail + shell + outlet
+    │   ├── AppLayout.jsx       # rail + shell + outlet
+    │   └── AuthLayout.jsx      # login/signup chrome
     ├── components/
     │   ├── layout/             # Sidebar, Topbar
     │   ├── icons/
     │   └── ui/                 # Button, Panel, Pill, JumpLinks, …
     ├── pages/
+    │   ├── auth/               # Login, Signup
     │   ├── Dashboard.jsx
     │   ├── Users.jsx
     │   ├── UiKitDemo.jsx       # /dev/ui scratch (not in menu)

@@ -24,7 +24,8 @@
 - No purple gradients, cream+serif trends, or unrelated design systems.
 - No unnecessary libraries or state managers.
 - No modifying the original source project.
-- No inventing APIs, login, or features not in original or explicitly requested.
+- No inventing APIs or features not in original or explicitly requested.
+- Login / session were approved in Phase 10. Phase 11 adds self-signup (Pending → admin approve), forgot/reset password UI, and admin change-password via existing APIs. Do not add OTP or third-party auth without asking.
 - No reintroducing stripped features (inventory, SLA maps, SIM/battery fields, issue codes, etc.).
 - No turning flow screens into top-level menu items.
 - No merging multiple screens into one page.
@@ -72,9 +73,32 @@ Deep abstractions · Over-engineering · Magic helpers · Unnecessary patterns �
 - Control room can assign but not close; closing belongs to the holder — keep this in UI copy and future permission checks.
 - Deactivate users; never delete (preserve wording and buttons).
 - Do not expose secrets; preview has none. Future tokens stay out of logs and client bundles beyond what the API requires.
-- UI permission checks are advisory; backend will be authoritative later.
+- UI permission checks are advisory; backend is authoritative for Users edit (including password) and approval.
 
-## Original project access
+## Backend rules (Phase 11+)
+
+- Analyze existing APIs before modifying them.
+- Reuse existing services and utilities (`lib/auth.ts` hashing, reset tokens, `PATCH /api/users`).
+- Preserve existing API contracts where possible.
+- Do not rewrite working authentication logic.
+- Do not duplicate password or authorization logic.
+- Do not create unnecessary endpoints or database structures.
+- Keep changes small, targeted, readable, and manually maintainable.
+
+## Optimization rules
+
+- Write the minimum code required; avoid unnecessary abstractions and dependencies.
+- Avoid duplicate validation, queries, and authorization checks.
+- Reuse existing error handling (`ApiError` / `handleApiError`).
+- Do not perform unrelated refactoring.
+
+## Security rules
+
+- Never store plaintext passwords; reuse bcrypt via `hashPassword` / `verifyPassword`.
+- Protect approval and admin password-change with existing `authorize('Users', …)`.
+- Validate reset tokens; respect expiration; do not return tokens in API responses.
+- Do not expose whether an email exists on forgot-password (generic message).
+- Do not allow unauthorized role changes or self-approval.
 
 **READ-ONLY** on:
 

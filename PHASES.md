@@ -147,6 +147,41 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 10: Auth (login / signup)
+
+**Objective:** Wire real session against the sibling backend (`../backend`, port 5000).
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Vite proxy `/api` → `http://localhost:5000`.
+2. `src/services/api.js` + `auth.js` (Bearer JWT in `localStorage`).
+3. `AuthContext` with `RequireAuth` / `GuestOnly`.
+4. `/login` — email or mobile + password → `POST /api/auth/login`.
+5. `/signup` — informational only (Admin creates users).
+6. Topbar shows session user + Log out → `POST /api/auth/logout`.
+
+**Verification:** Login with seed `9825012345` or `alkesh.patel@pdm.local` / `Password123`; unauthenticated routes redirect to login; logout clears session.
+
+**Completion:** Auth wall active; most domain screens still mock data until later API wiring.
+
+---
+
+## Phase 11: Signup approval, forgot password, admin password
+
+**Objective:** Self-signup with admin approval; wire forgot/reset UI; admin change password on Users.
+
+**Backend:** `../backend` — migration `005_user_pending_status.sql`, `POST /api/auth/signup`, login `PENDING_APPROVAL`, users `?status=` filter (reuse PATCH for approve/password).
+
+**Frontend:** Signup form; `/forgot-password`, `/reset-password`; Login link; Users API list + Approve + Change password.
+
+**Verification:** Signup → pending login blocked → admin approve → login; forgot → reset → login; admin PATCH password; existing Active users still work.
+
+**Completion:** Flows in PR.md Phase 11 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
@@ -157,7 +192,7 @@ Phase 0 ──► Phase 1 ──► Phase 2 ──┬──► Phase 3
                                   └──► Phase 7
                                          │
                                          ▼
-                                      Phase 8 ──► Phase 9
+                      Phase 8 ──► Phase 9 ──► Phase 10 ──► Phase 11
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.
