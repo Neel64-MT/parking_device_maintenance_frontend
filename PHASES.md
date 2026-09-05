@@ -228,17 +228,68 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 14: Raise ticket flow + field action bars
+
+**Objective:** Simplify Raise ticket; keep PhotoPicker compact; put Cancel/primary actions in page flow (not fixed).
+
+**Status:** Complete
+
+**Frontend:**
+
+1. `TicketRaise.jsx` — drop step 3 assign/priority; reported-by from `useAuth()`; wrap actions in `.sticky-bar-inner`.
+2. `TicketUpdate.jsx` / `TicketClose.jsx` — same `.sticky-bar-inner` pattern.
+3. `index.css` — `.sticky-bar { position: static; background: transparent }`; inner `max-width: 580px`; reduce `.mobile` bottom padding (was for fixed bar).
+4. `PhotoPicker` — remain original 86×86 dashed tile (full-width experiment reverted).
+
+**Verification:** Raise shows two steps only; reported-by matches session; actions scroll with form and align to form width; Add photo is compact tile; docs updated.
+
+**Completion:** PR.md Phase 14 criteria pass.
+
+---
+
+## Phase 15: Ticket visibility + PM signup approval
+
+**Objective:** Enforce role-based ticket visibility; ensure Project Manager can approve/update signups like Admin.
+
+**Backend (mostly shipped; finish gaps):**
+
+1. `lib/ticket-access.ts` — already on list/export/detail/updates/close.
+2. Assign: road access only (Control room).
+3. Dashboard: `appendTicketVisibilitySql` on ticket-backed queries.
+4. PM Users `vce...` + migration `006` (already in backend).
+
+**Frontend:** Mirror ROLES PM Users; copy Admin/PM approval.
+
+**Verification:** Smoke visibility + PM approve + Control-room assign; dashboard scoped for tech.
+
+**Completion:** PR.md Phase 15 criteria pass.
+
+---
+
+## Phase 16: Frontend role-scoped ticket rendering
+
+**Objective:** Wire TicketList, Dashboard, and TicketDetail to backend-scoped APIs without client-side security filtering.
+
+**Tasks:**
+
+1. `services/tickets.js` + `services/dashboard.js` (+ envelope helper if list returns sibling tiles).
+2. TicketList → `GET /api/tickets`.
+3. Dashboard → `GET /api/dashboard`.
+4. TicketDetail → `GET /api/tickets/:id` with 403 UI.
+5. Docs finalize.
+
+**Out of scope:** Raise/Update/Close/WorkReport/DeviceDetail mocks; Work report ownership on backend.
+
+**Verification:** Lint; Admin/PM see broad data; technician scoped; foreign detail id errors.
+
+**Completion:** PR.md Phase 16 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► Phase 1 ──► Phase 2 ──┬──► Phase 3
-                                  ├──► Phase 4
-                                  ├──► Phase 5
-                                  ├──► Phase 6
-                                  └──► Phase 7
-                                         │
-                                         ▼
-                      Phase 8 ──► Phase 9 ──► Phase 10 ──► Phase 11 ──► Phase 12 ──► Phase 13
+Phase 0 ──► … ──► Phase 15 ──► Phase 16
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { PageMeta } from '../context/PageMetaContext'
 import { toast } from '../context/ToastContext'
@@ -256,6 +256,10 @@ export default function Users() {
 
   const activeCount = rows.filter((r) => r.status === 'Active').length
   const pendingCount = rows.filter((r) => r.status === 'Pending').length
+
+  if (!canView) {
+    return <Navigate to="/dashboard" replace />
+  }
 
   return (
     <>
@@ -539,7 +543,8 @@ export default function Users() {
 
             <div className="foot-note">
               A user is never deleted, only made inactive — their name has to stay readable on the
-              tickets they closed. Signup requests stay Pending until an Admin approves them.
+              tickets they closed. Signup requests stay Pending until an Admin or Project Manager
+              approves them.
             </div>
           </section>
         ) : null}

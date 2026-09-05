@@ -308,19 +308,21 @@ export default function TicketUpdate() {
 
         {loaded ? (
           <div className="sticky-bar">
-            <Link className="btn" to="/tickets">
-              Cancel
-            </Link>
-            <Button
-              variant={fixed === false ? 'dark' : 'primary'}
-              onClick={save}
-            >
-              {fixed === true
-                ? 'Fix done, close ticket'
-                : fixed === false
-                  ? 'Save update, keep open'
-                  : 'Save update'}
-            </Button>
+            <div className="sticky-bar-inner">
+              <Link className="btn" to="/tickets">
+                Cancel
+              </Link>
+              <Button
+                variant={fixed === false ? 'dark' : 'primary'}
+                onClick={save}
+              >
+                {fixed === true
+                  ? 'Fix done, close ticket'
+                  : fixed === false
+                    ? 'Save update, keep open'
+                    : 'Save update'}
+              </Button>
+            </div>
           </div>
         ) : null}
       </main>

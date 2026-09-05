@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast } from '../../context/ToastContext'
 import { ROAD_OPTIONS, SLOTS } from '../../data/slots'
@@ -8,7 +9,6 @@ import { DeviceCard } from '../../components/ui/DeviceCard'
 import { Field } from '../../components/ui/FilterBar'
 import { IssueSelects } from '../../components/ui/IssueSelects'
 import { PhotoPicker } from '../../components/ui/PhotoPicker'
-import { TeamSelect } from '../../components/ui/TeamSelect'
 
 function ScanIcon() {
   return (
@@ -20,13 +20,14 @@ function ScanIcon() {
 }
 
 export default function TicketRaise() {
+  const { user } = useAuth()
   const [road, setRoad] = useState('')
   const [slot, setSlot] = useState('')
   const [device, setDevice] = useState(null)
   const [category, setCategory] = useState('')
   const [subCategory, setSubCategory] = useState('')
-  const [assignee, setAssignee] = useState('Assign later — control room will decide')
 
+  const reportedBy = user?.name || ''
   const slotOptions = road ? SLOTS[road] || [] : []
 
   const crumb = useMemo(
@@ -170,14 +171,18 @@ export default function TicketRaise() {
             <Field label="Photos">
               <PhotoPicker hint="Add as many photos as you need — the slot, the flap, the display." />
             </Field>
-            <Field label="Reported by" style={{ marginBottom: 0 }}>
-              <select defaultValue="Site attendant">
-                <option>Site attendant</option>
-                <option>Control room</option>
-                <option>Citizen complaint</option>
-                <option>Maintenance team</option>
-                <option>AMC officer</option>
-              </select>
+            <Field
+              label="Reported by"
+              hint="Taken from the signed-in account. Assignment is done by Admin / control room."
+              style={{ marginBottom: 0 }}
+            >
+              <input
+                type="text"
+                value={reportedBy}
+                disabled
+                readOnly
+                aria-readonly="true"
+              />
             </Field>
           </div>
           <div className="foot-note">
@@ -186,45 +191,15 @@ export default function TicketRaise() {
           </div>
         </section>
 
-        <section className="panel">
-          <div className="panel-head">
-            <div className="step-head">
-              <div className="step-n">3</div>
-              <div>
-                <h3>Who should attend</h3>
-                <p>Leave it for the control room if you are not sure</p>
-              </div>
-            </div>
-          </div>
-          <div className="panel-body">
-            <Field
-              label="Assign to"
-              hint="Only the person holding the ticket can update or close it. They can hand it on to someone else at any time."
-            >
-              <TeamSelect
-                value={assignee}
-                onChange={(e) => setAssignee(e.target.value)}
-                firstOption="Assign later — control room will decide"
-              />
-            </Field>
-            <Field label="Priority" style={{ marginBottom: 0 }}>
-              <select defaultValue="From the severity of the sub-category">
-                <option>From the severity of the sub-category</option>
-                <option>Critical — attend today</option>
-                <option>Major — attend within 2 days</option>
-                <option>Minor — next service visit</option>
-              </select>
-            </Field>
-          </div>
-        </section>
-
         <div className="sticky-bar">
-          <Link className="btn" to="/tickets">
-            Cancel
-          </Link>
-          <Button variant="primary" onClick={() => toast('Design preview — ticket would be created here.')}>
-            Raise ticket
-          </Button>
+          <div className="sticky-bar-inner">
+            <Link className="btn" to="/tickets">
+              Cancel
+            </Link>
+            <Button variant="primary" onClick={() => toast('Design preview — ticket would be created here.')}>
+              Raise ticket
+            </Button>
+          </div>
         </div>
       </main>
     </>

@@ -29,21 +29,48 @@
   - Dashboard open-tickets panel removed (`OPEN_TICKETS` data dropped)
   - Fleet legend: tip copy in `Tooltip`; four columns aligned (no `legend-push`)
   - Panel `.foot-note` bottom-aligned in equal-height `.grid-2` cards
+- [x] **Phase 14 — Raise ticket flow + field action bars**
+  - Removed Raise step 3 (Who should attend / assign / priority)
+  - Reported by = signed-in user (read-only)
+  - PhotoPicker kept as original compact 86×86 tile (full-width Add photo reverted)
+  - `.sticky-bar` is `position: static` (not viewport-fixed) on Raise / Update / Close
+  - `.sticky-bar-inner` max-width `580px` to match `.mobile`; transparent bar (no white footer strip)
+- [x] **Phase 15 — Ticket visibility + PM signup approval**
+  - Read paths already used `lib/ticket-access.ts` (assignee OR raised_by; Admin/PM exempt)
+  - Assign: `assertRoadAccess` only (Control room can assign others’ tickets)
+  - Dashboard ticket queries use `appendTicketVisibilitySql`
+  - PM Users `vce...` (backend + migration 006); FE `ROLES` + approval copy synced
+  - Smoke: visibility, PM approve, Control-room assign, dashboard scope — pass
+- [x] **Phase 16 — FE role-scoped ticket rendering**
+  - `services/tickets.js` + `services/dashboard.js` (+ `apiEnvelope` for list tiles/tabs)
+  - TicketList → `GET /api/tickets` (tiles / tabs / pagination from API)
+  - Dashboard → `GET /api/dashboard` (fleet / downReasons / roadStatus)
+  - TicketDetail → `GET /api/tickets/:id` with 403/404 hint strip
+  - No client-side security filter; Raise/Update/Close/WorkReport still mock
+  - Lint + production build pass
 
 ## Currently working on
 
-- **Phase:** Phase 13 complete — docs audited.
+- **Phase:** — (Phase 16 complete)
 - **Task:** —
 - **File:** —
 
 ## Pending
 
-- Wire remaining domain screens to backend APIs
-- UI menu filtering by role permissions
+- Wire Raise/Update/Close/WorkReport/DeviceDetail to APIs
 - Live camera QR
 - Roles tab on Users still mostly preview matrix (list API available)
+- Real Settings preferences beyond profile/password
+- Backend Work report ownership scoping (if product requires)
 
 ## Important decisions
+
+1–15. Prior phases (auth, sidebar, Settings, Raise, ticket visibility API).
+16. FE TicketList / Dashboard / TicketDetail consume scoped APIs; no React security filter.
+17. WorkReport stays mock until backend report is ownership-scoped.
+19. Sidebar MENU items carry `screen` keys matching `user.permissions`; hide when no view (`v`); Settings stays always visible (no perm screen); `/users` without view redirects to `/dashboard`.
+
+## Important decisions (detail)
 
 1–11. Prior phases (filters UI-only, static detail samples, responsive, Phase 10 JWT).
 12. Reuse `users.status` with `Pending` (no new table). Existing users stay Active.
@@ -59,16 +86,19 @@
 22. Dashboard open-tickets table removed by product ask; All tickets remains the list surface.
 23. Page content fills shell width (no `1360px` cap) so open/collapsed rail does not leave a right gutter.
 24. Fleet secondary status phrases use shared `Tooltip` component; legend uses equal columns.
+25. Raise ticket does not assign on create; reported-by comes from session.
+26. Field-flow action bars stay in document flow (`position: static`); do not pin to viewport unless product asks again.
+27. Add photo stays the compact dashed tile; do not full-bleed without product ask.
 
 ## Known issues / gaps
 
 | Gap | Detail |
 |-----|--------|
-| Domain screens | Still mostly mock `src/data/` except auth, Users admin, Settings profile/password |
+| Domain screens | Raise/Update/Close/WorkReport/DeviceDetail still mock; TicketList/Dashboard/TicketDetail/Users/auth live |
 | Roles tab | Permission matrix save still toast/preview |
 | Forgot SMTP | Dev logs reset URL when SMTP unset |
 | Backend restart | New `/api/auth/me` PATCH + `/change-password` need backend process reload |
 
 ## Handoff notes
 
-Run `npm run db:migrate` in `../backend` before testing. Restart backend after Phase 13 auth routes. Admin seed: `9000000001` / `Password123`. Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password.
+Run `npm run db:migrate` in `../backend` before testing. Restart backend after Phase 13 auth routes. Admin seed: `9000000001` / `Password123`. Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Ticket list/detail/dashboard respect backend visibility (Admin/PM all; others assignee or raised_by).

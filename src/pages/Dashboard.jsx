@@ -1,15 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageMeta } from '../context/PageMetaContext'
+import { useAuth } from '../context/AuthContext'
+import { ApiRequestError } from '../services/api'
+import { getDashboard } from '../services/dashboard'
+import { canPerm } from '../services/users'
 import { JumpLinks } from '../components/ui/JumpLinks'
 import { Panel } from '../components/ui/Panel'
 import { Tooltip } from '../components/ui/Tooltip'
-import {
-  DASHBOARD_ROADS,
-  DOWN_REASONS,
-  FLEET,
-  ROAD_STATUS,
-} from '../data/dashboard'
+import { DASHBOARD_ROADS } from '../data/dashboard'
+
+const LEGEND_DOT = {
+  Working: 'seg-ok',
+  'Under repair': 'seg-warn',
+  'Not working': 'seg-bad',
+}
+
+const LEGEND_TIP = {
+  'Under repair': 'Technician assigned',
+  'Not working': 'Ticket open, not yet attended',
+}
 
 function DashboardFilters({ road, from, to, onRoad, onFrom, onTo }) {
   return (
@@ -38,25 +48,81 @@ function DashboardFilters({ road, from, to, onRoad, onFrom, onTo }) {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth()
+  const canView = canPerm(user, 'Dashboard', 'v')
+
   const [road, setRoad] = useState('All roads')
   const [from, setFrom] = useState('2026-08-01')
   const [to, setTo] = useState('2026-09-01')
 
+  const [crumb, setCrumb] = useState('Fleet status')
+  const [fleet, setFleet] = useState(null)
+  const [downReasons, setDownReasons] = useState([])
+  const [roadStatus, setRoadStatus] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      if (!canView) {
+        if (!cancelled) {
+          setLoading(false)
+          setLoadError('You do not have permission to view the dashboard.')
+        }
+        return
+      }
+      if (!cancelled) {
+        setLoadError('')
+        setLoading(true)
+      }
+      try {
+        const data = await getDashboard({ road, from, to })
+        if (cancelled) return
+        setCrumb(data.crumb || 'Fleet status')
+        setFleet(data.fleet || null)
+        setDownReasons(data.downReasons || [])
+        setRoadStatus(data.roadStatus || [])
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(err instanceof ApiRequestError ? err.message : 'Could not load dashboard.')
+          setFleet(null)
+          setDownReasons([])
+          setRoadStatus([])
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [canView, road, from, to])
+
+  const legend = (fleet?.legend || []).map((item) => ({
+    ...item,
+    dot: LEGEND_DOT[item.label],
+    tip: LEGEND_TIP[item.label],
+  }))
+
+  const bar = fleet?.bar || []
+  const ariaLabel = legend.map((i) => `${i.value} ${i.label}`).join(', ')
+  const downTotal = downReasons.reduce((s, r) => s + (r.n || 0), 0)
+
   return (
     <>
-      <PageMeta
-        pageId="dashboard"
-        title="Dashboard"
-        crumb="Fleet status as on 01 Sep 2026, 10:42 AM"
-      />
+      <PageMeta pageId="dashboard" title="Dashboard" crumb={crumb} />
 
       <main className="page">
         <JumpLinks
           links={[
             { to: '/tickets', label: 'All tickets' },
-            { to: '/tickets/report', label: 'Work report' },
-            { to: '/devices', label: 'Devices' },
             { to: '/tickets/raise', label: 'Raise a ticket' },
+            { to: '/tickets/update', label: 'Update a ticket' },
+            { to: '/devices', label: 'Devices' },
           ]}
         />
 
@@ -71,58 +137,78 @@ export default function Dashboard() {
           />
         </div>
 
-        <section className="fleet">
-          <div className="fleet-head">
-            <div className="total">{FLEET.total}</div>
-            <div className="cap">{FLEET.caption}</div>
-            <div className="stamp">{FLEET.stamp}</div>
+        {loadError ? (
+          <div className="hint-strip auth-error" role="alert" style={{ marginBottom: 16 }}>
+            <span>{loadError}</span>
           </div>
+        ) : null}
 
-          <div className="bar" role="img" aria-label={FLEET.ariaLabel}>
-            {FLEET.bar.map((seg) => (
-              <span
-                key={seg.className}
-                className={seg.className}
-                style={{ width: seg.width }}
-              />
-            ))}
-          </div>
+        {loading && !fleet ? (
+          <p className="muted">Loading dashboard…</p>
+        ) : null}
 
-          <div className="legend">
-            {FLEET.legend.map((item) => {
-              const link = (
-                <Link to={item.to}>
-                  <b>{item.value}</b>
-                  <small>{item.label}</small>
-                </Link>
-              )
-              return (
-                <div key={item.label}>
-                  {item.dot ? <i className={`dot ${item.dot}`} /> : null}
-                  {item.tip ? <Tooltip content={item.tip}>{link}</Tooltip> : link}
-                </div>
-              )
-            })}
-          </div>
-        </section>
+        {fleet ? (
+          <section className="fleet">
+            <div className="fleet-head">
+              <div className="total">{fleet.total}</div>
+              <div className="cap">{fleet.caption}</div>
+              <div className="stamp">{fleet.stamp}</div>
+            </div>
+
+            <div className="bar" role="img" aria-label={ariaLabel || 'Fleet status'}>
+              {bar.map((seg) => (
+                <span
+                  key={seg.className}
+                  className={seg.className}
+                  style={{ width: seg.width }}
+                />
+              ))}
+            </div>
+
+            <div className="legend">
+              {legend.map((item) => {
+                const link = (
+                  <Link to={item.to || '/tickets'}>
+                    <b>{item.value}</b>
+                    <small>{item.label}</small>
+                  </Link>
+                )
+                return (
+                  <div key={item.label}>
+                    {item.dot ? <i className={`dot ${item.dot}`} /> : null}
+                    {item.tip ? <Tooltip content={item.tip}>{link}</Tooltip> : link}
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        ) : null}
 
         <div className="grid-2">
           <Panel
             title="Why devices are down"
-            subtitle="83 devices · grouped by issue found on site"
+            subtitle={
+              downTotal
+                ? `${downTotal} open tickets · grouped by issue found on site`
+                : 'Open tickets · grouped by issue found on site'
+            }
             link="View tickets"
             linkTo="/tickets"
             bodyStyle={{ paddingTop: 6 }}
             foot={
               <>
-                External damage and mechanical failure together account for 35% of all downtime
-                this month.
+                Counts follow tickets you are allowed to see.
                 <Link to="/tickets">Full breakdown</Link>
               </>
             }
           >
-            {DOWN_REASONS.map((row) => (
-              <Link key={row.name} className="rank-row" to="/tickets">
+            {!loading && !downReasons.length ? (
+              <p className="muted" style={{ margin: 0 }}>
+                No open-ticket reasons in this scope.
+              </p>
+            ) : null}
+            {downReasons.map((row) => (
+              <Link key={`${row.name}-${row.category}`} className="rank-row" to="/tickets">
                 <div className="name">
                   {row.name}
                   <em>{row.category}</em>
@@ -141,7 +227,7 @@ export default function Dashboard() {
             link="Road master"
             linkTo="/masters/roads"
             flush
-            foot="Science City carries 60% of the fleet and 55% of open faults."
+            foot="Working / repair / down derived from open tickets in your access scope."
           >
             <div className="table-wrap">
               <table>
@@ -155,7 +241,14 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {ROAD_STATUS.map((r) => (
+                  {!loading && !roadStatus.length ? (
+                    <tr>
+                      <td colSpan={5}>
+                        <span className="muted">No road data.</span>
+                      </td>
+                    </tr>
+                  ) : null}
+                  {roadStatus.map((r) => (
                     <tr key={r.name}>
                       <td>
                         <Link to="/devices">{r.name}</Link>

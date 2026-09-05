@@ -1345,12 +1345,53 @@ td a:not(.btn):not(.code):hover {
 
 .tabs {
   display: flex;
+  align-items: center;
   gap: 0;
   background: var(--surface);
   border: 1px solid var(--line);
   border-bottom: 0;
   border-radius: var(--r) var(--r) 0 0;
   overflow-x: auto;
+}
+.tabs-list {
+  display: flex;
+  gap: 0;
+  flex: 1;
+  min-width: 0;
+}
+.tabs-row .tabs-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  margin-left: auto;
+  padding: 8px 14px 8px 8px;
+}
+.tabs-actions input[type='search'],
+.tabs-actions input[type='text'] {
+  min-width: 190px;
+  height: 34px;
+}
+@media (max-width: 760px) {
+  .tabs-row {
+    flex-wrap: wrap;
+  }
+  .tabs-row .tabs-list {
+    width: 100%;
+    overflow-x: auto;
+  }
+  .tabs-row .tabs-actions {
+    width: 100%;
+    margin-left: 0;
+    padding: 0 14px 12px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .tabs-actions input[type='search'],
+  .tabs-actions input[type='text'] {
+    min-width: 0;
+    flex: 1;
+  }
 }
 .tabs button {
   display: flex;
@@ -1655,7 +1696,7 @@ td a:not(.btn):not(.code):hover {
   z-index: 12;
   width: max-content;
   max-width: min(280px, 70vw);
-  min-width: 10rem;
+  min-width: 8rem;
   padding: 8px 11px;
   border-radius: var(--r-sm);
   background: var(--navy);
@@ -1741,6 +1782,20 @@ a.rank-row:hover .name {
 }
 
 /* ---------- Record + timeline (original §§17–18) ---------- */
+/* ---------- Back link (above record / detail cards) ---------- */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--teal-dk);
+}
+.back-link:hover {
+  text-decoration: underline;
+}
+
 .record {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -1908,7 +1963,7 @@ a.rank-row:hover .name {
 .mobile {
   max-width: 580px;
   margin: 0 auto;
-  padding-bottom: 88px;
+  padding-bottom: 24px;
 }
 .mobile .panel {
   margin-bottom: 14px;
@@ -2034,28 +2089,26 @@ a.rank-row:hover .name {
 }
 
 .sticky-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 25;
-  background: var(--surface);
-  border-top: 1px solid var(--line);
-  padding: 12px 16px;
+  position: static;
+  background: transparent;
+  border-top: 0;
+  padding: 16px 0 0;
+  margin-top: 8px;
+  display: flex;
+  justify-content: center;
+  box-shadow: none;
+  z-index: auto;
+}
+.sticky-bar-inner {
   display: flex;
   gap: 10px;
-  box-shadow: 0 -3px 14px rgba(15, 36, 56, 0.07);
+  width: 100%;
+  max-width: 580px;
 }
 .sticky-bar .btn {
   flex: 1;
   height: 48px;
   font-size: 15px;
-}
-@media (min-width: 821px) {
-  .sticky-bar {
-    left: var(--rail);
-    transition: left 0.38s cubic-bezier(0.4, 0, 0.2, 1);
-  }
 }
 
 /* ---------- Work report person block (original §§30) ---------- */

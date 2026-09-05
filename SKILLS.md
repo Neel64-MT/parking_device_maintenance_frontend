@@ -129,6 +129,19 @@ Inspect existing code
 - Extend `NavIcons.jsx` for new glyphs; do not add lucide/heroicons.
 - Collapsed group click: expand the rail, then open the group (no flyout menus).
 
+## Ticket access skills (Phase 15+)
+
+- Reuse `appendTicketVisibilitySql` / `assertTicketAccess` from backend `lib/ticket-access.ts`.
+- Read paths filter by ownership; **assign** uses road scope only.
+- PM signup approval = Users `e` on existing PATCH — sync FE `ROLES` matrix with `DEFAULT_ROLE_PERMS`.
+
+## Frontend ticket API skills (Phase 16+)
+
+- Wire list/dashboard/detail to `/api/tickets` and `/api/dashboard`; render API payload as-is.
+- Reuse `canPerm` + Users loading/empty/error; do not add React Query or a role store.
+- Ticket list envelope includes `tiles` / `tabCounts` beside `data` — use `apiEnvelope` (or equivalent), not `api()` alone.
+- Never treat client-side row filtering as authorization.
+
 ## Definition of done (per page)
 
 - Matches original layout and key measurements

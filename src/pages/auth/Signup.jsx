@@ -52,10 +52,11 @@ export default function Signup() {
 
   if (done) {
     return (
-      <Panel title="Request received" subtitle="Your account is waiting for admin approval">
+      <Panel title="Request received" subtitle="Your account is waiting for approval">
         <div className="hint-strip" style={{ marginBottom: 16 }}>
           <span>
-            Please ask the admin to approve your request. You will be able to sign in once your
+            Please ask an Admin or Project Manager to approve your request. You will be able to sign
+            in once your
             account is Active.
           </span>
         </div>
@@ -71,7 +72,7 @@ export default function Signup() {
   return (
     <Panel
       title="Sign up"
-      subtitle="Request an account — an Admin must approve before you can sign in"
+      subtitle="Request an account — an Admin or Project Manager must approve before you can sign in"
     >
       {error ? (
         <div className="hint-strip auth-error" role="alert">

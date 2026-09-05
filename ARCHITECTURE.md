@@ -47,7 +47,9 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 
 - **Original:** Hardcoded user chip; permission matrix is UI-only on Users → Roles.
 - **React (Phase 10–11):** Login with email or mobile + password against `../backend`. JWT Bearer token.
-- **Signup approval:** `POST /api/auth/signup` creates `status=Pending` (default role Site attendant). Admin reviews on Users, may PATCH details/role, then `PATCH { status: 'Active' }`. Login rejects Pending with `PENDING_APPROVAL`.
+- **Signup approval:** `POST /api/auth/signup` creates `status=Pending` (default role Site attendant). **Admin or Project Manager** (Users `e`) reviews on Users, may PATCH details/role, then `PATCH { status: 'Active' }`. Login rejects Pending with `PENDING_APPROVAL`.
+- **Ticket visibility (backend):** Admin / Project manager keep city-wide access. Everyone else: SQL `(assignee_id = me OR raised_by_user_id = me)` via `lib/ticket-access.ts` on list/export/detail. Assign uses road scope only (so Control room can assign). Dashboard open-ticket queries use the same visibility fragment.
+- **Ticket UI (Phase 16):** TicketList, Dashboard, and TicketDetail call live APIs and render whatever the backend returns. Frontend does not filter tickets for security. Raise/Update/Close/WorkReport remain mock.
 - **Forgot/reset:** Existing backend `POST /api/auth/forgot-password` + `reset-password` (SHA-256 token, 1h TTL, bcrypt). FE: `/forgot-password`, `/reset-password`.
 - **Admin change password:** Reuse `PATCH /api/users/:id` with `password` (requires Users edit). Increments `password_version` (invalidates JWTs).
 - **Self-service Settings (Phase 13):**
@@ -180,3 +182,20 @@ aside.rail[.collapsed]
 ```
 
 Landing filters and primary CTAs live in the page body (`.page-toolbar`, panel-head actions, JumpLinks `actions`), not the sticky topbar.
+
+### Field ticket flows (Phase 14)
+
+```text
+Raise / Update / Close
+  → .page.mobile (max-width 580px)
+  → panels…
+  → .sticky-bar > .sticky-bar-inner (in-flow actions, not position:fixed)
+```
+
+| Concern | Mechanism |
+|---------|-----------|
+| Raise steps | Device + problem only; reported-by from `AuthContext` |
+| No assign on raise | Control room / Admin assigns later |
+| Photo picker | Compact `.photo-add` tile (shared `PhotoPicker`) |
+| Action bar | `position: static`; transparent; width capped at `580px` via `.sticky-bar-inner` |
+| Pages | `TicketRaise`, `TicketUpdate`, `TicketClose` |

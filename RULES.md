@@ -39,12 +39,36 @@
 - Settings panels size to content (`.settings-grid`); save actions sit at the bottom of each form (`.settings-actions`).
 - Topbar logout uses an icon + confirmation modal before calling logout.
 
+## Ticket visibility & signup approval (Phase 15+)
+
+- Ticket access must be enforced **server-side** (`lib/ticket-access.ts`); do not rely on React filtering.
+- Non–Admin/PM users only see tickets they raised or are assigned to (`assignee_id` / `raised_by_user_id`).
+- Admin and Project manager keep existing city-wide ticket visibility.
+- Assign (`All tickets` `a`) uses **road access only** — do not apply ownership filter on assign (Control room must assign others’ tickets).
+- Project Manager signup approval reuses `PATCH /api/users/:id` + Users `e` (PM seeded `vce...`); do not duplicate Admin logic.
+- Do not invent a separate role hierarchy unless product asks; avoid unnecessary queries and abstractions.
+
+## Frontend ticket rendering (Phase 16+)
+
+- TicketList / Dashboard / TicketDetail must consume scoped APIs; never download all tickets and filter in React for authorization.
+- Reuse `canPerm` and Users loading/empty/error patterns; do not add a second role store.
+- Preserve existing layout; only bind live data.
+- Leave Raise/Update/Close/WorkReport mock until those APIs are wired (Work report backend is not ownership-scoped yet).
+
 ## Landing chrome rules
 
 - Prefer page-body toolbars (`.page-toolbar`, JumpLinks `actions`, panel-head actions, collapsible filters) over sticky topbar action slots for filters and primary CTAs.
 - Dashboard no longer shows the open-tickets table; use All tickets for that list.
 - Fleet legend secondary status notes belong in `Tooltip`, not inline `<em>` copy.
 - Panel `.foot-note` should sit at the bottom of equal-height grid cards (`margin-top: auto`).
+
+## Field ticket flow rules (Phase 14+)
+
+- Raise ticket has **two steps** (device + problem). Do not restore the “Who should attend” assign/priority panel unless product asks.
+- **Reported by** is the signed-in user (read-only). Assignment stays with Admin / control room elsewhere.
+- Keep `PhotoPicker` as the original compact dashed tile — do not stretch Add photo full-width without product ask.
+- Field action rows (`.sticky-bar`) must stay in **document flow** (`position: static`). Do not reintroduce viewport-fixed footers without product ask.
+- Constrain action buttons with `.sticky-bar-inner` to the mobile form width (`580px`). Keep the bar background transparent (no full-bleed white strip).
 
 ## What to avoid
 

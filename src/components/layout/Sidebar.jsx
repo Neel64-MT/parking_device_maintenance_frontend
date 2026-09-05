@@ -1,13 +1,18 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { APP, MENU, SETTINGS, isMenuItemOn } from '../../config/nav'
+import { APP, MENU, SETTINGS, filterMenuByView, isMenuItemOn } from '../../config/nav'
 import { NavIcon } from '../icons/NavIcons'
+import { useAuth } from '../../context/AuthContext'
 import { usePageMeta } from '../../context/PageMetaContext'
+import { canPerm } from '../../services/users'
 
 export function Sidebar({ open, onNavigate, collapsed = false }) {
   const { pageId } = usePageMeta()
+  const { user } = useAuth()
   /** Manual open/close overrides; unset keys fall back to “child page is active”. */
   const [expanded, setExpanded] = useState({})
+
+  const menu = filterMenuByView(MENU, (screen) => canPerm(user, screen, 'v'))
 
   function isGroupOpen(index, item) {
     if (Object.prototype.hasOwnProperty.call(expanded, index)) {
@@ -51,7 +56,7 @@ export function Sidebar({ open, onNavigate, collapsed = false }) {
       </div>
 
       <nav className="nav" aria-label="Main">
-        {MENU.map((m, index) => {
+        {menu.map((m, index) => {
           if (!m.children) {
             const active = isMenuItemOn(m, pageId)
             return (

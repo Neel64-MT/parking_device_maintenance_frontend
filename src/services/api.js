@@ -28,7 +28,8 @@ export class ApiRequestError extends Error {
   }
 }
 
-export async function api(path, options = {}) {
+/** Full success payload (data + sibling fields such as tiles / pagination). */
+export async function apiEnvelope(path, options = {}) {
   const { method = 'GET', body, auth = true, headers: extraHeaders } = options
   const headers = { ...(extraHeaders || {}) }
 
@@ -65,5 +66,10 @@ export async function api(path, options = {}) {
     })
   }
 
+  return payload
+}
+
+export async function api(path, options = {}) {
+  const payload = await apiEnvelope(path, options)
   return payload?.data
 }

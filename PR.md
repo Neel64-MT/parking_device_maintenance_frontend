@@ -29,11 +29,11 @@ Where scope and code differ, see **Gaps vs Claude scope** below.
 | **Site attendant** | Scan QR / pick road+slot, raise tickets on assigned roads |
 | **Technician** | Update visits on site, close tickets they hold, mobile-first flows |
 | **Control room** | Raise and assign tickets; cannot close |
-| **Project manager** | Dashboard, reports, masters, assign/close; not user admin |
+| **Project manager** | Dashboard, reports, masters, assign/close; manage users / approve signups (Users `vce...`) |
 | **Admin** | Full control including users and roles |
 | **AMC officer** | View-only across roads |
 
-Preview UI originally hardcoded user **Alkesh P. / Project manager** in the sidebar. **Phase 10** added real login against the sibling backend. **Phase 11** adds self-signup with admin approval, forgot/reset password UI, and admin change-password on Users. **Phase 12** adds Settings in the sidebar bottom utility + desktop rail collapse. **Phase 13** wires Settings account forms (profile + password) and shell/dashboard UX polish.
+Preview UI originally hardcoded user **Alkesh P. / Project manager** in the sidebar. **Phase 10** added real login against the sibling backend. **Phase 11** adds self-signup with admin approval, forgot/reset password UI, and admin change-password on Users. **Phase 12** adds Settings in the sidebar bottom utility + desktop rail collapse. **Phase 13** wires Settings account forms (profile + password) and shell/dashboard UX polish. **Phase 14** simplifies Raise ticket (no assign step) and makes field-flow action bars in-document (not fixed).
 
 ---
 
@@ -67,7 +67,7 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 
 1. Dashboard — fleet strip, why-down ranked bars, road-wise table (open-tickets table removed in Phase 13)
 2. All tickets — tiles, filters, New/Assigned/Closed tabs, table
-3. Raise ticket — mobile-first steps: device, problem (reported-by = session user)
+3. Raise ticket — mobile-first steps: device, problem; reported-by = session user (read-only); no assign/priority step; PhotoPicker stays compact tile; Cancel / Raise actions in page flow (not fixed)
 4. Update ticket — mobile-first: device → diagnosis → fixed/not fork
 5. Close ticket — mobile-first: final issue, resolution, cost, confirm
 6. Ticket detail — record header, work history timeline, classification, assignment trail
@@ -147,7 +147,7 @@ Per product skill — unless the user asks again:
 
 ## Success criteria
 
-A reviewer comparing original HTML pages side-by-side with React routes cannot spot intentional redesign differences in layout, typography, color, spacing, or primary interactions. All 15 screens exist as routes. Shared nav/menu matching works. Field flows remain mobile-first with sticky bars.
+A reviewer comparing original HTML pages side-by-side with React routes cannot spot intentional redesign differences in layout, typography, color, spacing, or primary interactions. All 15 screens exist as routes. Shared nav/menu matching works. Field flows remain mobile-first; action bars follow document flow (not viewport-fixed) after Phase 14.
 
 ### Phase 9 verification (signed off)
 
@@ -219,3 +219,42 @@ Shell → page fills available width (no 1360px cap); panel foot notes bottom-al
 | Fleet secondary status copy in Tooltip; four legend columns aligned | Pass |
 | Dashboard open-tickets table removed (All tickets remains) | Pass |
 | Page content uses full shell width (sidebar open or collapsed) | Pass |
+
+### Phase 14 — Raise ticket flow + field action bars
+
+```text
+Raise ticket → steps 1–2 only (device + problem)
+Reported by → signed-in user (read-only); assignment left to Admin / control room
+PhotoPicker → original compact 86×86 dashed tile (not full-width strip)
+Action bar → .sticky-bar position:static; .sticky-bar-inner max-width 580px (match .mobile)
+No white full-bleed footer; transparent bar; Raise / Update / Close pages share pattern
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Raise has no “Who should attend” step | Pass |
+| Reported by shows session user name | Pass |
+| Add photo remains compact tile | Pass |
+| Cancel / primary actions not `position: fixed` | Pass |
+| Action row width matches mobile form (`580px`) | Pass |
+
+### Phase 15 — Ticket visibility + PM signup approval
+
+| Criterion | Result |
+|-----------|--------|
+| Non–Admin/PM ticket list/detail: assignee OR raised_by only | Pass |
+| Admin/PM city-wide ticket visibility preserved | Pass |
+| Assign uses road access (Control room can assign) | Pass |
+| Dashboard open-ticket queries respect visibility | Pass |
+| PM Users `vce...` + approve via existing PATCH | Pass |
+| FE ROLES matrix mirrors PM Users | Pass |
+
+### Phase 16 — Frontend role-scoped ticket rendering
+
+| Criterion | Result |
+|-----------|--------|
+| TicketList consumes `GET /api/tickets` (no client security filter) | Pass |
+| Dashboard consumes `GET /api/dashboard` scoped metrics | Pass |
+| TicketDetail consumes `GET /api/tickets/:id`; 403/404 shown | Pass |
+| Backend remains security boundary | Pass |
+| Raise/Update/Close/WorkReport stay mock this phase | Pass |

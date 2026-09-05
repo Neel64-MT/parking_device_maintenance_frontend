@@ -97,7 +97,7 @@ Grids: `.grid-2` 1.25fr/1fr; `.grid-2-even` 1fr/1fr; collapse ≤1080. `.grid-ma
 
 | Width | Behavior |
 |-------|----------|
-| ≤820px | Sidebar off-canvas; menu button; hide `.topbar-actions`; page padding shrink; sticky-bar full width; facts 2-col; collapse toggle N/A (full labels in drawer) |
+| ≤820px | Sidebar off-canvas; menu button; hide `.topbar-actions`; page padding shrink; facts 2-col; collapse toggle N/A (full labels in drawer) |
 | ≥821px | Sticky bar offset by rail; desktop expand/collapse toggle |
 | ≤760px | Form grid / class-pair stack |
 | ≤900px | Tiles → 2 columns |
@@ -133,7 +133,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 
 | State | Pattern |
 |-------|---------|
-| Pending signup success | Hint strip: wait for admin approval; link to login |
+| Pending signup success | Hint strip: wait for Admin or Project Manager approval; link to login |
 | Login Pending error | `.auth-error`: "Please ask the admin to approve your request." |
 | Forgot password | Email field → generic success message (no account enumeration) |
 | Reset password | Token from query + new password (+ confirm in UI) |
@@ -165,3 +165,32 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Panel foot | `.foot-note { margin-top: auto }` inside flex column panels in `.grid-2` |
 | Settings | Two content-sized panels (`.settings-grid`); Password form asks for current password; actions in `.settings-actions` at form foot |
 | Landing filters | `.page-toolbar` / JumpLinks `actions` / panel-head / `.collapse-filter` — not topbar |
+
+## Phase 14 — Raise ticket + field action bars
+
+| Item | Pattern |
+|------|---------|
+| Raise steps | 1 device + 2 problem only; remove assign/priority panel |
+| Reported by | Read-only input from `useAuth().user.name` |
+| Photo add | Compact `.photo-add` 86×86 dashed tile (original preview) |
+| Action bar | `.sticky-bar { position: static }` — scrolls with page, not viewport-fixed |
+| Action width | `.sticky-bar-inner { max-width: 580px }` matches `.mobile` |
+| Action chrome | Transparent background; no full-bleed white footer / top border / shadow |
+| Shared on | Raise, Update, Close ticket pages |
+
+## Phase 15 — Ticket visibility (UX notes)
+
+| Item | Behavior |
+|------|----------|
+| Ticket list (when API-wired) | Backend returns only authorized tickets; empty list uses existing empty-state |
+| Users Approve | Visible when session has Users `e` (Admin or Project Manager) |
+| Roles matrix preview | Mirror PM Users `vce...` to match backend seed |
+
+## Phase 16 — FE ticket/dashboard API binding
+
+| Item | Pattern |
+|------|---------|
+| TicketList | `listTickets` → tiles / tabCounts / rows from API; loading/empty/error like Users |
+| Dashboard | `getDashboard` → fleet / downReasons / roadStatus; filters refetch |
+| TicketDetail | `getTicket(id)` → header/history; 403/404 hint-strip |
+| Security | No client-side “hide unauthorized rows” as the access control |
