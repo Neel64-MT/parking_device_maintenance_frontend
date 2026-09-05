@@ -34,16 +34,6 @@ export default function RoadList() {
     })
   }, [query])
 
-  const actions = useMemo(
-    () => (
-      <Link className="btn btn-primary" to="/masters/roads/add">
-        <PlusIcon />
-        Add road
-      </Link>
-    ),
-    [],
-  )
-
   function resetFilters() {
     setZone(FILTER_DEFAULTS.zone)
     setStatus(FILTER_DEFAULTS.status)
@@ -56,7 +46,6 @@ export default function RoadList() {
         pageId="road-list"
         title="Road master"
         crumb="5 roads · 1,000 devices mapped"
-        actions={actions}
       />
 
       <main className="page">
@@ -104,6 +93,10 @@ export default function RoadList() {
             <div className="actions">
               <Link className="btn btn-sm" to="/devices">
                 View devices
+              </Link>
+              <Link className="btn btn-sm btn-primary" to="/masters/roads/add">
+                <PlusIcon />
+                Add road
               </Link>
             </div>
           </div>

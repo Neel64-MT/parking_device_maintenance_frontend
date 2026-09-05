@@ -50,18 +50,6 @@ export default function WorkReport() {
     [],
   )
 
-  const actions = useMemo(
-    () => (
-      <>
-        <Views views={VIEW_OPTIONS} value={view} onChange={setView} />
-        <Button variant="dark" onClick={() => toast('Design preview — export would run here.')}>
-          Export
-        </Button>
-      </>
-    ),
-    [view],
-  )
-
   function resetFilters() {
     setFrom('2026-09-01')
     setTo('2026-09-01')
@@ -71,7 +59,7 @@ export default function WorkReport() {
 
   return (
     <>
-      <PageMeta pageId="ticket-report" title="Work report" crumb={crumb} actions={actions} />
+      <PageMeta pageId="ticket-report" title="Work report" crumb={crumb} />
 
       <main className="page">
         <JumpLinks
@@ -81,6 +69,15 @@ export default function WorkReport() {
             { to: '/users', label: 'Users and roles' },
           ]}
         />
+
+        <div className="page-toolbar push-end">
+          <Views views={VIEW_OPTIONS} value={view} onChange={setView} />
+          <div className="page-toolbar-end">
+            <Button variant="dark" onClick={() => toast('Design preview — export would run here.')}>
+              Export
+            </Button>
+          </div>
+        </div>
 
         <FilterBar
           actions={<Button onClick={resetFilters}>Reset</Button>}

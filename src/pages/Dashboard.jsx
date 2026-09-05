@@ -1,14 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageMeta } from '../context/PageMetaContext'
 import { JumpLinks } from '../components/ui/JumpLinks'
 import { Panel } from '../components/ui/Panel'
-import { Pill } from '../components/ui/Pill'
+import { Tooltip } from '../components/ui/Tooltip'
 import {
   DASHBOARD_ROADS,
   DOWN_REASONS,
   FLEET,
-  OPEN_TICKETS,
   ROAD_STATUS,
 } from '../data/dashboard'
 
@@ -43,27 +42,12 @@ export default function Dashboard() {
   const [from, setFrom] = useState('2026-08-01')
   const [to, setTo] = useState('2026-09-01')
 
-  const actions = useMemo(
-    () => (
-      <DashboardFilters
-        road={road}
-        from={from}
-        to={to}
-        onRoad={setRoad}
-        onFrom={setFrom}
-        onTo={setTo}
-      />
-    ),
-    [road, from, to],
-  )
-
   return (
     <>
       <PageMeta
         pageId="dashboard"
         title="Dashboard"
         crumb="Fleet status as on 01 Sep 2026, 10:42 AM"
-        actions={actions}
       />
 
       <main className="page">
@@ -75,6 +59,17 @@ export default function Dashboard() {
             { to: '/tickets/raise', label: 'Raise a ticket' },
           ]}
         />
+
+        <div className="page-toolbar">
+          <DashboardFilters
+            road={road}
+            from={from}
+            to={to}
+            onRoad={setRoad}
+            onFrom={setFrom}
+            onTo={setTo}
+          />
+        </div>
 
         <section className="fleet">
           <div className="fleet-head">
@@ -94,18 +89,20 @@ export default function Dashboard() {
           </div>
 
           <div className="legend">
-            {FLEET.legend.map((item) => (
-              <div key={item.label} className={item.push ? 'legend-push' : undefined}>
-                {item.dot ? <i className={`dot ${item.dot}`} /> : null}
+            {FLEET.legend.map((item) => {
+              const link = (
                 <Link to={item.to}>
                   <b>{item.value}</b>
-                  <small>
-                    {item.label}
-                    {item.em ? <em> {item.em}</em> : null}
-                  </small>
+                  <small>{item.label}</small>
                 </Link>
-              </div>
-            ))}
+              )
+              return (
+                <div key={item.label}>
+                  {item.dot ? <i className={`dot ${item.dot}`} /> : null}
+                  {item.tip ? <Tooltip content={item.tip}>{link}</Tooltip> : link}
+                </div>
+              )
+            })}
           </div>
         </section>
 
@@ -175,71 +172,6 @@ export default function Dashboard() {
             </div>
           </Panel>
         </div>
-
-        <Panel
-          title="Open tickets"
-          subtitle="83 open · showing 8 oldest first"
-          link="See all 83"
-          linkTo="/tickets"
-          flush
-          foot={
-            <>
-              Tickets open more than 3 days are shown in red. 11 tickets currently breach that
-              mark.
-              <Link to="/tickets/raise">Raise a ticket</Link>
-            </>
-          }
-        >
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Ticket</th>
-                  <th>Device</th>
-                  <th>Road / slot</th>
-                  <th>Reported issue</th>
-                  <th>Reported by</th>
-                  <th>Raised on</th>
-                  <th className="num">Days open</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {OPEN_TICKETS.map((t) => (
-                  <tr key={t.id}>
-                    <td>
-                      <Link className="code" to={`/tickets/${t.id}`}>
-                        {t.id}
-                      </Link>
-                    </td>
-                    <td>
-                      <Link className="code" to={`/devices/${t.deviceId}`}>
-                        {t.deviceId}
-                      </Link>
-                    </td>
-                    <td>
-                      {t.road}
-                      <div className="muted">{t.slot}</div>
-                    </td>
-                    <td>
-                      {t.issue}
-                      <div className="muted">{t.issueDetail}</div>
-                    </td>
-                    <td>{t.reportedBy}</td>
-                    <td>
-                      {t.raisedOn}
-                      <div className="muted">{t.raisedTime}</div>
-                    </td>
-                    <td className={`num${t.daysBad ? ' strong-bad' : ''}`}>{t.daysOpen}</td>
-                    <td>
-                      <Pill tone={t.statusTone}>{t.status}</Pill>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
       </main>
     </>
   )

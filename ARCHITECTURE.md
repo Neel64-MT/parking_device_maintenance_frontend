@@ -5,27 +5,30 @@
 ```text
 Browser
   → React Router
-  → /login|/signup (AuthLayout, no rail)  OR  RequireAuth → AppLayout
-  → Page component (Dashboard, TicketList, …)
+  → /login|/signup|/forgot-password|/reset-password (AuthLayout, no rail)
+      OR  RequireAuth → AppLayout
+  → Page component (Dashboard, TicketList, Settings, …)
   → Page-local UI + shared components
-  → data/ mock modules (most screens) + services/auth for session
+  → data/ mock modules (most screens)
+      + services/auth (session, profile, password)
+      + services/users (Users admin)
   → toast helper
 ```
 
 ### Page flow (product)
 
-Landing pages are menu destinations. Flow screens are routes reached by buttons/links; the sidebar highlights the parent via `match` lists (same idea as `nav.js`).
+Landing pages are menu destinations. Flow screens are routes reached by buttons/links; the sidebar highlights the parent via `match` lists (same idea as `nav.js`). Settings is a bottom utility landing page (not a flow parent).
 
 ### State flow
 
 | Kind | Approach |
 |------|----------|
-| Nav open groups, mobile rail | Local state in Layout / Sidebar |
+| Nav open groups, mobile rail, desktop collapse | Local state in Layout / Sidebar (`railOpen` ≠ `railCollapsed`) |
 | Tabs, filters, view switchers | Local `useState` on the page |
 | Cascading issue selects | Local state or small controlled pair component |
 | Photo picker count | Local state in PhotoPicker |
 | Toast | Tiny module or React context (one provider max) |
-| Auth / session | `AuthContext` + Bearer JWT in `localStorage`; login via sibling backend |
+| Auth / session | `AuthContext` + Bearer JWT in `localStorage`; login/profile/password via sibling backend |
 | Global store (Redux/Zustand) | **Not needed** |
 
 ### Data flow
@@ -34,11 +37,11 @@ Original is a design preview: data lives in HTML rows and `app.js` / page script
 
 1. Move `ISSUE_MASTER`, `PART_MASTER`, `TEAM`, report datasets into `src/data/`.
 2. Keep sample table rows as typed/plain JS arrays colocated with the page or under `src/data/`.
-3. API seam in `src/services/` — auth is wired; other screens still use mocks until connected.
+3. API seam in `src/services/` — auth (incl. Settings profile/password) and Users admin are wired; other screens still use mocks until connected.
 
 ### Routing
 
-React Router. Paths mirror original filenames without `.html`. Auth routes: `/login`, `/signup`, `/forgot-password`, `/reset-password`.
+React Router. Paths mirror original filenames without `.html`. Auth routes: `/login`, `/signup`, `/forgot-password`, `/reset-password`. App: 15 original screens + `/settings`.
 
 ### Authentication / authorization
 
@@ -47,6 +50,10 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **Signup approval:** `POST /api/auth/signup` creates `status=Pending` (default role Site attendant). Admin reviews on Users, may PATCH details/role, then `PATCH { status: 'Active' }`. Login rejects Pending with `PENDING_APPROVAL`.
 - **Forgot/reset:** Existing backend `POST /api/auth/forgot-password` + `reset-password` (SHA-256 token, 1h TTL, bcrypt). FE: `/forgot-password`, `/reset-password`.
 - **Admin change password:** Reuse `PATCH /api/users/:id` with `password` (requires Users edit). Increments `password_version` (invalidates JWTs).
+- **Self-service Settings (Phase 13):**
+  - `PATCH /api/auth/me` — current user updates `fullName`, `email`, `mobile` (role read-only in UI).
+  - `POST /api/auth/change-password` — `currentPassword` + `newPassword`; denies old JWT, reissues token so session continues.
+- **Logout:** Topbar logout icon → confirmation modal → `POST /api/auth/logout` + clear local token → `/login`.
 - **Existing users:** Migration adds `Pending` to status CHECK; seeded Active users unchanged.
 - Menu visibility by role is not fully enforced in the UI yet — backend remains authoritative.
 
@@ -66,29 +73,31 @@ frontend/
 └── src/
     ├── main.jsx
     ├── App.jsx                 # BrowserRouter + Toast + Auth + PageMeta
-    ├── routes.jsx              # Auth routes + 15 screens + /dev/ui
-    ├── index.css               # Tailwind + ported original CSS + auth layout
+    ├── routes.jsx              # Auth routes + screens + /settings + /dev/ui
+    ├── index.css               # Tailwind + ported original CSS + auth + tooltip
     ├── config/
-    │   └── nav.js              # MENU, APP (from nav.js)
+    │   └── nav.js              # APP, MENU, SETTINGS
     ├── context/
-    │   ├── AuthContext.jsx
+    │   ├── AuthContext.jsx     # login, logout, refresh, updateProfile, changePassword
     │   ├── PageMetaContext.jsx
     │   └── ToastContext.jsx
     ├── services/
     │   ├── api.js
-    │   └── auth.js
-    ├── data/                   # ISSUE_MASTER, tickets, devices, roads, users, …
+    │   ├── auth.js             # login, me, updateProfile, changePassword, logout, …
+    │   └── users.js
+    ├── data/                   # ISSUE_MASTER, tickets, devices, roads, dashboard, …
     ├── layouts/
-    │   ├── AppLayout.jsx       # rail + shell + outlet
+    │   ├── AppLayout.jsx       # railOpen (mobile) + railCollapsed (desktop) + shell
     │   └── AuthLayout.jsx      # login/signup chrome
     ├── components/
-    │   ├── layout/             # Sidebar, Topbar
-    │   ├── icons/
-    │   └── ui/                 # Button, Panel, Pill, JumpLinks, …
+    │   ├── layout/             # Sidebar, Topbar (logout confirm Modal)
+    │   ├── icons/              # NavIcons (incl. logout)
+    │   └── ui/                 # Button, Panel, Pill, JumpLinks, Tooltip, …
     ├── pages/
-    │   ├── auth/               # Login, Signup
-    │   ├── Dashboard.jsx
+    │   ├── auth/               # Login, Signup, Forgot, Reset
+    │   ├── Dashboard.jsx       # fleet + why-down + road-wise (no open-tickets table)
     │   ├── Users.jsx
+    │   ├── Settings.jsx        # profile + password forms
     │   ├── UiKitDemo.jsx       # /dev/ui scratch (not in menu)
     │   ├── tickets/
     │   ├── devices/
@@ -113,8 +122,8 @@ A developer should open `pages/tickets/TicketList.jsx` and find the table, tab s
 | Routing | `react-router` (DOM) | Multi-page app; skill requires router |
 | Icons | Inline SVG components (from `nav.js` / page SVGs) | No icon library needed |
 | Forms | Controlled React inputs | Matches preview; no Formik |
-| State | React local state (+ optional toast context) | Preview complexity |
-| Data | Static JS modules | Original has no API |
+| State | React local state (+ toast / auth context) | Preview + session |
+| Data | Static JS modules + auth/users services | Progressive API wiring |
 | Types | Optional JSDoc or migrate to TS later | Skill prefers types; original is JS — start JSX/JS for parity speed unless team requires TS |
 
 ### Libraries to avoid (for now)
@@ -142,3 +151,32 @@ parking_maintenance/
 Every page: empty `#rail` / `#topbar`, optional `#topbar-actions` template, then page markup + inline scripts.
 
 React replaces inject-on-load with components and routes; CSS tokens move into Tailwind theme; helpers become modules/hooks.
+
+### Sidebar (Phase 12)
+
+```text
+aside.rail[.collapsed]
+  brand (glyph P + APP title/sub + desktop collapse toggle + mobile close)
+  nav (MENU — leaf Links / group expand)
+  rail-bottom
+    Settings (SETTINGS config — not in MENU)
+    rail-foot (EXILIO / version)
+```
+
+| Concern | Mechanism |
+|---------|-----------|
+| Mobile drawer | `railOpen` in AppLayout; CSS ≤820px transform |
+| Desktop icon-rail | `railCollapsed` in AppLayout; `html.rail-narrow` sets `--rail` to `--rail-collapsed` |
+| Active item | `PageMeta` `pageId` + `isMenuItemOn` |
+| Collapsed groups | Click expands rail then opens group (no flyout) |
+| Collapsed labels | CSS opacity/max-width; native `title` tooltips |
+| Persistence | None |
+
+### Shell width (Phase 13)
+
+```text
+.shell { margin-left: var(--rail); width: calc(100% - var(--rail)); }
+.page  { width: 100%; max-width: none; }   /* fills shell; was 1360px cap */
+```
+
+Landing filters and primary CTAs live in the page body (`.page-toolbar`, panel-head actions, JumpLinks `actions`), not the sticky topbar.

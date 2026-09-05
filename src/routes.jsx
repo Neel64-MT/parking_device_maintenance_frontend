@@ -4,6 +4,7 @@ import { AppLayout } from './layouts/AppLayout'
 import { AuthLayout } from './layouts/AuthLayout'
 import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
+import Settings from './pages/Settings'
 import Login from './pages/auth/Login'
 import Signup from './pages/auth/Signup'
 import ForgotPassword from './pages/auth/ForgotPassword'
@@ -70,6 +71,7 @@ export function AppRoutes() {
         <Route path="masters/roads/add" element={<RoadAdd />} />
 
         <Route path="users" element={<Users />} />
+        <Route path="settings" element={<Settings />} />
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>

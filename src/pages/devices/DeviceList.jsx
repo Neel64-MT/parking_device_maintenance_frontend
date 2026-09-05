@@ -43,21 +43,6 @@ export default function DeviceList() {
     })
   }, [query])
 
-  const actions = useMemo(
-    () => (
-      <>
-        <Link className="btn" to="/devices/scan">
-          Scan QR
-        </Link>
-        <Link className="btn btn-primary" to="/devices/add">
-          <PlusIcon />
-          Add device
-        </Link>
-      </>
-    ),
-    [],
-  )
-
   function resetFilters() {
     setRoad(FILTER_DEFAULTS.road)
     setStatus(FILTER_DEFAULTS.status)
@@ -71,7 +56,6 @@ export default function DeviceList() {
         pageId="device-list"
         title="Device list"
         crumb="1,000 devices across 5 roads"
-        actions={actions}
       />
 
       <main className="page">
@@ -82,6 +66,17 @@ export default function DeviceList() {
             { to: '/masters/roads', label: 'Road master' },
             { to: '/tickets', label: 'All tickets' },
           ]}
+          actions={
+            <>
+              <Link className="btn" to="/devices/scan">
+                Scan QR
+              </Link>
+              <Link className="btn btn-primary" to="/devices/add">
+                <PlusIcon />
+                Add device
+              </Link>
+            </>
+          }
         />
 
         <div className="tiles">

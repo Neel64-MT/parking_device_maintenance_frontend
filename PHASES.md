@@ -182,6 +182,52 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 12: Sidebar Settings + desktop collapse
+
+**Objective:** Settings bottom utility + route; desktop expand/collapse with smooth animation; preserve mobile drawer.
+
+**Status:** Complete (page content filled in Phase 13)
+
+**Tasks:**
+
+1. Analyze existing Sidebar / AppLayout / NavIcons / CSS rail.
+2. Add `SETTINGS` + `/settings`; wire bottom section.
+3. Desktop `railCollapsed` + `html.rail-narrow` + CSS width tokens.
+4. Smooth label/width transitions; collapsed `title` tooltips; group click expands rail.
+5. Responsive check ≤820 vs ≥821; docs finalize.
+
+**Verification:** Expanded/collapsed visuals; Settings navigates; MENU + mobile drawer unchanged; lint/build.
+
+**Completion:** PR.md Phase 12 criteria pass.
+
+---
+
+## Phase 13: Settings account + shell / dashboard UX
+
+**Objective:** Self-service Settings (profile + password); logout confirm; shell full-width; dashboard polish.
+
+**Status:** Complete
+
+**Backend (`../backend`):**
+
+1. `PATCH /api/auth/me` — `{ fullName, email, mobile }` for the signed-in user.
+2. `POST /api/auth/change-password` — `{ currentPassword, newPassword }`; deny old JWT; return new `{ token, user }`.
+
+**Frontend:**
+
+1. `Settings.jsx` — Profile + Password panels; wire `AuthContext.updateProfile` / `changePassword`.
+2. Topbar logout icon (`NavIcons.logout`) + Modal confirmation before logout.
+3. Remove Dashboard open-tickets panel; fleet legend tips via `Tooltip`; equal 4-column legend.
+4. Shell width `calc(100% - var(--rail))`; drop `.page` `1360px` max.
+5. `.foot-note { margin-top: auto }` for bottom-aligned panel footnotes in grids.
+6. Landing filters already relocated to page body (document in MEMORY).
+
+**Verification:** Save profile → topbar name/initials update; change password → stay signed in; logout confirm cancel vs confirm; sidebar open/collapsed content fills right edge; docs updated.
+
+**Completion:** PR.md Phase 13 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
@@ -192,7 +238,7 @@ Phase 0 ──► Phase 1 ──► Phase 2 ──┬──► Phase 3
                                   └──► Phase 7
                                          │
                                          ▼
-                      Phase 8 ──► Phase 9 ──► Phase 10 ──► Phase 11
+                      Phase 8 ──► Phase 9 ──► Phase 10 ──► Phase 11 ──► Phase 12 ──► Phase 13
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

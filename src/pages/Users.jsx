@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { PageMeta } from '../context/PageMetaContext'
@@ -52,6 +52,7 @@ export default function Users() {
 
   const [roleHelpOpen, setRoleHelpOpen] = useState(false)
   const [userFormOpen, setUserFormOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(true)
   const [roleFormOpen, setRoleFormOpen] = useState(false)
   const [permRole, setPermRole] = useState('Technician')
 
@@ -147,44 +148,6 @@ export default function Users() {
       cancelled = true
     }
   }, [canCreate, canEdit])
-
-  const actions = useMemo(
-    () => (
-      <>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search name or mobile"
-          style={{ minWidth: 190 }}
-          aria-label="Search users"
-        />
-        <select
-          aria-label="Filter by status"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="">All statuses</option>
-          <option value="Pending">Pending</option>
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-        </select>
-        {canCreate ? (
-          <Button
-            variant="primary"
-            onClick={() => {
-              setUserFormOpen((v) => !v)
-              setTab('users')
-              setTimeout(() => nameRef.current?.focus(), 0)
-            }}
-          >
-            Add user
-          </Button>
-        ) : null}
-      </>
-    ),
-    [query, statusFilter, canCreate],
-  )
 
   async function saveUser(e) {
     e.preventDefault()
@@ -300,7 +263,6 @@ export default function Users() {
         pageId="users"
         title="Users"
         crumb="Who can see and do what in the system"
-        actions={actions}
       />
 
       <main className="page">
@@ -316,6 +278,53 @@ export default function Users() {
           {tiles.map((t) => (
             <Tile key={t.label} value={t.value} label={t.label} />
           ))}
+        </div>
+
+        <div className={`collapse-filter${filtersOpen ? ' open' : ''}`}>
+          <button
+            type="button"
+            className="collapse-filter-toggle"
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen((v) => !v)}
+          >
+            Filters
+            <span className="chev" aria-hidden="true" />
+          </button>
+          <div className="collapse-filter-body">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name or mobile"
+              style={{ minWidth: 190 }}
+              aria-label="Search users"
+            />
+            <select
+              aria-label="Filter by status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            <div className="push">
+              {canCreate ? (
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    setUserFormOpen((v) => !v)
+                    setTab('users')
+                    setFiltersOpen(true)
+                    setTimeout(() => nameRef.current?.focus(), 0)
+                  }}
+                >
+                  Add user
+                </Button>
+              ) : null}
+            </div>
+          </div>
         </div>
 
         <Tabs

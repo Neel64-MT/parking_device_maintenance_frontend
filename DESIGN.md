@@ -66,15 +66,19 @@ Import: `https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&d
 
 | Token | Value |
 |-------|-------|
-| `--rail` | `248px` (0 on ≤820 with drawer) |
+| `--rail-expanded` | `248px` |
+| `--rail-collapsed` | `64px` (desktop icon-rail) |
+| `--rail` | `var(--rail-expanded)`; `html.rail-narrow` → collapsed; `0` on ≤820 with drawer |
 | `--r` | `8px` panel radius |
 | `--r-sm` | `5px` control radius |
-| Page max width | `1360px` (forms often `980px`, mobile flows `580px`) |
+| Page max width | **None** (Phase 13 — `.page` fills shell; was `1360px`) |
+| Form / mobile flow caps | Forms often `980px`, mobile flows `580px` where used |
 | Page padding | `22px 24px 48px` (≤820: `16px 14px 40px`) |
 | Topbar | sticky, min-height `60px`, padding `0 24px` |
-| Panel margin | bottom `18px` |
+| Panel margin | bottom `18px` (grid children: `0`; gap handles spacing) |
+| Shell | `margin-left: var(--rail)`; `width: calc(100% - var(--rail))` |
 
-Grids: `.grid-2` 1.25fr/1fr; `.grid-2-even` 1fr/1fr; collapse ≤1080. `.grid-master` 340px/1fr; collapse ≤940. `.tiles` 4-col / `.tiles.five` 5-col; ≤900 → 2-col. `.form-grid` 2-col; ≤760 → 1-col.
+Grids: `.grid-2` 1.25fr/1fr; `.grid-2-even` 1fr/1fr; collapse ≤1080. `.grid-master` 340px/1fr; collapse ≤940. `.tiles` 4-col / `.tiles.five` 5-col; ≤900 → 2-col. `.form-grid` 2-col; ≤760 → 1-col. Fleet `.legend` 4 equal columns (≥1083); 2-col 430–1082; 1-col ≤428.
 
 ## Visual styles
 
@@ -93,8 +97,8 @@ Grids: `.grid-2` 1.25fr/1fr; `.grid-2-even` 1fr/1fr; collapse ≤1080. `.grid-ma
 
 | Width | Behavior |
 |-------|----------|
-| ≤820px | Sidebar off-canvas; menu button; hide `.topbar-actions`; page padding shrink; sticky-bar full width; facts 2-col |
-| ≥821px | Sticky bar offset by rail |
+| ≤820px | Sidebar off-canvas; menu button; hide `.topbar-actions`; page padding shrink; sticky-bar full width; facts 2-col; collapse toggle N/A (full labels in drawer) |
+| ≥821px | Sticky bar offset by rail; desktop expand/collapse toggle |
 | ≤760px | Form grid / class-pair stack |
 | ≤900px | Tiles → 2 columns |
 | ≤940px | Master grid stacks |
@@ -102,7 +106,7 @@ Grids: `.grid-2` 1.25fr/1fr; `.grid-2-even` 1fr/1fr; collapse ≤1080. `.grid-ma
 
 ## Components (visual)
 
-Fleet strip, ranked bars, filterbar, panels, tables (incl. `.split`), tabs, views switcher, timeline, scanbox, mobile step heads, seg buttons, chips, photo grid, person blocks, util bars, permission matrix, jump pills, hint-strip, reclass strip, device card, sticky-bar.
+Fleet strip, ranked bars, filterbar, panels, tables (incl. `.split`), tabs, views switcher, timeline, scanbox, mobile step heads, seg buttons, chips, photo grid, person blocks, util bars, permission matrix, jump pills, hint-strip, reclass strip, device card, sticky-bar, page-toolbar, collapse-filter, modal, tooltip.
 
 ## Manual design maintainability
 
@@ -133,5 +137,31 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Login Pending error | `.auth-error`: "Please ask the admin to approve your request." |
 | Forgot password | Email field → generic success message (no account enumeration) |
 | Reset password | Token from query + new password (+ confirm in UI) |
-| Admin change password | Inline form on Users row/panel; toast on success |
+| Admin change password | Modal on Users; toast on success |
 | Pending users | Pill tone warn/grey; **Approve** action when status is Pending |
+
+## Phase 12 — Sidebar layout
+
+| Item | Value |
+|------|-------|
+| Expanded width | `--rail-expanded: 248px` |
+| Collapsed width | `--rail-collapsed: 64px` |
+| Width transition | ~0.38s cubic-bezier on `.rail` width + `.shell` margin/width |
+| Label hide | `.nav-label` / `.brand-text` / `.rail-foot` opacity + overflow (no hard unmount) |
+| Nav icon | 16×16, stroke 1.6, `.ico` |
+| Active | inset `3px` teal; background `--navy-2` |
+| Settings | Bottom utility above EXILIO / version divider |
+| Branding | Teal `P` glyph + `APP.nameLines` / `APP.sub`; glyph only when collapsed |
+| Collapsed tooltip | Native `title` + `aria-label` |
+
+## Phase 13 — Shell / Settings / dashboard UX
+
+| Item | Pattern |
+|------|---------|
+| Page width | Full shell; no `1360px` max |
+| Logout | Topbar icon (`.who-logout`); Modal confirm; Cancel then Log out, right-aligned (`.modal-actions`) |
+| Tooltip | `.tooltip` + `.tooltip-bubble` (navy); hover/focus-within |
+| Fleet legend | Short labels only; tip text in Tooltip; 4 equal columns |
+| Panel foot | `.foot-note { margin-top: auto }` inside flex column panels in `.grid-2` |
+| Settings | Two content-sized panels (`.settings-grid`); Password form asks for current password; actions in `.settings-actions` at form foot |
+| Landing filters | `.page-toolbar` / JumpLinks `actions` / panel-head / `.collapse-filter` — not topbar |
