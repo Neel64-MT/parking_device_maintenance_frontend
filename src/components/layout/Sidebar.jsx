@@ -4,7 +4,7 @@ import { APP, MENU, SETTINGS, filterMenuByView, isMenuItemOn } from '../../confi
 import { NavIcon } from '../icons/NavIcons'
 import { useAuth } from '../../context/AuthContext'
 import { usePageMeta } from '../../context/PageMetaContext'
-import { canPerm } from '../../services/users'
+import { canPerm, isDashboardRole } from '../../services/users'
 
 export function Sidebar({ open, onNavigate, collapsed = false }) {
   const { pageId } = usePageMeta()
@@ -12,7 +12,10 @@ export function Sidebar({ open, onNavigate, collapsed = false }) {
   /** Manual open/close overrides; unset keys fall back to “child page is active”. */
   const [expanded, setExpanded] = useState({})
 
-  const menu = filterMenuByView(MENU, (screen) => canPerm(user, screen, 'v'))
+  const menu = filterMenuByView(MENU, (screen) => {
+    if (screen === 'Dashboard' && !isDashboardRole(user)) return false
+    return canPerm(user, screen, 'v')
+  })
 
   function isGroupOpen(index, item) {
     if (Object.prototype.hasOwnProperty.call(expanded, index)) {

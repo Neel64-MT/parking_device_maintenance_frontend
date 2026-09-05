@@ -1,5 +1,15 @@
 import { api, apiEnvelope } from './api'
 
+/** Ticket workflow statuses no longer include "New" — treat legacy as Open. */
+export function normalizeTicketStatus(status) {
+  return status === 'New' ? 'Open' : status
+}
+
+function mapTicketRow(row) {
+  if (!row) return row
+  return { ...row, status: normalizeTicketStatus(row.status) }
+}
+
 /**
  * List tickets. Backend applies role visibility.
  * Returns { rows, tiles, tabCounts, pagination } from the envelope
@@ -26,7 +36,7 @@ export async function listTickets({
   params.set('limit', String(limit))
   const envelope = await apiEnvelope(`/api/tickets?${params}`)
   return {
-    rows: envelope.data || [],
+    rows: (envelope.data || []).map(mapTicketRow),
     tiles: envelope.tiles || [],
     tabCounts: envelope.tabCounts || { new: 0, asg: 0, cls: 0 },
     pagination: envelope.pagination || { page: 1, limit, total: 0, totalPages: 1 },
@@ -34,5 +44,13 @@ export async function listTickets({
 }
 
 export async function getTicket(ticketId) {
-  return api(`/api/tickets/${encodeURIComponent(ticketId)}`)
+  const data = await api(`/api/tickets/${encodeURIComponent(ticketId)}`)
+  if (!data?.header) return data
+  return {
+    ...data,
+    header: {
+      ...data.header,
+      status: normalizeTicketStatus(data.header.status),
+    },
+  }
 }

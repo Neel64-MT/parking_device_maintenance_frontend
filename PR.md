@@ -33,7 +33,7 @@ Where scope and code differ, see **Gaps vs Claude scope** below.
 | **Admin** | Full control including users and roles |
 | **AMC officer** | View-only across roads |
 
-Preview UI originally hardcoded user **Alkesh P. / Project manager** in the sidebar. **Phase 10** added real login against the sibling backend. **Phase 11** adds self-signup with admin approval, forgot/reset password UI, and admin change-password on Users. **Phase 12** adds Settings in the sidebar bottom utility + desktop rail collapse. **Phase 13** wires Settings account forms (profile + password) and shell/dashboard UX polish. **Phase 14** simplifies Raise ticket (no assign step) and makes field-flow action bars in-document (not fixed).
+Preview UI originally hardcoded user **Alkesh P. / Project manager** in the sidebar. **Phase 10** added real login against the sibling backend. **Phase 11** adds self-signup with admin approval, forgot/reset password UI, and admin change-password on Users. **Phase 12** adds Settings in the sidebar bottom utility + desktop rail collapse. **Phase 13** wires Settings account forms (profile + password) and shell/dashboard UX polish. **Phase 14** simplifies Raise ticket (no assign step) and makes field-flow action bars in-document (not fixed). **Phase 18** sends only Admin / Project manager to Dashboard after login; other roles land on All tickets.
 
 ---
 
@@ -61,12 +61,12 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 | Field | Devices → Scan QR → raise / update / history |
 | Add device | Devices → Add device (+ link to Add road) |
 | History | Devices → device id → Device history |
-| Assign | New tab → Assign → ticket detail |
+| Assign | Open tab → Assign → ticket detail |
 
 #### Screens (15 HTML pages)
 
 1. Dashboard — fleet strip, why-down ranked bars, road-wise table (open-tickets table removed in Phase 13)
-2. All tickets — tiles, filters, New/Assigned/Closed tabs, table
+2. All tickets — tiles, filters, Open/Assigned/Closed tabs, table (incl. Raised by before Assigned to); ticket status **Open** (not New)
 3. Raise ticket — mobile-first steps: device, problem; reported-by = session user (read-only); no assign/priority step; PhotoPicker stays compact tile; Cancel / Raise actions in page flow (not fixed)
 4. Update ticket — mobile-first: device → diagnosis → fixed/not fork
 5. Close ticket — mobile-first: final issue, resolution, cost, confirm
@@ -242,7 +242,7 @@ No white full-bleed footer; transparent bar; Raise / Update / Close pages share 
 
 | Criterion | Result |
 |-----------|--------|
-| Non–Admin/PM ticket list/detail: assignee OR raised_by only | Pass |
+| Non–Admin/PM ticket list/detail: assignee OR raised_by only | Pass (Phase 18: list not road-AND’d) |
 | Admin/PM city-wide ticket visibility preserved | Pass |
 | Assign uses road access (Control room can assign) | Pass |
 | Dashboard open-ticket queries respect visibility | Pass |
@@ -258,3 +258,33 @@ No white full-bleed footer; transparent bar; Raise / Update / Close pages share 
 | TicketDetail consumes `GET /api/tickets/:id`; 403/404 shown | Pass |
 | Backend remains security boundary | Pass |
 | Raise/Update/Close/WorkReport stay mock this phase | Pass |
+
+### Phase 17 — QR scan + role routing
+
+| Criterion | Result |
+|-----------|--------|
+| Camera QR via `QrScannerModal` (`html5-qrcode`) | Pass |
+| Scan camera limited to Site attendant + Technician | Pass |
+| Site attendant Raise: device fields + block if open ticket | Pass |
+| Technician Update: camera then existing mock inspection | Pass |
+| One open ticket per device (`status ≠ Closed`) | Pass |
+| Scan mock includes lat/lng; live API shape aligned | Pass |
+
+### Phase 18 — Home by role, Open status, Raised by, raiser visibility
+
+```text
+Login → Admin / Project manager → /dashboard
+Login → other roles → /tickets
+Ticket status → Open (legacy New normalized); Open tab label (id new)
+Ticket list → Raised by column; API raisedBy
+Visibility → raiser OR assignee for non–Admin/PM; list not road-AND’d
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Only Admin / Project manager open Dashboard after login | Pass |
+| Other roles home to All tickets; Dashboard nav hidden / redirected | Pass |
+| No **New** ticket status in UI (Open only for that state) | Pass |
+| Raised by column before Assigned to | Pass |
+| Raiser sees own tickets on roads outside `user_roads` | Pass |
+| Backend remains ownership security boundary | Pass |

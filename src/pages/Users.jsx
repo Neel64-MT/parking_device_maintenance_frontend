@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { PageMeta } from '../context/PageMetaContext'
 import { toast } from '../context/ToastContext'
 import { ApiRequestError } from '../services/api'
-import { canPerm, createUser, listRoles, listUsers, updateUser } from '../services/users'
+import { canPerm, createUser, homePathForUser, listRoles, listUsers, updateUser } from '../services/users'
 import {
   PERM_FLAGS,
   PERM_SCREENS,
@@ -258,7 +258,7 @@ export default function Users() {
   const pendingCount = rows.filter((r) => r.status === 'Pending').length
 
   if (!canView) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={homePathForUser(user)} replace />
   }
 
   return (

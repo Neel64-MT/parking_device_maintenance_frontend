@@ -2636,6 +2636,18 @@ body.modal-lock {
   margin-top: 16px;
 }
 
+.qr-scanner-mount {
+  width: 100%;
+  min-height: 240px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #0b1220;
+}
+.qr-scanner-mount video {
+  width: 100% !important;
+  border-radius: 10px;
+}
+
 @media (max-width: 760px) {
   .modal-dialog.wide {
     max-width: 480px;

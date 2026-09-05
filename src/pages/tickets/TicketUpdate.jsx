@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast } from '../../context/ToastContext'
 import { ROAD_OPTIONS, SLOTS } from '../../data/slots'
+import { canScanWithCamera } from '../../services/devices'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
 import { Field } from '../../components/ui/FilterBar'
 import { IssueSelects } from '../../components/ui/IssueSelects'
 import { PartChips } from '../../components/ui/PartChips'
 import { PhotoPicker } from '../../components/ui/PhotoPicker'
+import { QrScannerModal } from '../../components/ui/QrScannerModal'
 import { TeamSelect } from '../../components/ui/TeamSelect'
 
 function ScanIcon() {
@@ -21,6 +24,8 @@ function ScanIcon() {
 }
 
 export default function TicketUpdate() {
+  const { user } = useAuth()
+  const canScan = canScanWithCamera(user)
   const navigate = useNavigate()
   const [road, setRoad] = useState('')
   const [slot, setSlot] = useState('')
@@ -29,6 +34,7 @@ export default function TicketUpdate() {
   const [subCategory, setSubCategory] = useState('')
   const [fixed, setFixed] = useState(null)
   const [assignee, setAssignee] = useState('Keep it with me')
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   const slotOptions = road ? SLOTS[road] || [] : []
   const reclassed =
@@ -65,6 +71,11 @@ export default function TicketUpdate() {
     setSubCategory('Controller board failure')
   }
 
+  function onQrScan() {
+    // Any QR → existing mock inspection flow (do not rewrite panels).
+    loadTicket()
+  }
+
   function save() {
     if (fixed) navigate('/tickets/close')
     else toast('Update saved. Ticket stays open.')
@@ -86,10 +97,17 @@ export default function TicketUpdate() {
             </div>
           </div>
           <div className="panel-body">
-            <button type="button" className="scan-btn" onClick={loadTicket}>
-              <ScanIcon />
-              Scan QR on the machine
-            </button>
+            {canScan ? (
+              <button type="button" className="scan-btn" onClick={() => setScannerOpen(true)}>
+                <ScanIcon />
+                Scan QR on the machine
+              </button>
+            ) : (
+              <button type="button" className="scan-btn" onClick={loadTicket}>
+                <ScanIcon />
+                Load open ticket (preview)
+              </button>
+            )}
 
             <div className="or">or select manually</div>
 
@@ -326,6 +344,12 @@ export default function TicketUpdate() {
           </div>
         ) : null}
       </main>
+
+      <QrScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={onQrScan}
+      />
     </>
   )
 }

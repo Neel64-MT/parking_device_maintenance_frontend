@@ -44,6 +44,8 @@
 - Ticket access must be enforced **server-side** (`lib/ticket-access.ts`); do not rely on React filtering.
 - Non–Admin/PM users only see tickets they raised or are assigned to (`assignee_id` / `raised_by_user_id`).
 - Admin and Project manager keep existing city-wide ticket visibility.
+- **Do not** AND ticket list/export with `assigned_roads` in a way that hides tickets the user raised on other roads (Phase 18). Device lists may still use road scope.
+- Detail access: raiser and assignee always allowed, even outside `user_roads`; then road check; otherwise forbid.
 - Assign (`All tickets` `a`) uses **road access only** — do not apply ownership filter on assign (Control room must assign others’ tickets).
 - Project Manager signup approval reuses `PATCH /api/users/:id` + Users `e` (PM seeded `vce...`); do not duplicate Admin logic.
 - Do not invent a separate role hierarchy unless product asks; avoid unnecessary queries and abstractions.
@@ -54,6 +56,27 @@
 - Reuse `canPerm` and Users loading/empty/error patterns; do not add a second role store.
 - Preserve existing layout; only bind live data.
 - Leave Raise/Update/Close/WorkReport mock until those APIs are wired (Work report backend is not ownership-scoped yet).
+
+## Home & Dashboard access (Phase 18+)
+
+- Only **Admin** and **Project manager** may open Dashboard (`isDashboardRole` / `homePathForUser`).
+- After login (and GuestOnly / `/` / catch-all), non–ops-lead roles go to `/tickets`.
+- Hide Dashboard in the sidebar for other roles even if permissions still list Dashboard `v`.
+- Unauthorized Users redirect uses `homePathForUser`, not a hard-coded `/dashboard`.
+
+## Ticket status & list columns (Phase 18+)
+
+- Do not show ticket status **New**; use **Open** (normalize legacy API/DB values).
+- Ticket list Open tab label is **Open** (keep tab id `new` for API compatibility unless product renames the query param).
+- Keep **Raised by** immediately before **Assigned to** on TicketList.
+
+## QR scan rules (Phase 17+)
+
+- Camera Scan is for **Site attendant** and **Technician** only (`user.role` check).
+- Until QR format is finalized, any successful decode uses `resolveScan` mock (not live security).
+- Open ticket = `status ≠ Closed`; at most one open ticket per device (backend `OPEN_TICKET_EXISTS` + FE block on Raise).
+- Do not rewrite Technician Update inspection panels — only open the camera before existing mock load.
+- External inspection package path (`PROJECT_PATH`) is deferred until product supplies it.
 
 ## Landing chrome rules
 

@@ -194,3 +194,23 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Dashboard | `getDashboard` → fleet / downReasons / roadStatus; filters refetch |
 | TicketDetail | `getTicket(id)` → header/history; 403/404 hint-strip |
 | Security | No client-side “hide unauthorized rows” as the access control |
+
+## Phase 17 — QR scan UI
+
+| Item | Pattern |
+|------|---------|
+| Scan button | Opens `QrScannerModal` (Site attendant / Technician) |
+| Device card after scan | Include Status, tickets 6m, open ticket, **Latitude**, **Longitude** |
+| Raise with open ticket | `.reclass` banner; disable Raise; link to existing ticket |
+| Update after scan | Same mock panels as before (TK-1042 preview) |
+| Scan QR page | Live camera when role allows; miss stays empty panel |
+
+## Phase 18 — Home, status, Raised by
+
+| Item | Pattern |
+|------|---------|
+| Post-login home | Admin / Project manager → Dashboard; others → All tickets |
+| Dashboard nav | Hidden for non–Admin/PM (even if Dashboard permission `v` exists) |
+| Ticket tabs | Labels **Open** / Assigned / Closed (tab id `new` unchanged) |
+| Status pill | Never show **New**; show **Open** (same tone as before) |
+| Table columns | … Issue found → **Raised by** → Assigned to → Updates … |

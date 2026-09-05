@@ -78,7 +78,7 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 5. **TicketClose** — cost table, chips, sticky bar
 6. **WorkReport** — REPORT dataset, setView, person panels
 
-**Verification:** Each page vs original HTML; raise→update→close navigation; New tab Assign buttons; report Day/Week/Month.
+**Verification:** Each page vs original HTML; raise→update→close navigation; Open tab Assign buttons; report Day/Week/Month.
 
 **Completion:** Full ticket flow clickable with preview toasts.
 
@@ -286,10 +286,58 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 17: QR scan + role routing
+
+**Objective:** Camera QR for Site attendant / Technician; mock device resolve; one open ticket per device; Technician Update flow unchanged after scan.
+
+**Tasks:**
+
+1. `scanDevice` mock + `services/devices.resolveScan`.
+2. `QrScannerModal` + `html5-qrcode`.
+3. TicketRaise / TicketUpdate / ScanQr wiring + role gate.
+4. Align backend `GET /api/devices/scan` structured fields + lat/lng.
+5. Docs finalize.
+
+**Out of scope:** Live raise POST; final QR string format; external `PROJECT_PATH` inspection package.
+
+**Verification:** Lint/build; Site attendant blocked on open device; Technician scan → same Update mock.
+
+**Completion:** PR.md Phase 17 criteria pass.
+
+---
+
+## Phase 18: Home by role, Open status, Raised by, raiser visibility
+
+**Objective:** Admin/PM open Dashboard after login; ticket status is Open (not New); show Raised by on the list; raisers see their tickets even outside assigned roads.
+
+**Status:** Complete
+
+**Frontend:**
+
+1. `homePathForUser` / `isDashboardRole` in `services/users.js`; Login, GuestOnly, `HomeRedirect`, Users unauthorized redirect.
+2. Dashboard page redirects non–Admin/PM; Sidebar hides Dashboard without ops-lead role.
+3. Ticket status normalize `New` → `Open`; Open tab label; mock data + list column **Raised by**.
+4. Docs finalize.
+
+**Backend (`../backend`):**
+
+1. List/export: drop `assigned_roads` AND that hid raiser rows; keep `appendTicketVisibilitySql`.
+2. `assertTicketAccess`: raiser/assignee before road check.
+3. List returns `raisedBy`; displayStatus maps legacy `New` → `Open`.
+4. Smoke: Site attendant sees TK-1099 (raised on non-assigned road).
+
+**Out of scope:** Changing Open-tab assignment rules beyond status label; live Raise POST.
+
+**Verification:** Admin → Dashboard; Site attendant → `/tickets` and sees all tickets they raised; no **New** status pills; Raised by column populated; smoke passes.
+
+**Completion:** PR.md Phase 18 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 15 ──► Phase 16
+Phase 0 ──► … ──► Phase 15 ──► Phase 16 ──► Phase 17 ──► Phase 18
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

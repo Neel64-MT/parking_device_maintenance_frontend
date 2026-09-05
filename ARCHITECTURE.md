@@ -48,8 +48,12 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **Original:** Hardcoded user chip; permission matrix is UI-only on Users → Roles.
 - **React (Phase 10–11):** Login with email or mobile + password against `../backend`. JWT Bearer token.
 - **Signup approval:** `POST /api/auth/signup` creates `status=Pending` (default role Site attendant). **Admin or Project Manager** (Users `e`) reviews on Users, may PATCH details/role, then `PATCH { status: 'Active' }`. Login rejects Pending with `PENDING_APPROVAL`.
-- **Ticket visibility (backend):** Admin / Project manager keep city-wide access. Everyone else: SQL `(assignee_id = me OR raised_by_user_id = me)` via `lib/ticket-access.ts` on list/export/detail. Assign uses road scope only (so Control room can assign). Dashboard open-ticket queries use the same visibility fragment.
+- **Ticket visibility (backend):** Admin / Project manager keep city-wide access. Everyone else: SQL `(assignee_id = me OR raised_by_user_id = me)` via `lib/ticket-access.ts` on list/export/detail. **Ticket list/export do not AND `assigned_roads`** — that hid tickets a Site attendant raised on other roads. Detail: raiser/assignee pass before road check. Assign uses road scope only (so Control room can assign). Dashboard open-ticket queries use the same visibility fragment.
 - **Ticket UI (Phase 16):** TicketList, Dashboard, and TicketDetail call live APIs and render whatever the backend returns. Frontend does not filter tickets for security. Raise/Update/Close/WorkReport remain mock.
+- **QR scan (Phase 17):** `QrScannerModal` opens the device camera for **Site attendant** and **Technician** only. Scans resolve via mock `resolveScan` until QR payload is finalized. Site attendant Raise shows device info (incl. lat/lng) and blocks a second open ticket (`status ≠ Closed`). Technician Update opens the camera then keeps the existing mock inspection UI.
+- **Home + Dashboard (Phase 18):** `homePathForUser` / `isDashboardRole` — only **Admin** and **Project manager** land on `/dashboard` after login (and see Dashboard in the sidebar). Other roles → `/tickets`. `HomeRedirect` for `/` and unknown routes; Dashboard page redirects others away.
+- **Ticket status (Phase 18):** Product statuses no longer include **New**; create/list display **Open**. FE `normalizeTicketStatus` + BE `displayStatus`; migration `007_ticket_status_open.sql` rewrites stored rows when run.
+- **Ticket list columns (Phase 18):** **Raised by** (`raisedBy` from API) immediately before **Assigned to**. Open tab label (route/query tab id remains `new`).
 - **Forgot/reset:** Existing backend `POST /api/auth/forgot-password` + `reset-password` (SHA-256 token, 1h TTL, bcrypt). FE: `/forgot-password`, `/reset-password`.
 - **Admin change password:** Reuse `PATCH /api/users/:id` with `password` (requires Users edit). Increments `password_version` (invalidates JWTs).
 - **Self-service Settings (Phase 13):**
@@ -57,7 +61,7 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
   - `POST /api/auth/change-password` — `currentPassword` + `newPassword`; denies old JWT, reissues token so session continues.
 - **Logout:** Topbar logout icon → confirmation modal → `POST /api/auth/logout` + clear local token → `/login`.
 - **Existing users:** Migration adds `Pending` to status CHECK; seeded Active users unchanged.
-- Menu visibility by role is not fully enforced in the UI yet — backend remains authoritative.
+- **Menu gating:** Sidebar `filterMenuByView` + `canPerm` (`v`); Dashboard also requires Admin/PM; Settings always visible. Backend remains authoritative for data.
 
 ---
 
@@ -86,22 +90,25 @@ frontend/
     ├── services/
     │   ├── api.js
     │   ├── auth.js             # login, me, updateProfile, changePassword, logout, …
-    │   └── users.js
-    ├── data/                   # ISSUE_MASTER, tickets, devices, roads, dashboard, …
+    │   ├── users.js            # Users admin + canPerm + homePathForUser / isDashboardRole
+    │   ├── tickets.js          # list/get + New→Open normalize
+    │   ├── dashboard.js
+    │   └── devices.js          # resolveScan mock (+ scan helpers)
+    ├── data/                   # ISSUE_MASTER, tickets, devices, roads, dashboard, scanDevice, …
     ├── layouts/
     │   ├── AppLayout.jsx       # railOpen (mobile) + railCollapsed (desktop) + shell
     │   └── AuthLayout.jsx      # login/signup chrome
     ├── components/
-    │   ├── layout/             # Sidebar, Topbar (logout confirm Modal)
+    │   ├── layout/             # Sidebar (filterMenuByView + Dashboard role gate), Topbar
     │   ├── icons/              # NavIcons (incl. logout)
-    │   └── ui/                 # Button, Panel, Pill, JumpLinks, Tooltip, …
+    │   └── ui/                 # Button, Panel, Pill, JumpLinks, Tooltip, QrScannerModal, …
     ├── pages/
-    │   ├── auth/               # Login, Signup, Forgot, Reset
-    │   ├── Dashboard.jsx       # fleet + why-down + road-wise (no open-tickets table)
+    │   ├── auth/               # Login (homePathForUser), Signup, Forgot, Reset
+    │   ├── Dashboard.jsx       # Admin/PM only; fleet + why-down + road-wise
     │   ├── Users.jsx
     │   ├── Settings.jsx        # profile + password forms
     │   ├── UiKitDemo.jsx       # /dev/ui scratch (not in menu)
-    │   ├── tickets/
+    │   ├── tickets/            # TicketList Raised by column; Open tab label
     │   ├── devices/
     │   └── masters/
     └── hooks/
@@ -125,17 +132,19 @@ A developer should open `pages/tickets/TicketList.jsx` and find the table, tab s
 | Icons | Inline SVG components (from `nav.js` / page SVGs) | No icon library needed |
 | Forms | Controlled React inputs | Matches preview; no Formik |
 | State | React local state (+ toast / auth context) | Preview + session |
-| Data | Static JS modules + auth/users services | Progressive API wiring |
+| Data | Static JS modules + auth/users/tickets/dashboard services | Progressive API wiring |
+| QR (Phase 17) | `html5-qrcode` via `QrScannerModal` | Camera scan for attendant/tech only |
 | Types | Optional JSDoc or migrate to TS later | Skill prefers types; original is JS — start JSX/JS for parity speed unless team requires TS |
 
 ### Libraries to avoid (for now)
 
-Redux, Zustand, React Query, CSS-in-JS, UI kits (MUI/Ant/Chakra), chart libraries, camera QR SDKs (until real scan is scoped).
+Redux, Zustand, React Query, CSS-in-JS, UI kits (MUI/Ant/Chakra), chart libraries. Extra camera SDKs beyond the approved `html5-qrcode` path.
 
 ### Dependencies to add during setup phase
 
 - `tailwindcss` (+ Vite plugin / PostCSS as appropriate for chosen major)
 - `react-router-dom`
+- `html5-qrcode` (Phase 17 — already added)
 
 ---
 
@@ -159,7 +168,7 @@ React replaces inject-on-load with components and routes; CSS tokens move into T
 ```text
 aside.rail[.collapsed]
   brand (glyph P + APP title/sub + desktop collapse toggle + mobile close)
-  nav (MENU — leaf Links / group expand)
+  nav (MENU — leaf Links / group expand; filterMenuByView + Dashboard Admin/PM gate)
   rail-bottom
     Settings (SETTINGS config — not in MENU)
     rail-foot (EXILIO / version)
@@ -170,6 +179,8 @@ aside.rail[.collapsed]
 | Mobile drawer | `railOpen` in AppLayout; CSS ≤820px transform |
 | Desktop icon-rail | `railCollapsed` in AppLayout; `html.rail-narrow` sets `--rail` to `--rail-collapsed` |
 | Active item | `PageMeta` `pageId` + `isMenuItemOn` |
+| View permission | `filterMenuByView` + `canPerm(…, 'v')` |
+| Dashboard item | Extra `isDashboardRole` (Admin / Project manager only) |
 | Collapsed groups | Click expands rail then opens group (no flyout) |
 | Collapsed labels | CSS opacity/max-width; native `title` tooltips |
 | Persistence | None |
@@ -199,3 +210,13 @@ Raise / Update / Close
 | Photo picker | Compact `.photo-add` tile (shared `PhotoPicker`) |
 | Action bar | `position: static`; transparent; width capped at `580px` via `.sticky-bar-inner` |
 | Pages | `TicketRaise`, `TicketUpdate`, `TicketClose` |
+
+### Post-login home (Phase 18)
+
+```text
+Login / GuestOnly / `/` / `*`
+  → Admin | Project manager → /dashboard
+  → everyone else           → /tickets
+```
+
+Helpers: `isDashboardRole`, `homePathForUser` (`services/users.js`); `HomeRedirect` (`AuthContext.jsx`).

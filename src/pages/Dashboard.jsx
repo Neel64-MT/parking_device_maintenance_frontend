@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { PageMeta } from '../context/PageMetaContext'
 import { useAuth } from '../context/AuthContext'
 import { ApiRequestError } from '../services/api'
 import { getDashboard } from '../services/dashboard'
-import { canPerm } from '../services/users'
+import { canPerm, homePathForUser, isDashboardRole } from '../services/users'
 import { JumpLinks } from '../components/ui/JumpLinks'
 import { Panel } from '../components/ui/Panel'
 import { Tooltip } from '../components/ui/Tooltip'
@@ -49,7 +49,8 @@ function DashboardFilters({ road, from, to, onRoad, onFrom, onTo }) {
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const canView = canPerm(user, 'Dashboard', 'v')
+  const allowed = isDashboardRole(user)
+  const canView = canPerm(user, 'Dashboard', 'v') && allowed
 
   const [road, setRoad] = useState('All roads')
   const [from, setFrom] = useState('2026-08-01')
@@ -101,6 +102,10 @@ export default function Dashboard() {
       cancelled = true
     }
   }, [canView, road, from, to])
+
+  if (!allowed) {
+    return <Navigate to={homePathForUser(user)} replace />
+  }
 
   const legend = (fleet?.legend || []).map((item) => ({
     ...item,

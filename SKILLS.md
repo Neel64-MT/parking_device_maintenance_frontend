@@ -142,6 +142,14 @@ Inspect existing code
 - Ticket list envelope includes `tiles` / `tabCounts` beside `data` — use `apiEnvelope` (or equivalent), not `api()` alone.
 - Never treat client-side row filtering as authorization.
 
+## QR scan skills (Phase 17+)
+
+- Use `QrScannerModal` + `html5-qrcode`; stop the camera on close.
+- Gate camera with `user.role === 'Site attendant' || user.role === 'Technician'`.
+- Resolve scans through `services/devices.resolveScan` (mock now; later `GET /api/devices/scan`).
+- Site attendant Raise: map full scan fields; block create when `openTicketId` is set.
+- Technician Update: on scan success call existing `loadTicket()` only.
+
 ## Definition of done (per page)
 
 - Matches original layout and key measurements

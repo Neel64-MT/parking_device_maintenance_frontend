@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { Navigate, useLocation } from 'react-router-dom'
 import { ApiRequestError, clearToken, getToken } from '../services/api'
 import * as authApi from '../services/auth'
+import { homePathForUser } from '../services/users'
 
 const AuthContext = createContext(null)
 
@@ -138,8 +139,23 @@ export function GuestOnly({ children }) {
   }
 
   if (user) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={homePathForUser(user)} replace />
   }
 
   return children
+}
+
+/** Index / catch-all — Admin & Project manager → dashboard; others → tickets. */
+export function HomeRedirect() {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="auth-boot" role="status">
+        Loading…
+      </div>
+    )
+  }
+
+  return <Navigate to={homePathForUser(user)} replace />
 }

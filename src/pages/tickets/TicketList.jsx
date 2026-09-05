@@ -254,7 +254,7 @@ export default function TicketList() {
           value={tab}
           onChange={handleTab}
           tabs={[
-            { id: 'new', label: 'New', count: tabCounts.new },
+            { id: 'new', label: 'Open', count: tabCounts.new },
             { id: 'asg', label: 'Assigned', count: tabCounts.asg },
             { id: 'cls', label: 'Closed', count: tabCounts.cls },
           ]}
@@ -287,6 +287,7 @@ export default function TicketList() {
                   <th>Road / slot</th>
                   <th>Issue reported</th>
                   <th>Issue found</th>
+                  <th>Raised by</th>
                   <th>Assigned to</th>
                   <th className="num">Updates</th>
                   <th className="num">Days open</th>
@@ -297,14 +298,14 @@ export default function TicketList() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={10}>
+                    <td colSpan={11}>
                       <span className="muted">Loading tickets…</span>
                     </td>
                   </tr>
                 ) : null}
                 {!loading && !rows.length ? (
                   <tr>
-                    <td colSpan={10}>
+                    <td colSpan={11}>
                       <span className="muted">No tickets match this view.</span>
                     </td>
                   </tr>
@@ -343,6 +344,9 @@ export default function TicketList() {
                           ) : (
                             <span className="muted">Not inspected yet</span>
                           )}
+                        </td>
+                        <td>
+                          {row.raisedBy || <span className="muted">—</span>}
                         </td>
                         <td>
                           {row.assignedTo || <span className="muted">Not assigned</span>}
