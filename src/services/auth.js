@@ -38,6 +38,22 @@ export async function me() {
   return api('/api/auth/me')
 }
 
+export async function updateProfile({ fullName, mobile, email }) {
+  return api('/api/auth/me', {
+    method: 'PATCH',
+    body: { fullName, mobile, email },
+  })
+}
+
+export async function changePassword({ currentPassword, newPassword }) {
+  const data = await api('/api/auth/change-password', {
+    method: 'POST',
+    body: { currentPassword, newPassword },
+  })
+  if (data?.token) setToken(data.token)
+  return data
+}
+
 export async function logout() {
   try {
     await api('/api/auth/logout', { method: 'POST' })

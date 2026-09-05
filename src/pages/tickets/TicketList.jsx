@@ -59,25 +59,6 @@ export default function TicketList() {
     })
   }, [tab, query])
 
-  const actions = useMemo(
-    () => (
-      <>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ticket, device or slot"
-          style={{ minWidth: 190 }}
-          aria-label="Search tickets"
-        />
-        <Link className="btn btn-primary" to="/tickets/raise">
-          Raise ticket
-        </Link>
-      </>
-    ),
-    [query],
-  )
-
   function handleTab(id) {
     setTab(id)
     setQuery('')
@@ -97,7 +78,6 @@ export default function TicketList() {
         pageId="ticket-list"
         title="All tickets"
         crumb="83 open · 412 closed this year"
-        actions={actions}
       />
 
       <main className="page">
@@ -178,6 +158,21 @@ export default function TicketList() {
           subtitle={meta.subtitle}
           link="Dashboard"
           linkTo="/dashboard"
+          actions={
+            <>
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Ticket, device or slot"
+                style={{ minWidth: 190 }}
+                aria-label="Search tickets"
+              />
+              <Link className="btn btn-primary" to="/tickets/raise">
+                Raise ticket
+              </Link>
+            </>
+          }
           flush
           foot={
             <>

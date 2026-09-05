@@ -119,6 +119,16 @@ Inspect existing code
 → Update documentation
 ```
 
+## Sidebar skills (Phase 12+)
+
+- Keep `MENU` for landing pages; put Settings in a separate `SETTINGS` export rendered in `.rail-bottom`.
+- Treat mobile drawer (`railOpen`) and desktop icon-rail (`railCollapsed`) as **two states** — never overload one flag.
+- Drive shell offset with `--rail` CSS variables so width and `margin-left` stay in sync.
+- Animate with CSS transitions; wrap labels in `.nav-label` instead of mounting/unmounting text.
+- Collapsed tooltips: native `title` / `aria-label` — no tooltip library.
+- Extend `NavIcons.jsx` for new glyphs; do not add lucide/heroicons.
+- Collapsed group click: expand the rail, then open the group (no flyout menus).
+
 ## Definition of done (per page)
 
 - Matches original layout and key measurements

@@ -30,20 +30,6 @@ export default function IssueMaster() {
     return category.subs.filter((s) => s.name.toLowerCase().includes(q))
   }, [category, query])
 
-  const actions = useMemo(
-    () => (
-      <input
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search sub-category"
-        style={{ minWidth: 200 }}
-        aria-label="Search sub-category"
-      />
-    ),
-    [query],
-  )
-
   function openCatForm() {
     setCatOpen((v) => !v)
     setTimeout(() => catNameRef.current?.focus(), 0)
@@ -75,7 +61,6 @@ export default function IssueMaster() {
         pageId="issue-master"
         title="Issue master"
         crumb="Masters › Issue category and sub-category"
-        actions={actions}
       />
 
       <main className="page">
@@ -162,6 +147,14 @@ export default function IssueMaster() {
                 <p>{category.subs.length} sub-categories</p>
               </div>
               <div className="actions">
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search sub-category"
+                  style={{ minWidth: 160 }}
+                  aria-label="Search sub-category"
+                />
                 <Button size="sm" variant="primary" onClick={openSubForm}>
                   Add sub-category
                 </Button>

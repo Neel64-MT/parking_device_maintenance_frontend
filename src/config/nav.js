@@ -5,7 +5,7 @@
 
 export const APP = {
   nameLines: ['Parking Device', 'Maintenance'],
-  sub: 'AMC Flap Based Parking · 1,000 devices',
+  sub: 'AMC Flap Based Parking',
   user: { name: 'Alkesh P.', role: 'Project manager', initials: 'AP' },
   footerLines: ['EXILIO Technology', 'v0.1 · design preview'],
 }
@@ -30,12 +30,14 @@ export const MENU = [
       {
         id: 'ticket-list',
         label: 'All tickets',
+        icon: 'ticket-list',
         path: '/tickets',
         match: ['ticket-raise', 'ticket-update', 'ticket-close', 'ticket-detail'],
       },
       {
         id: 'ticket-report',
         label: 'Work report',
+        icon: 'report',
         path: '/tickets/report',
       },
     ],
@@ -54,11 +56,13 @@ export const MENU = [
       {
         id: 'issue-master',
         label: 'Issue master',
+        icon: 'issue',
         path: '/masters/issues',
       },
       {
         id: 'road-list',
         label: 'Road master',
+        icon: 'road',
         path: '/masters/roads',
         match: ['road-add'],
       },
@@ -71,6 +75,14 @@ export const MENU = [
     path: '/users',
   },
 ]
+
+/** Bottom utility — not part of MENU */
+export const SETTINGS = {
+  id: 'settings',
+  label: 'Settings',
+  icon: 'settings',
+  path: '/settings',
+}
 
 export function isMenuItemOn(item, pageId) {
   if (item.id === pageId) return true

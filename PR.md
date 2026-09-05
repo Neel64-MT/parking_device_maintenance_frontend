@@ -33,7 +33,7 @@ Where scope and code differ, see **Gaps vs Claude scope** below.
 | **Admin** | Full control including users and roles |
 | **AMC officer** | View-only across roads |
 
-Preview UI originally hardcoded user **Alkesh P. / Project manager** in the sidebar. **Phase 10** added real login against the sibling backend. **Phase 11** adds self-signup with admin approval, forgot/reset password UI, and admin change-password on Users.
+Preview UI originally hardcoded user **Alkesh P. / Project manager** in the sidebar. **Phase 10** added real login against the sibling backend. **Phase 11** adds self-signup with admin approval, forgot/reset password UI, and admin change-password on Users. **Phase 12** adds Settings in the sidebar bottom utility + desktop rail collapse. **Phase 13** wires Settings account forms (profile + password) and shell/dashboard UX polish.
 
 ---
 
@@ -50,6 +50,7 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 - Devices
 - Masters → Issue master, Road master
 - Users
+- Settings (bottom utility above company/version — self-service profile + password)
 
 **Flows (not menu items; parent menu stays highlighted)**
 
@@ -64,9 +65,9 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 
 #### Screens (15 HTML pages)
 
-1. Dashboard — fleet strip, why-down ranked bars, road-wise table, open tickets
+1. Dashboard — fleet strip, why-down ranked bars, road-wise table (open-tickets table removed in Phase 13)
 2. All tickets — tiles, filters, New/Assigned/Closed tabs, table
-3. Raise ticket — mobile-first steps: device, problem, assign
+3. Raise ticket — mobile-first steps: device, problem (reported-by = session user)
 4. Update ticket — mobile-first: device → diagnosis → fixed/not fork
 5. Close ticket — mobile-first: final issue, resolution, cost, confirm
 6. Ticket detail — record header, work history timeline, classification, assignment trail
@@ -79,14 +80,17 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 13. Road master — filters + roads table
 14. Add road — road details, capacity/rate, status/contact
 15. Users — Users tab + Roles & permissions matrix
+16. Settings — profile (name/email/mobile) + change password
 
 #### Shared chrome
 
 - Fixed navy sidebar (`nav.js` MENU + icons)
-- Sticky topbar (title, crumb, actions template, user chip)
-- Mobile hamburger drawer at ≤820px
+- Sticky topbar (title, crumb, page-body actions preferred, user chip + logout icon with confirm modal)
+- Mobile hamburger drawer at ≤820px (`railOpen`)
+- Desktop expand/collapse icon-rail ≥821px (`railCollapsed`; expanded 248px / collapsed ~64px)
+- Settings link in sidebar bottom section above EXILIO / version
 - Toast notifications
-- Jump pill strips on landing pages
+- Jump pill strips on landing pages (optional right-side actions)
 - Interlinked codes (ticket, device, road)
 
 #### Domain behavior (preview / UI rules)
@@ -107,8 +111,8 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 |------|--------|
 | Real login / session / tokens | **Phase 10 done** — `/login`, Bearer JWT, `/signup` ask-admin only |
 | Live camera QR scanning | Simulated button only |
-| Backend APIs / persistence | Auth wired; most screens still use mock `src/data/` |
-| Empty / loading / error states for async | Auth boot + login errors; other screens mostly static |
+| Backend APIs / persistence | Auth + Users list/create/edit + Settings profile/password; other screens still mock `src/data/` |
+| Empty / loading / error states for async | Auth boot + login/settings errors; other screens mostly static |
 | Enforce “one open ticket” server-side | UI warning only in preview |
 | 7-day reopen same ticket | Documented in copy; not implemented |
 | OEM role | Spec lists OEM; original roles use Site attendant instead |
@@ -184,3 +188,34 @@ Admin → Users → Change password (PATCH /api/users/:id)
 | Admin password via existing PATCH | Pass |
 | Existing Active users unaffected | Pass |
 | Backend smoke (`npm run test:smoke`) | Pass |
+
+### Phase 12 — Sidebar Settings + desktop collapse
+
+| Criterion | Result |
+|-----------|--------|
+| Settings bottom utility + `/settings` route | Pass (content filled in Phase 13) |
+| Desktop expand/collapse with smooth width/text | Pass |
+| Collapsed: icons only + native `title` tooltips | Pass |
+| Mobile drawer unchanged (full labels) | Pass |
+| Branding: teal `P` + `APP` title (glyph-only when collapsed) | Pass |
+| No new icon/state libraries; no collapse persistence | Pass |
+
+### Phase 13 — Settings account + shell / dashboard UX
+
+```text
+Settings → Profile (name, email, mobile) → PATCH /api/auth/me
+Settings → Password (current + new) → POST /api/auth/change-password → new JWT
+Topbar → logout icon → confirm modal → POST /api/auth/logout
+Dashboard → fleet legend tips via Tooltip; open-tickets panel removed
+Shell → page fills available width (no 1360px cap); panel foot notes bottom-aligned
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Settings profile save updates session user / topbar | Pass |
+| Settings password requires current password; session continues | Pass |
+| Logout icon + confirmation before logout | Pass |
+| Landing filters/CTAs in page body (not sticky topbar) | Pass |
+| Fleet secondary status copy in Tooltip; four legend columns aligned | Pass |
+| Dashboard open-tickets table removed (All tickets remains) | Pass |
+| Page content uses full shell width (sidebar open or collapsed) | Pass |

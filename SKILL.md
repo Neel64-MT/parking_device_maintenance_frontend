@@ -74,10 +74,13 @@ Tickets        → All tickets, Work report
 Devices
 Masters        → Issue master, Road master
 Users
+───────────────
+Settings       (bottom utility — not a flow parent)
 ```
 
 Everything else is a **flow**, reached by clicking through. The sidebar still
-highlights the parent while the user is inside a flow.
+highlights the parent while the user is inside a flow. Settings sits above the
+company/version footer and is not part of the main `MENU` list.
 
 ### Flows (not menu items)
 
