@@ -10,6 +10,30 @@ export async function login(identifier, password) {
   return data
 }
 
+export async function signup({ fullName, mobile, email, password }) {
+  return api('/api/auth/signup', {
+    method: 'POST',
+    auth: false,
+    body: { fullName, mobile, email, password },
+  })
+}
+
+export async function forgotPassword(email) {
+  return api('/api/auth/forgot-password', {
+    method: 'POST',
+    auth: false,
+    body: { email },
+  })
+}
+
+export async function resetPassword(token, password) {
+  return api('/api/auth/reset-password', {
+    method: 'POST',
+    auth: false,
+    body: { token, password },
+  })
+}
+
 export async function me() {
   return api('/api/auth/me')
 }

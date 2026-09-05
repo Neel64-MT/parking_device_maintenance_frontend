@@ -101,6 +101,24 @@ Read original page + CSS section
 
 AI must not invent screens, redesign, or depend on chat memory in place of MEMORY.md / source files.
 
+## Backend / auth skills (Phase 11+)
+
+- API analysis before change; reuse Express routes + `lib/auth.ts` (bcrypt, JWT, reset tokens).
+- Database: SQL migrations only; extend status CHECK carefully; never lock out Active users.
+- Authorization: `authorize(screen, flag)` — Users `e` for approve/password.
+- Forgot password: reuse existing token email flow; do not invent OTP.
+- Frontend: AuthLayout forms; Users page live list via `services/users.js`.
+- Preferred workflow:
+
+```text
+Inspect existing code
+→ Understand existing flow
+→ Reuse existing patterns
+→ Make minimal changes
+→ Test new + existing auth
+→ Update documentation
+```
+
 ## Definition of done (per page)
 
 - Matches original layout and key measurements

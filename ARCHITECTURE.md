@@ -38,12 +38,17 @@ Original is a design preview: data lives in HTML rows and `app.js` / page script
 
 ### Routing
 
-React Router. Paths mirror original filenames without `.html` (and use path params where ids appear later). Auth routes: `/login`, `/signup`.
+React Router. Paths mirror original filenames without `.html`. Auth routes: `/login`, `/signup`, `/forgot-password`, `/reset-password`.
 
 ### Authentication / authorization
 
 - **Original:** Hardcoded user chip; permission matrix is UI-only on Users → Roles.
-- **React (Phase 10):** Login with email or mobile + password against `../backend` (`POST /api/auth/login`). JWT Bearer token. `/signup` explains Admin-created accounts only. Topbar shows session user. Menu visibility by role is not enforced in the UI yet — backend remains authoritative when APIs are called.
+- **React (Phase 10–11):** Login with email or mobile + password against `../backend`. JWT Bearer token.
+- **Signup approval:** `POST /api/auth/signup` creates `status=Pending` (default role Site attendant). Admin reviews on Users, may PATCH details/role, then `PATCH { status: 'Active' }`. Login rejects Pending with `PENDING_APPROVAL`.
+- **Forgot/reset:** Existing backend `POST /api/auth/forgot-password` + `reset-password` (SHA-256 token, 1h TTL, bcrypt). FE: `/forgot-password`, `/reset-password`.
+- **Admin change password:** Reuse `PATCH /api/users/:id` with `password` (requires Users edit). Increments `password_version` (invalidates JWTs).
+- **Existing users:** Migration adds `Pending` to status CHECK; seeded Active users unchanged.
+- Menu visibility by role is not fully enforced in the UI yet — backend remains authoritative.
 
 ---
 

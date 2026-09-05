@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
 import Login from './pages/auth/Login'
 import Signup from './pages/auth/Signup'
+import ForgotPassword from './pages/auth/ForgotPassword'
+import ResetPassword from './pages/auth/ResetPassword'
 import DeviceList from './pages/devices/DeviceList'
 import DeviceDetail from './pages/devices/DeviceDetail'
 import DeviceAdd from './pages/devices/DeviceAdd'
@@ -33,6 +35,11 @@ export function AppRoutes() {
       >
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<Signup />} />
+        <Route path="forgot-password" element={<ForgotPassword />} />
+      </Route>
+
+      <Route element={<AuthLayout />}>
+        <Route path="reset-password" element={<ResetPassword />} />
       </Route>
 
       <Route

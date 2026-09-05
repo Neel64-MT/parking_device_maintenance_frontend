@@ -33,7 +33,7 @@ Where scope and code differ, see **Gaps vs Claude scope** below.
 | **Admin** | Full control including users and roles |
 | **AMC officer** | View-only across roads |
 
-Preview UI originally hardcoded user **Alkesh P. / Project manager** in the sidebar. **Phase 10** adds real login (email or mobile + password) against the sibling backend API. `/signup` is informational only — Admin creates accounts.
+Preview UI originally hardcoded user **Alkesh P. / Project manager** in the sidebar. **Phase 10** added real login against the sibling backend. **Phase 11** adds self-signup with admin approval, forgot/reset password UI, and admin change-password on Users.
 
 ---
 
@@ -165,7 +165,22 @@ A reviewer comparing original HTML pages side-by-side with React routes cannot s
 | Criterion | Result |
 |-----------|--------|
 | `/login` email or mobile + password | Pass — `POST /api/auth/login` via Vite proxy |
-| `/signup` informational (no self-register) | Pass |
-| RequireAuth wall on app routes | Pass |
-| Topbar user from session + Log out | Pass |
-| Sibling backend on port 5000 | Required for login (`../backend`) |
+| `/signup` informational (no self-register) | Superseded by Phase 11 self-signup + approval |
+
+### Phase 11 — Signup approval, forgot password, admin password
+
+```text
+Signup → Pending → Admin review / update role → Approve → Login
+Login before approval → rejected: "Please ask the admin to approve your request."
+Login → Forgot password → email link → Reset password → Login
+Admin → Users → Change password (PATCH /api/users/:id)
+```
+
+| Criterion | Result |
+|-----------|--------|
+| `/signup` self-register → Pending | Pass |
+| Pending login blocked (`PENDING_APPROVAL`) | Pass |
+| Reuse existing forgot/reset APIs + FE pages | Pass |
+| Admin password via existing PATCH | Pass |
+| Existing Active users unaffected | Pass |
+| Backend smoke (`npm run test:smoke`) | Pass |
