@@ -334,10 +334,36 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 19: Ticket list columns + detail update/trail/images
+
+**Objective:** Tab-specific list columns; Add Update in Modal; chronological work history; View Image gallery; preserve list tab on back; Open/Assigned bifurcation + tile alignment.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Backend list `daysAfterClose`.
+2. TicketList conditional Updates / Days open / Days After Close.
+3. TicketDetail: Add Update → Modal (toast submit unchanged).
+4. Work history ASC + pass through `photos`.
+5. `ImagePreviewModal` (main + thumbs).
+6. List→detail `state.from = /tickets?tab=…`; Back to tickets / crumb via `backToTickets`.
+7. Backend `tabForStatus`: Open tab = unassigned only; Assigned = has assignee.
+8. Backend `listStatus` + tiles: Open not attended = Open tab; assigned+Open → Under repair for list/tiles.
+9. Docs finalize.
+
+**Out of scope:** POST update API wiring; Assigned column set changes beyond Updates/Days open; new libraries; DB rewrite of legacy Open+assigned rows.
+
+**Verification:** Lint/build; Open/Closed column checks; Open tab unassigned only; tiles match tabs; modal; trail order; gallery; back returns to same tab.
+
+**Completion:** PR.md Phase 19 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 15 ──► Phase 16 ──► Phase 17 ──► Phase 18
+Phase 0 ──► … ──► Phase 17 ──► Phase 18 ──► Phase 19
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

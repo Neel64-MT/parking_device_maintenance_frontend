@@ -214,3 +214,16 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Ticket tabs | Labels **Open** / Assigned / Closed (tab id `new` unchanged) |
 | Status pill | Never show **New**; show **Open** (same tone as before) |
 | Table columns | … Issue found → **Raised by** → Assigned to → Updates … |
+
+## Phase 19 — List columns, Add Update modal, trail images
+
+| Item | Pattern |
+|------|---------|
+| Open tab table | Same columns except **no Updates**; rows = **unassigned** only |
+| Closed tab table | **Days After Close** instead of Days open |
+| Assigned tab | Updates + Days open; rows = **has assignee** |
+| Summary tiles | Open not attended = Open tab; Under repair counts assigned+Open via API `listStatus` |
+| Add Update | `Modal` wide; same form; Cancel / Escape / overlay close |
+| Work history | Always visible; oldest first; newest at bottom |
+| Photos | Text **View Image** (no inline imgs); `ImagePreviewModal` main + thumbs |
+| Back to tickets | Restores list tab via `state.from` (`/tickets?tab=…`); crumb matches |

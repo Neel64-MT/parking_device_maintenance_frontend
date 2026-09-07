@@ -285,7 +285,7 @@ export const ROLES = {
       Dashboard: '......',
       'Raise ticket': 'vc....',
       'Update ticket': 'vce.x.',
-      'All tickets': 'v..a..',
+      'All tickets': 'v.....',
       'Work report': '......',
       'Device list': 'v.....',
       'Add device': '......',

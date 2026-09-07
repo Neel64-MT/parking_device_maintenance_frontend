@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
 import { toast } from '../../context/ToastContext'
@@ -10,7 +10,9 @@ import { getTicket } from '../../services/tickets'
 import { canPerm } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/FilterBar'
+import { ImagePreviewModal } from '../../components/ui/ImagePreviewModal'
 import { IssueSelects } from '../../components/ui/IssueSelects'
+import { Modal } from '../../components/ui/Modal'
 import { Pill } from '../../components/ui/Pill'
 import { TeamSelect } from '../../components/ui/TeamSelect'
 
@@ -33,8 +35,21 @@ function TimelineMeta({ item }) {
   return <span>{item.text}</span>
 }
 
+function normalizePhotos(photos) {
+  if (!Array.isArray(photos)) return []
+  return photos.map((p) => String(p || '').trim()).filter(Boolean)
+}
+
+/** Prefer returning to All tickets with the same tab query when navigated from the list. */
+function ticketsListReturnPath(from) {
+  if (typeof from !== 'string') return '/tickets'
+  const [pathname, query = ''] = from.split('?')
+  if (pathname !== '/tickets') return '/tickets'
+  return query ? `/tickets?${query}` : '/tickets'
+}
+
 function mapWorkHistory(events) {
-  return (events || []).map((e) => {
+  const mapped = (events || []).map((e) => {
     const meta = []
     if (e.nextVisit) meta.push({ kind: 'nextVisit', date: String(e.nextVisit).slice(0, 10) })
     if (e.cost != null && Number(e.cost) > 0) {
@@ -49,25 +64,33 @@ function mapWorkHistory(events) {
       statusClass: closed ? 'ok' : 'warn',
       tone: closed ? 'ok' : undefined,
       meta: meta.length ? meta : null,
+      photos: normalizePhotos(e.photos),
     }
   })
+  // Chronological: oldest first, newest at the bottom
+  return mapped.slice().reverse()
 }
 
 export default function TicketDetail() {
   const { ticketId } = useParams()
+  const location = useLocation()
   const { user } = useAuth()
   const canView = canPerm(user, 'All tickets', 'v')
+  const canAssign = canPerm(user, 'All tickets', 'a')
+  const fromHere = `${location.pathname}${location.search}`
+  const backToTickets = ticketsListReturnPath(location.state?.from)
 
   const [ticket, setTicket] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
 
   const [updOpen, setUpdOpen] = useState(false)
-  const [assignOpen, setAssignOpen] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(() => Boolean(location.state?.openAssign))
   const [updType, setUpdType] = useState('Site visit — not resolved')
   const [updCat, setUpdCat] = useState('')
   const [updSub, setUpdSub] = useState('')
   const [handover, setHandover] = useState(TEAM[0])
+  const [previewImages, setPreviewImages] = useState(null)
 
   const resolved = updType.includes('resolved')
 
@@ -123,17 +146,18 @@ export default function TicketDetail() {
   const workHistory = useMemo(() => mapWorkHistory(ticket?.workHistory), [ticket])
   const assignmentTrail = ticket?.assignmentTrail || []
   const devicePreviousTickets = ticket?.devicePreviousTickets || []
+  const canReassign = canAssign && header && header.status !== 'Closed'
 
   const crumb = useMemo(() => {
     if (!header) return null
     return (
       <>
-        <Link to="/tickets">Tickets</Link> ›{' '}
+        <Link to={backToTickets}>Tickets</Link> ›{' '}
         <Link to={`/devices/${header.deviceId}`}>{header.deviceId}</Link> › {header.road}, Slot{' '}
         {header.slot}
       </>
     )
-  }, [header])
+  }, [header, backToTickets])
 
   const actions = useMemo(() => {
     if (!header) return null
@@ -142,15 +166,15 @@ export default function TicketDetail() {
         <Link className="btn" to={`/devices/${header.deviceId}`}>
           Device history
         </Link>
-        <Link className="btn" to="/tickets/update">
+        <Link className="btn" to="/tickets/update" state={{ from: fromHere }}>
           Update on site
         </Link>
-        <Link className="btn btn-primary" to="/tickets/close">
+        <Link className="btn btn-primary" to="/tickets/close" state={{ from: fromHere }}>
           Close ticket
         </Link>
       </>
     )
-  }, [header])
+  }, [header, fromHere])
 
   function submitUpdate(e) {
     e.preventDefault()
@@ -170,8 +194,7 @@ export default function TicketDetail() {
   const foundLabel = classification?.found
     ? [classification.found.category, classification.found.sub].filter(Boolean).join(' › ')
     : null
-  const showReclass =
-    reportedLabel && foundLabel && reportedLabel !== foundLabel
+  const showReclass = reportedLabel && foundLabel && reportedLabel !== foundLabel
 
   return (
     <>
@@ -183,7 +206,7 @@ export default function TicketDetail() {
       />
 
       <main className="page">
-        <Link className="back-link" to="/tickets">
+        <Link className="back-link" to={backToTickets}>
           ← Back to tickets
         </Link>
 
@@ -213,16 +236,10 @@ export default function TicketDetail() {
                   <Pill tone={header.statusTone}>{header.status}</Pill>
                 </div>
                 <div className="push">
-                  <Button onClick={() => toast('Design preview — reassign is not connected yet.')}>
-                    Reassign
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setUpdOpen((o) => !o)
-                    }}
-                  >
-                    Add update
-                  </Button>
+                  {canReassign ? (
+                    <Button onClick={() => setAssignOpen(true)}>Reassign</Button>
+                  ) : null}
+                  <Button onClick={() => setUpdOpen(true)}>Add update</Button>
                   <Link className="btn btn-primary" to="/tickets/close">
                     Close ticket
                   </Link>
@@ -254,90 +271,13 @@ export default function TicketDetail() {
                 <div className="panel-head">
                   <div>
                     <h3>Work history</h3>
-                    <p>Every visit and update on this ticket, newest first</p>
+                    <p>Every visit and update on this ticket, oldest first — newest at the bottom</p>
                   </div>
-                </div>
-
-                <div className={`inline-form${updOpen ? ' open' : ''}`}>
-                  <form onSubmit={submitUpdate}>
-                    <div className="row">
-                      <Field label="Update type">
-                        <select value={updType} onChange={(e) => setUpdType(e.target.value)}>
-                          <option>Site visit — not resolved</option>
-                          <option>Site visit — resolved</option>
-                          <option>Remote check</option>
-                          <option>Waiting for spare</option>
-                          <option>Waiting for traffic police / AMC</option>
-                        </select>
-                      </Field>
-                      <Field label="Visited by">
-                        <select defaultValue={user?.name || ''}>
-                          <option>{user?.name || 'Current user'}</option>
-                        </select>
-                      </Field>
-                      <Field label="Date and time">
-                        <input type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
-                      </Field>
-                    </div>
-
-                    <div className="row" style={{ marginTop: 12 }}>
-                      <Field label="What was done today" className="span-2" style={{ flex: 3 }}>
-                        <textarea
-                          style={{ minHeight: 64 }}
-                          placeholder="Plain description of the work done on this visit, even if nothing was fixed."
-                        />
-                      </Field>
-                    </div>
-
-                    <div className="row" style={{ marginTop: 12 }}>
-                      <IssueSelects
-                        category={updCat}
-                        subCategory={updSub}
-                        onCategoryChange={setUpdCat}
-                        onSubCategoryChange={setUpdSub}
-                        categoryLabel="Issue category found"
-                      />
-                      <Field label="Part replaced">
-                        <select defaultValue="">
-                          <option value="">No part replaced</option>
-                          {PART_MASTER.map((p) => (
-                            <option key={p}>{p}</option>
-                          ))}
-                        </select>
-                      </Field>
-                      <Field label="Cost added today" hint="Only what was spent on this visit.">
-                        <input type="number" placeholder="0" />
-                      </Field>
-                    </div>
-                    <div className="row" style={{ marginTop: 12 }}>
-                      <Field label="Photo">
-                        <input type="text" placeholder="Upload site photo" />
-                      </Field>
-                      <Field label="Next visit planned" style={{ opacity: resolved ? 0.4 : 1 }}>
-                        <input type="date" />
-                      </Field>
-                    </div>
-
-                    <div className="row" style={{ marginTop: 14 }}>
-                      <Button type="submit" size="sm" variant="primary">
-                        Save update
-                      </Button>
-                      <Button size="sm" onClick={() => setUpdOpen(false)}>
-                        Cancel
-                      </Button>
-                      <span className="muted" style={{ marginLeft: 6 }}>
-                        The ticket closes only when the update type is <b>resolved</b>. Everything
-                        else keeps it open.
-                      </span>
-                    </div>
-                  </form>
                 </div>
 
                 <div className="panel-body">
                   <div className="tl">
-                    {!workHistory.length ? (
-                      <p className="muted">No updates yet.</p>
-                    ) : null}
+                    {!workHistory.length ? <p className="muted">No updates yet.</p> : null}
                     {workHistory.map((item) => (
                       <div
                         key={`${item.when}-${item.title}`}
@@ -350,7 +290,18 @@ export default function TicketDetail() {
                             <span className={`log-status ${item.statusClass}`}>{item.status}</span>
                           ) : null}
                         </h4>
-                        <p>{item.body}</p>
+                        {item.body ? <p>{item.body}</p> : null}
+                        {item.photos?.length ? (
+                          <p className="tl-view-image">
+                            <button
+                              type="button"
+                              className="linkish"
+                              onClick={() => setPreviewImages(item.photos)}
+                            >
+                              View Image
+                            </button>
+                          </p>
+                        ) : null}
                         {item.meta ? (
                           <div className="tl-meta">
                             {item.meta.map((m, i) => (
@@ -400,34 +351,35 @@ export default function TicketDetail() {
                       <p>Who has held this ticket, in order</p>
                     </div>
                     <div className="actions">
-                      <Button size="sm" onClick={() => setAssignOpen((o) => !o)}>
-                        Reassign
-                      </Button>
+                      {canReassign ? (
+                        <Button size="sm" onClick={() => setAssignOpen((o) => !o)}>
+                          Reassign
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
 
-                  <div className={`inline-form${assignOpen ? ' open' : ''}`}>
+                  <div className={`inline-form${assignOpen && canReassign ? ' open' : ''}`}>
+                    {canReassign ? (
                     <form onSubmit={submitAssign}>
                       <div className="row">
-                        <Field label="Hand over to" style={{ flex: 2 }}>
-                          <TeamSelect
-                            value={handover}
-                            onChange={(e) => setHandover(e.target.value)}
-                          />
+                        <Field label="Hand to">
+                          <TeamSelect value={handover} onChange={setHandover} />
                         </Field>
-                        <Field label="Reason" style={{ flex: 2 }}>
-                          <input type="text" placeholder="e.g. needs a mechanical technician" />
+                        <Field label="Note">
+                          <input type="text" placeholder="Optional note" />
                         </Field>
                       </div>
                       <div className="row" style={{ marginTop: 12 }}>
                         <Button type="submit" size="sm" variant="primary">
-                          Hand over
+                          Save assignment
                         </Button>
                         <Button size="sm" onClick={() => setAssignOpen(false)}>
                           Cancel
                         </Button>
                       </div>
                     </form>
+                    ) : null}
                   </div>
 
                   <div className="panel-body">
@@ -439,14 +391,10 @@ export default function TicketDetail() {
                         <div key={`${item.when}-${item.title}`} className="tl-item">
                           <div className="when">{item.when}</div>
                           <h4>{item.title}</h4>
-                          <p>{item.body}</p>
+                          {item.body ? <p>{item.body}</p> : null}
                         </div>
                       ))}
                     </div>
-                  </div>
-                  <div className="foot-note">
-                    Only the person holding the ticket can add an update or close it. Handing over
-                    passes that right along.
                   </div>
                 </section>
 
@@ -501,6 +449,95 @@ export default function TicketDetail() {
           </>
         ) : null}
       </main>
+
+      <Modal
+        open={updOpen}
+        title="Add update"
+        subtitle="Record a visit or progress note on this ticket"
+        onClose={() => setUpdOpen(false)}
+        wide
+      >
+        <form className="modal-update-form" onSubmit={submitUpdate}>
+          <div className="row">
+            <Field label="Update type">
+              <select value={updType} onChange={(e) => setUpdType(e.target.value)}>
+                <option>Site visit — not resolved</option>
+                <option>Site visit — resolved</option>
+                <option>Remote check</option>
+                <option>Waiting for spare</option>
+                <option>Waiting for traffic police / AMC</option>
+              </select>
+            </Field>
+            <Field label="Visited by">
+              <select defaultValue={user?.name || ''}>
+                <option>{user?.name || 'Current user'}</option>
+              </select>
+            </Field>
+            <Field label="Date and time">
+              <input type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
+            </Field>
+          </div>
+
+          <div className="row" style={{ marginTop: 12 }}>
+            <Field label="What was done today" className="span-2" style={{ flex: 3 }}>
+              <textarea
+                style={{ minHeight: 64 }}
+                placeholder="Plain description of the work done on this visit, even if nothing was fixed."
+              />
+            </Field>
+          </div>
+
+          <div className="row" style={{ marginTop: 12 }}>
+            <IssueSelects
+              category={updCat}
+              subCategory={updSub}
+              onCategoryChange={setUpdCat}
+              onSubCategoryChange={setUpdSub}
+              categoryLabel="Issue category found"
+            />
+            <Field label="Part replaced">
+              <select defaultValue="">
+                <option value="">No part replaced</option>
+                {PART_MASTER.map((p) => (
+                  <option key={p}>{p}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Cost added today" hint="Only what was spent on this visit.">
+              <input type="number" placeholder="0" />
+            </Field>
+          </div>
+          <div className="row" style={{ marginTop: 12 }}>
+            <Field label="Photo">
+              <input type="text" placeholder="Upload site photo" />
+            </Field>
+            <Field label="Next visit planned" style={{ opacity: resolved ? 0.4 : 1 }}>
+              <input type="date" />
+            </Field>
+          </div>
+
+          <div className="row" style={{ marginTop: 14 }}>
+            <Button type="submit" size="sm" variant="primary">
+              Save update
+            </Button>
+            <Button type="button" size="sm" onClick={() => setUpdOpen(false)}>
+              Cancel
+            </Button>
+            <span className="muted" style={{ marginLeft: 6 }}>
+              The ticket closes only when the update type is <b>resolved</b>. Everything else keeps
+              it open.
+            </span>
+          </div>
+        </form>
+      </Modal>
+
+      <ImagePreviewModal
+        key={previewImages ? previewImages.join('|') : 'closed'}
+        open={Boolean(previewImages?.length)}
+        images={previewImages || []}
+        onClose={() => setPreviewImages(null)}
+        title="Ticket photos"
+      />
     </>
   )
 }

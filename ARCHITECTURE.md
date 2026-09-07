@@ -54,6 +54,8 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **Home + Dashboard (Phase 18):** `homePathForUser` / `isDashboardRole` — only **Admin** and **Project manager** land on `/dashboard` after login (and see Dashboard in the sidebar). Other roles → `/tickets`. `HomeRedirect` for `/` and unknown routes; Dashboard page redirects others away.
 - **Ticket status (Phase 18):** Product statuses no longer include **New**; create/list display **Open**. FE `normalizeTicketStatus` + BE `displayStatus`; migration `007_ticket_status_open.sql` rewrites stored rows when run.
 - **Ticket list columns (Phase 18):** **Raised by** (`raisedBy` from API) immediately before **Assigned to**. Open tab label (route/query tab id remains `new`).
+- **Ticket list / detail UX (Phase 19):** Open tab hides **Updates**; Closed shows **Days After Close** (`daysAfterClose`) instead of Days open; Assigned keeps Updates + Days open. TicketDetail Add Update uses `Modal`; work history oldest→newest; trail `photos` → View Image → `ImagePreviewModal` gallery. List→detail passes `state.from = /tickets?tab=…`; Back to tickets / crumb use `backToTickets` so the active tab is restored.
+- **Ticket list tabs & tiles (Phase 19 follow-up, backend `tickets.ts`):** `tabForStatus` — Closed → `cls`; no `assignee_id` → `new` (Open tab); else → `asg`. Tile **Open, not attended** = count of tab `new` (matches Open badge). `listStatus` (list/tiles only, no DB write): assignee + stored Open/New → display/count as **Under repair** so Under repair (+ Waiting for spare) aligns with Assigned; **Open over 3 days** = non-closed with daysOpen > 3.
 - **Forgot/reset:** Existing backend `POST /api/auth/forgot-password` + `reset-password` (SHA-256 token, 1h TTL, bcrypt). FE: `/forgot-password`, `/reset-password`.
 - **Admin change password:** Reuse `PATCH /api/users/:id` with `password` (requires Users edit). Increments `password_version` (invalidates JWTs).
 - **Self-service Settings (Phase 13):**
@@ -101,14 +103,14 @@ frontend/
     ├── components/
     │   ├── layout/             # Sidebar (filterMenuByView + Dashboard role gate), Topbar
     │   ├── icons/              # NavIcons (incl. logout)
-    │   └── ui/                 # Button, Panel, Pill, JumpLinks, Tooltip, QrScannerModal, …
+    │   └── ui/                 # Button, Panel, Pill, JumpLinks, Tooltip, Modal, QrScannerModal, ImagePreviewModal, …
     ├── pages/
     │   ├── auth/               # Login (homePathForUser), Signup, Forgot, Reset
     │   ├── Dashboard.jsx       # Admin/PM only; fleet + why-down + road-wise
     │   ├── Users.jsx
     │   ├── Settings.jsx        # profile + password forms
     │   ├── UiKitDemo.jsx       # /dev/ui scratch (not in menu)
-    │   ├── tickets/            # TicketList Raised by column; Open tab label
+    │   ├── tickets/            # TicketList tab columns + state.from; TicketDetail Modal update / gallery / backToTickets
     │   ├── devices/
     │   └── masters/
     └── hooks/
@@ -220,3 +222,16 @@ Login / GuestOnly / `/` / `*`
 ```
 
 Helpers: `isDashboardRole`, `homePathForUser` (`services/users.js`); `HomeRedirect` (`AuthContext.jsx`).
+
+### Ticket list ↔ detail (Phase 19)
+
+```text
+TicketList (tab = new | asg | cls)
+  → Open (new) = unassigned non-closed; Assigned (asg) = has assignee; Closed (cls)
+  → tiles from API: Open not attended = new; Under repair via listStatus; …
+  → Link to /tickets/:id  state.from = /tickets?tab={tab}
+TicketDetail
+  → backToTickets = ticketsListReturnPath(state.from)  // else /tickets
+  → crumb + “Back to tickets” → backToTickets
+  → Add Update → Modal (toast); work history ASC; View Image → ImagePreviewModal
+```

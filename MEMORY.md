@@ -63,16 +63,25 @@
   - TicketList column **Raised by** before **Assigned to**; list API returns `raisedBy`
   - Ticket list/export: ownership visibility only (do **not** AND `assigned_roads`); raiser/assignee detail access even outside assigned roads
   - Smoke: Site attendant sees raised tickets on non-assigned roads (e.g. TK-1099)
+- [x] **Phase 19 — Ticket list columns + detail update/trail/images**
+  - Open tab hides Updates; Closed shows Days After Close (`daysAfterClose`); Assigned unchanged
+  - Add Update opens existing form in `Modal` (toast submit unchanged)
+  - Work history oldest → newest, always visible
+  - View Image → `ImagePreviewModal` main + thumbnails when `photos` present
+  - List → detail passes `state.from = /tickets?tab=…`; Back to tickets uses `backToTickets` / `ticketsListReturnPath`
+  - Open tab = unassigned only (`tabForStatus`); Assigned = has assignee
+  - Tiles aligned with tabs: Open not attended = Open; assigned+Open → Under repair via `listStatus` (list/tiles only)
+  - Lint + production build pass
 
 ## Currently working on
 
-- **Phase:** — (Phase 18 complete)
+- **Phase:** —
 - **Task:** —
 - **File:** —
 
 ## Pending
 
-- Wire Raise/Update/Close create APIs (Raise still toast after scan mock)
+- Wire Raise/Update/Close create APIs (Raise still toast after scan mock; Add Update still toast)
 - Live `GET /api/devices/scan` after QR payload finalized
 - External inspection package (`PROJECT_PATH` — deferred until path provided)
 - Roles tab on Users still mostly preview matrix
@@ -91,6 +100,10 @@
 21. Phase 18: only Admin / Project manager land on and open Dashboard; other roles home to All tickets.
 22. Ticket workflow status labels: Open / Under repair / Waiting for spare / Closed — never display **New**.
 23. Ticket list visibility is raiser OR assignee for non–Admin/PM; do not hide a user’s own raised tickets because the device road is outside `user_roads`.
+24. Phase 19: Open tab hides Updates; Closed uses Days After Close; Add Update in Modal; work history chronological; View Image gallery from event photos.
+25. Ticket list → detail → Back to tickets: preserve active tab via navigation `state.from` (`/tickets?tab=…`) and TicketDetail `backToTickets` (not hard-coded `/tickets`).
+26. Open tab (`new`) = unassigned only (`assignee_id` null); Assigned (`asg`) = has assignee. Backend `tabForStatus` must not put status Open/New with an assignee on Open.
+27. All tickets tiles: “Open, not attended” = tab `new` (same as Open tab). Assigned tickets still stored as Open/New are `listStatus` → Under repair for list pills + Under repair tile (no DB rewrite). `tabCounts` and tiles both use `tabForStatus` / `listStatus`. “Open over 3 days” = non-closed (Open+Assigned) with daysOpen>3.
 
 ## Important decisions (detail)
 
@@ -114,6 +127,9 @@
 28. `homePathForUser` / `isDashboardRole` in `services/users.js`; `HomeRedirect` in AuthContext; Login deep-links skip `/dashboard` for non–Admin/PM.
 29. Legacy DB status `New` mapped to Open in API responses; prefer migration `007_ticket_status_open.sql` to rewrite rows.
 30. Ticket list must not combine `assigned_roads` AND ownership in a way that drops raiser rows on other roads.
+31. When linking from TicketList to TicketDetail, pass `state={{ from: `/tickets?tab=${tab}` }}` so crumb/back restore the same Open/Assigned/Closed tab.
+32. Backend `tabForStatus`: Closed → `cls`; `!assignee_id` → `new`; else → `asg` (do not put status Open with assignee on Open tab).
+33. Backend `listStatus` (list + tiles only): assignee + Open/New → Under repair for pills/tile counts; no DB rewrite. Open over 3 days = all non-closed with daysOpen > 3.
 
 ## Known issues / gaps
 
@@ -125,8 +141,8 @@
 | Roles tab | Permission matrix save still toast/preview |
 | Forgot SMTP | Dev logs reset URL when SMTP unset |
 | Status migration | Environments that never ran `007` may still store `New` (API/FE normalize display) |
-| Backend restart | Restart backend after Phase 17 scan shape + Phase 18 ticket list/visibility changes |
+| Backend restart | Restart backend after Phase 17 scan shape, Phase 18 visibility, and Phase 19 `tabForStatus` / `listStatus` / `daysAfterClose` |
 
 ## Handoff notes
 
-Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: Site attendant / Technician; mock scan defaults to open TK-1042; use PD-0501 or FREE for a free device.
+Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 19 list tab+tile helpers. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: Site attendant / Technician; mock scan defaults to open TK-1042; use PD-0501 or FREE for a free device. All tickets: Open tab = unassigned; tiles Open not attended match Open; assigned+Open show as Under repair on list.

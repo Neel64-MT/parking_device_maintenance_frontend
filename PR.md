@@ -288,3 +288,26 @@ Visibility → raiser OR assignee for non–Admin/PM; list not road-AND’d
 | Raised by column before Assigned to | Pass |
 | Raiser sees own tickets on roads outside `user_roads` | Pass |
 | Backend remains ownership security boundary | Pass |
+
+### Phase 19 — Ticket list columns + detail update/trail/images
+
+```text
+Ticket list (Open) → hide Updates; (Closed) → Days After Close; (Assigned) unchanged
+Open tab = unassigned only; Assigned = has assignee (backend tabForStatus)
+Tiles: Open not attended = Open tab; Under repair includes assigned+Open via listStatus
+Ticket detail → Add Update in Modal (toast submit); work history ASC; View Image gallery
+List → detail → Back to tickets → same tab via state.from = /tickets?tab=…
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Open tab (`new`) hides Updates column | Pass |
+| Closed tab shows Days After Close (not Days open) | Pass |
+| Assigned tab keeps Updates + Days open | Pass |
+| Open tab shows only unassigned non-closed tickets | Pass |
+| Tile “Open, not attended” matches Open tab count | Pass |
+| Assigned + stored Open/New list as Under repair (tiles/pills; no DB rewrite) | Pass |
+| Add Update opens existing form in Modal | Pass |
+| Work history chronological (oldest → newest), always visible | Pass |
+| View Image → main + thumbnail gallery when photos exist | Pass |
+| Detail Back to tickets preserves list tab (`state.from`) | Pass |
