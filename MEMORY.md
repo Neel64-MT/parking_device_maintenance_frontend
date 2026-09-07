@@ -63,25 +63,34 @@
   - TicketList column **Raised by** before **Assigned to**; list API returns `raisedBy`
   - Ticket list/export: ownership visibility only (do **not** AND `assigned_roads`); raiser/assignee detail access even outside assigned roads
   - Smoke: Site attendant sees raised tickets on non-assigned roads (e.g. TK-1099)
-- [x] **Phase 19 — Ticket list columns + detail update/trail/images**
-  - Open tab hides Updates; Closed shows Days After Close (`daysAfterClose`); Assigned unchanged
-  - Add Update opens existing form in `Modal` (toast submit unchanged)
-  - Work history oldest → newest, always visible
-  - View Image → `ImagePreviewModal` main + thumbnails when `photos` present
-  - List → detail passes `state.from = /tickets?tab=…`; Back to tickets uses `backToTickets` / `ticketsListReturnPath`
-  - Open tab = unassigned only (`tabForStatus`); Assigned = has assignee
-  - Tiles aligned with tabs: Open not attended = Open; assigned+Open → Under repair via `listStatus` (list/tiles only)
-  - Lint + production build pass
+
+### Phase 20 — Image attachment in ticket (complete)
+
+- Shared `PhotoPicker`: Choose from folder / Capture from camera (`CameraCaptureModal` + `getUserMedia`)
+- Camera live: overlay flip icon (front/rear); **Cancel** + **Take photo** in one row
+- Camera flow: Take photo → crop/review (full-width image, no black letterbox) → Upload (confirm local File) or Recapture
+- Validate `image/*` ≤8 MB; max **5** photos; object-URL thumbs until submit
+- **Deferred upload:** parents call `uploadImages` on Raise / Update / Close / Detail Add Update submit (not on each add)
+- Wired on Raise, Ticket Update (fixed + not-fixed), Ticket Close, Detail Add Update
+- Ticket create/update/close POST still toast; photo URLs prepared after upload for future APIs
+- Compact tile preserved; no new npm deps; QrScanner not reused for photos
+
+### Phase 21 — Field label fix + Ticket Update trim (complete)
+
+- **Bug:** `Field` was `<label class="fld">` → clicking first photo × activated label → first control → photos appeared to vanish. **Fix:** `Field` → `<div class="fld">`
+- PhotoPicker: `preventDefault` on `.photos`; revoke **only** the removed object URL (do not touch remaining thumbs)
+- Ticket Update: removed **Hand over to** and **Next visit planned**; **Photos** before **Work done** / **Work done today**
+- Detail Add Update: Photos row before “What was done today”
+- Modal: `closeOnEscape` / `closeDisabled` for crop review / exporting
+- Lint + production build expected with photo CSS in `index.css`
 
 ## Currently working on
 
-- **Phase:** —
-- **Task:** —
-- **File:** —
+- (none)
 
 ## Pending
 
-- Wire Raise/Update/Close create APIs (Raise still toast after scan mock; Add Update still toast)
+- Wire Raise/Update/Close/Detail create-update APIs (photos upload on submit; ticket POST still toast)
 - Live `GET /api/devices/scan` after QR payload finalized
 - External inspection package (`PROJECT_PATH` — deferred until path provided)
 - Roles tab on Users still mostly preview matrix
@@ -104,6 +113,8 @@
 25. Ticket list → detail → Back to tickets: preserve active tab via navigation `state.from` (`/tickets?tab=…`) and TicketDetail `backToTickets` (not hard-coded `/tickets`).
 26. Open tab (`new`) = unassigned only (`assignee_id` null); Assigned (`asg`) = has assignee. Backend `tabForStatus` must not put status Open/New with an assignee on Open.
 27. All tickets tiles: “Open, not attended” = tab `new` (same as Open tab). Assigned tickets still stored as Open/New are `listStatus` → Under repair for list pills + Under repair tile (no DB rewrite). `tabCounts` and tiles both use `tabForStatus` / `listStatus`. “Open over 3 days” = non-closed (Open+Assigned) with daysOpen>3.
+28. Phase 20 — Image attachment in ticket: folder and camera → local `File` + object-URL preview (max 5); same validate; **`uploadImages` on form submit**. Camera uses in-app `getUserMedia` modal with overlay flip icon + crop/review (Upload confirms File into picker; Recapture restarts). Crop preview is full width (no black letterbox). Camera footer is Cancel + Take photo only. No second pipeline; ticket POST remains toast until create/update/close APIs are wired.
+29. Phase 21: never wrap PhotoPicker (or other composite controls) in `<label>` — use `div.fld`. Revoke only the removed preview URL. Ticket Update no longer has Hand over / Next visit planned; Photos precede work-done text.
 
 ## Important decisions (detail)
 
@@ -145,4 +156,4 @@
 
 ## Handoff notes
 
-Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 19 list tab+tile helpers. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: Site attendant / Technician; mock scan defaults to open TK-1042; use PD-0501 or FREE for a free device. All tickets: Open tab = unassigned; tiles Open not attended match Open; assigned+Open show as Under repair on list.
+Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages`. Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: Site attendant / Technician; mock scan defaults to open TK-1042; use PD-0501 or FREE for a free device.

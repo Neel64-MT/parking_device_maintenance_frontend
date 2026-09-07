@@ -5,7 +5,9 @@ import { PageMeta } from '../../context/PageMetaContext'
 import { toast } from '../../context/ToastContext'
 import { scanDeviceFacts } from '../../data/scanDevice'
 import { ROAD_OPTIONS, SLOTS } from '../../data/slots'
+import { ApiRequestError } from '../../services/api'
 import { canScanWithCamera, resolveScan } from '../../services/devices'
+import { uploadImages } from '../../services/uploads'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
 import { Field } from '../../components/ui/FilterBar'
@@ -41,6 +43,8 @@ export default function TicketRaise() {
   const [category, setCategory] = useState('')
   const [subCategory, setSubCategory] = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
+  const [photos, setPhotos] = useState([])
+  const [submitting, setSubmitting] = useState(false)
 
   const reportedBy = user?.name || ''
   const slotOptions = road ? SLOTS[road] || [] : []
@@ -98,7 +102,7 @@ export default function TicketRaise() {
     applyResolved(text)
   }
 
-  function tryRaise() {
+  async function tryRaise() {
     if (!device) {
       toast('Scan or select a device first.')
       return
@@ -107,7 +111,24 @@ export default function TicketRaise() {
       toast('This device already has an open ticket. Update that ticket instead.')
       return
     }
-    toast('Design preview — ticket would be created here.')
+    setSubmitting(true)
+    try {
+      let photoUrls = []
+      if (photos.length) {
+        const uploaded = await uploadImages(photos)
+        photoUrls = uploaded.map((u) => u.url)
+      }
+      // photoUrls ready for create-ticket API when wired
+      toast(
+        photoUrls.length
+          ? `Design preview — ticket would be created here (${photoUrls.length} photo${photoUrls.length > 1 ? 's' : ''} ready).`
+          : 'Design preview — ticket would be created here.',
+      )
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.message : 'Could not upload images.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -220,7 +241,11 @@ export default function TicketRaise() {
                 <textarea placeholder="e.g. Flap does not open after payment, two vehicles waiting" />
               </Field>
               <Field label="Photos">
-                <PhotoPicker hint="Add as many photos as you need — the slot, the flap, the display." />
+                <PhotoPicker
+                  hint="Up to 5 photos — the slot, the flap, the display."
+                  onChange={setPhotos}
+                  disabled={submitting}
+                />
               </Field>
               <Field
                 label="Reported by"
@@ -248,8 +273,12 @@ export default function TicketRaise() {
             <Link className="btn" to="/tickets">
               Cancel
             </Link>
-            <Button variant="primary" onClick={tryRaise} disabled={blocked || !device}>
-              Raise ticket
+            <Button
+              variant="primary"
+              onClick={tryRaise}
+              disabled={blocked || !device || submitting}
+            >
+              {submitting ? 'Uploading…' : 'Raise ticket'}
             </Button>
           </div>
         </div>

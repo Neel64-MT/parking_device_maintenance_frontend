@@ -60,7 +60,7 @@ Frontend ticket rendering (Phase 16+)
 TicketList / Dashboard / TicketDetail must consume scoped APIs; never download all tickets and filter in React for authorization.
 Reuse canPerm and Users loading/empty/error patterns; do not add a second role store.
 Preserve existing layout; only bind live data.
-Leave Raise/Update/Close/WorkReport mock until those APIs are wired (Work report backend is not ownership-scoped yet).
+Leave Raise/Update/Close/WorkReport ticket POST mock until those APIs are wired (photo files may still upload on submit via uploadImages; Work report backend is not ownership-scoped yet).
 Ticket list / detail UI (Phase 19+)
 Open tab (new) must not show the Updates column; Assigned keeps it.
 Closed tab (cls) shows Days After Close, not Days open.
@@ -86,6 +86,17 @@ Until QR format is finalized, any successful decode uses resolveScan mock (not l
 Open ticket = status ≠ Closed; at most one open ticket per device (backend OPEN_TICKET_EXISTS + FE block on Raise).
 Do not rewrite Technician Update inspection panels — only open the camera before existing mock load.
 External inspection package path (PROJECT_PATH) is deferred until product supplies it.
+Photo attachments (Phase 20 — Image attachment in ticket)
+Reuse one PhotoPicker for folder and camera. Validate client-side (image/*, 8 MB); keep local File + object-URL preview until form submit, then uploadImages (POST /api/uploads). Do not upload on every add.
+Camera capture uses CameraCaptureModal — not QrScannerModal; no extra camera library.
+Flip front/rear with the overlay icon on the live preview (`.camera-flip-btn`), not a text button in the bottom action row. Camera step actions stay Cancel + Take photo in one row.
+After Take photo: crop/review → Upload (confirm File into picker) or Recapture. Crop preview must be full modal width (`.camera-crop-image` width 100%); do not reintroduce a dark letterbox stage behind portrait shots.
+Default max is 5 photos; toast when over limit; hide Add when at limit.
+Keep the compact photo tile (do not full-bleed Add photo).
+Field / label (Phase 21+)
+Field must render div.fld, never label.fld. A wrapping label activates the first nested button/input and makes the first photo × remove (or look like it removes) other thumbs.
+PhotoPicker: preventDefault on .photos clicks; on remove, revoke only that item’s object URL (do not rebuild/revoke remaining URLs).
+Ticket Update (Phase 21+): no Hand over / Next visit planned fields; Photos before Work done / Work done today.
 Landing chrome rules
 Prefer page-body toolbars (.page-toolbar, JumpLinks actions, panel-head actions, collapsible filters) over sticky topbar action slots for filters and primary CTAs.
 Dashboard no longer shows the open-tickets table; use All tickets for that list.

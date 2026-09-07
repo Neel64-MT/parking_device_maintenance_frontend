@@ -227,3 +227,27 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Work history | Always visible; oldest first; newest at bottom |
 | Photos | Text **View Image** (no inline imgs); `ImagePreviewModal` main + thumbs |
 | Back to tickets | Restores list tab via `state.from` (`/tickets?tab=…`); crumb matches |
+
+## Phase 20 — Image attachment in ticket
+
+| Item | Pattern |
+|------|---------|
+| Add photo control | Compact tile; menu: Choose from folder / Capture from camera |
+| Folder | Hidden `input type=file accept=image/* multiple` |
+| Camera live | `CameraCaptureModal` + `getUserMedia`; video fills mount |
+| Flip control | Circular overlay on preview (`.camera-flip-btn`): camera outline + circular arrows SVG; top-right desktop, bottom-right ≤520px |
+| Camera actions | **Cancel** + **Take photo** only (one equal-width row) |
+| Crop / review | Drag box + corner handles; actions **Cancel** / **Recapture** / **Upload** |
+| Crop layout | Frame + image `width: 100%`; stage background transparent — **no black side letterbox** on mobile |
+| Preview thumbs | Local object-URL in `.photo-thumb.has-img`; × removes one; count `N of 5` |
+| Cap | Max **5** photos; Add tile hidden at limit |
+| Upload timing | Parent `uploadImages` on form submit — not per-file on add |
+| CSS | `.photo-source-menu`, `.camera-capture-*`, `.camera-flip-*`, `.camera-crop-*` in `index.css` |
+
+## Phase 21 — Field label + Ticket Update trim
+
+| Item | Pattern |
+|------|---------|
+| Field wrapper | `div.fld` (not `<label>`) — avoids label-activating first photo × |
+| Photo remove | `preventDefault` on `.photos`; revoke only the removed object URL |
+| Ticket Update | No Hand over / Next visit planned; Photos before Work done / Work done today |
