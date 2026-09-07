@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast } from '../../context/ToastContext'
@@ -33,6 +33,7 @@ function applyScanToDevice(scan) {
 
 export default function TicketRaise() {
   const { user } = useAuth()
+  const location = useLocation()
   const canScan = canScanWithCamera(user)
   const [road, setRoad] = useState('')
   const [slot, setSlot] = useState('')
@@ -43,6 +44,7 @@ export default function TicketRaise() {
 
   const reportedBy = user?.name || ''
   const slotOptions = road ? SLOTS[road] || [] : []
+  const fromHere = `${location.pathname}${location.search}`
   const blocked = Boolean(device?.dup)
 
   const crumb = useMemo(
@@ -180,7 +182,11 @@ export default function TicketRaise() {
                         <Link className="btn btn-sm" to={`/tickets/${device.scan.openTicketId}`}>
                           Open {device.scan.openTicketId}
                         </Link>
-                        <Link className="btn btn-sm" to="/tickets/update">
+                        <Link
+                          className="btn btn-sm"
+                          to="/tickets/update"
+                          state={{ from: fromHere }}
+                        >
                           Update ticket
                         </Link>
                       </div>

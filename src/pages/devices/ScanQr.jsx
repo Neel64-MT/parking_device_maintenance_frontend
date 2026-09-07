@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast } from '../../context/ToastContext'
@@ -15,11 +15,13 @@ import { QrScannerModal } from '../../components/ui/QrScannerModal'
 
 export default function ScanQr() {
   const { user } = useAuth()
+  const location = useLocation()
   const canScan = canScanWithCamera(user)
   const [manual, setManual] = useState('')
   const [state, setState] = useState('idle') // idle | hit | miss
   const [scan, setScan] = useState(null)
   const [scannerOpen, setScannerOpen] = useState(false)
+  const fromHere = `${location.pathname}${location.search}`
 
   const crumb = useMemo(
     () => (
@@ -159,7 +161,7 @@ export default function ScanQr() {
             <div className="form-actions">
               {scan.openTicketId ? (
                 <>
-                  <Link className="btn btn-primary" to="/tickets/update">
+                  <Link className="btn btn-primary" to="/tickets/update" state={{ from: fromHere }}>
                     Update ticket
                   </Link>
                   <Link className="btn" to={`/tickets/${scan.openTicketId}`}>

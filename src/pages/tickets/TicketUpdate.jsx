@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast } from '../../context/ToastContext'
@@ -27,6 +27,7 @@ export default function TicketUpdate() {
   const { user } = useAuth()
   const canScan = canScanWithCamera(user)
   const navigate = useNavigate()
+  const location = useLocation()
   const [road, setRoad] = useState('')
   const [slot, setSlot] = useState('')
   const [loaded, setLoaded] = useState(false)
@@ -42,6 +43,13 @@ export default function TicketUpdate() {
     Boolean(category && subCategory) &&
     !(category === 'Electrical' && subCategory === 'Controller board failure')
 
+  const backTo =
+    typeof location.state?.from === 'string' &&
+    location.state.from.startsWith('/') &&
+    !location.state.from.startsWith('/tickets/update')
+      ? location.state.from
+      : '/tickets'
+
   const crumb = useMemo(
     () => (
       <>
@@ -53,11 +61,11 @@ export default function TicketUpdate() {
 
   const actions = useMemo(
     () => (
-      <Link className="btn" to="/tickets">
+      <Link className="btn" to={backTo}>
         My tickets
       </Link>
     ),
-    [],
+    [backTo],
   )
 
   function fillSlots(nextRoad) {
@@ -76,8 +84,24 @@ export default function TicketUpdate() {
     loadTicket()
   }
 
+  function cancel() {
+    if (
+      typeof location.state?.from === 'string' &&
+      location.state.from.startsWith('/') &&
+      !location.state.from.startsWith('/tickets/update')
+    ) {
+      navigate(location.state.from)
+      return
+    }
+    if (location.key !== 'default') {
+      navigate(-1)
+      return
+    }
+    navigate('/tickets')
+  }
+
   function save() {
-    if (fixed) navigate('/tickets/close')
+    if (fixed) navigate('/tickets/close', { state: { from: backTo } })
     else toast('Update saved. Ticket stays open.')
   }
 
@@ -324,12 +348,12 @@ export default function TicketUpdate() {
           </div>
         ) : null}
 
-        {loaded ? (
-          <div className="sticky-bar">
-            <div className="sticky-bar-inner">
-              <Link className="btn" to="/tickets">
-                Cancel
-              </Link>
+        <div className="sticky-bar">
+          <div className="sticky-bar-inner">
+            <Button type="button" onClick={cancel}>
+              Cancel
+            </Button>
+            {loaded ? (
               <Button
                 variant={fixed === false ? 'dark' : 'primary'}
                 onClick={save}
@@ -340,9 +364,9 @@ export default function TicketUpdate() {
                     ? 'Save update, keep open'
                     : 'Save update'}
               </Button>
-            </div>
+            ) : null}
           </div>
-        ) : null}
+        </div>
       </main>
 
       <QrScannerModal

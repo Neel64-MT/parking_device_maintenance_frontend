@@ -43,6 +43,7 @@ function statusForTab(tab, status) {
 export default function TicketList() {
   const { user } = useAuth()
   const canView = canPerm(user, 'All tickets', 'v')
+  const canAssign = canPerm(user, 'All tickets', 'a')
   const canFilterAssignee =
     user?.role === 'Admin' || user?.role === 'Project manager'
   const [searchParams, setSearchParams] = useSearchParams()
@@ -163,6 +164,13 @@ export default function TicketList() {
 
   const openCount = (tabCounts.new || 0) + (tabCounts.asg || 0)
   const crumb = `${openCount} open · ${tabCounts.cls || 0} closed`
+  const showUpdates = tab !== 'new'
+  const showDaysOpen = tab !== 'cls'
+  const showDaysAfterClose = tab === 'cls'
+  const colCount =
+    9 + (showUpdates ? 1 : 0) + (showDaysOpen || showDaysAfterClose ? 1 : 0) + 1
+  const listReturn = `/tickets?tab=${tab}`
+  const ticketLinkState = { from: listReturn }
 
   return (
     <>
@@ -289,8 +297,9 @@ export default function TicketList() {
                   <th>Issue found</th>
                   <th>Raised by</th>
                   <th>Assigned to</th>
-                  <th className="num">Updates</th>
-                  <th className="num">Days open</th>
+                  {showUpdates ? <th className="num">Updates</th> : null}
+                  {showDaysOpen ? <th className="num">Days open</th> : null}
+                  {showDaysAfterClose ? <th className="num">Days After Close</th> : null}
                   <th>Status</th>
                   <th className="act" />
                 </tr>
@@ -298,14 +307,14 @@ export default function TicketList() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={11}>
+                    <td colSpan={colCount}>
                       <span className="muted">Loading tickets…</span>
                     </td>
                   </tr>
                 ) : null}
                 {!loading && !rows.length ? (
                   <tr>
-                    <td colSpan={11}>
+                    <td colSpan={colCount}>
                       <span className="muted">No tickets match this view.</span>
                     </td>
                   </tr>
@@ -314,7 +323,7 @@ export default function TicketList() {
                   ? rows.map((row) => (
                       <tr key={row.id}>
                         <td>
-                          <Link className="code" to={`/tickets/${row.id}`}>
+                          <Link className="code" to={`/tickets/${row.id}`} state={ticketLinkState}>
                             {row.id}
                           </Link>
                         </td>
@@ -351,18 +360,37 @@ export default function TicketList() {
                         <td>
                           {row.assignedTo || <span className="muted">Not assigned</span>}
                         </td>
-                        <td className="num">{row.updates}</td>
-                        <td className={`num${row.daysBad ? ' strong-bad' : ''}`}>{row.daysOpen}</td>
+                        {showUpdates ? <td className="num">{row.updates}</td> : null}
+                        {showDaysOpen ? (
+                          <td className={`num${row.daysBad ? ' strong-bad' : ''}`}>{row.daysOpen}</td>
+                        ) : null}
+                        {showDaysAfterClose ? (
+                          <td className="num">
+                            {row.daysAfterClose != null ? row.daysAfterClose : '—'}
+                          </td>
+                        ) : null}
                         <td>
                           <Pill tone={row.statusTone}>{row.status}</Pill>
                         </td>
                         <td className="act">
-                          <Link
-                            className={`btn btn-sm${row.actionPrimary ? ' btn-primary' : ''}`}
-                            to={`/tickets/${row.id}`}
-                          >
-                            {row.actionLabel}
-                          </Link>
+                          <div className="act-row">
+                            {canAssign && row.status !== 'Closed' ? (
+                              <Link
+                                className="btn btn-sm btn-reassign"
+                                to={`/tickets/${row.id}`}
+                                state={{ ...ticketLinkState, openAssign: true }}
+                              >
+                                Reassign
+                              </Link>
+                            ) : null}
+                            <Link
+                              className={`btn btn-sm${row.actionPrimary ? ' btn-primary' : ''}`}
+                              to={`/tickets/${row.id}`}
+                              state={ticketLinkState}
+                            >
+                              {row.actionLabel}
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     ))

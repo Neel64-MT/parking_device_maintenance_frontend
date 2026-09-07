@@ -150,6 +150,16 @@ Inspect existing code
 - Site attendant Raise: map full scan fields; block create when `openTicketId` is set.
 - Technician Update: on scan success call existing `loadTicket()` only.
 
+## Ticket detail / list UI skills (Phase 19+)
+
+- TicketList: one table with `showUpdates` / `showDaysOpen` / `showDaysAfterClose` from `tab` — do not fork three tables.
+- List→detail: pass `state={{ from: `/tickets?tab=${tab}` }}`; detail resolves Back/crumb with `ticketsListReturnPath(state.from)`.
+- Tabs come from API `tab` / `tabCounts` (`tabForStatus`: unassigned → Open, assignee → Assigned). Do not re-filter Open in React for security.
+- Tiles come from API; Open not attended equals Open tab; assigned+Open may appear as Under repair via backend `listStatus`.
+- Add Update: open existing form in `Modal`; keep toast submit until POST is wired.
+- Work history: reverse mapped events for chronological display; pass `photos` through.
+- Gallery: `ImagePreviewModal` on `Modal` — main image + thumbnail row; no new deps.
+
 ## Definition of done (per page)
 
 - Matches original layout and key measurements

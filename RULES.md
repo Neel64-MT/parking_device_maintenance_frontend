@@ -1,188 +1,177 @@
-# RULES.md — Project Rules
+RULES.md — Project Rules
+What to do
+Preserve original UI, spacing, typography, colors, and interactions.
+Preserve all existing screens and flows unless the user explicitly drops them.
+Treat original HTML/CSS/JS as visual/behavioral source of truth.
+Treat product skill / Claude scope as product-rule source of truth when they constrain fields, menu, and statuses.
+Reuse assets and inline SVG paths from the original.
+Prefer reusable React components only when the same pattern appears on multiple pages.
+Use Tailwind utilities for most styling; map CSS variables into the Tailwind theme.
+Keep custom CSS for cases Tailwind cannot match cleanly (pseudo elements, split-table group headers, scan frame line, tooltips, etc.).
+Prefer conventional React: props, local state, simple hooks, React Router.
+Keep logic next to the page that uses it.
+Name files after screens (TicketList.jsx, not TicketsContainerView).
+Validate each migrated page against the original HTML side-by-side (except deliberate, documented deviations).
+Update MEMORY.md when finishing a phase or making a decision.
+Keep documentation (PR, ARCHITECTURE, RULES, DESIGN, PHASES, SKILLS) accurate.
+Leave parking_maintenance (original path) read-only.
+Frontend content & file change rules
+These rules apply to the React + Vite frontend.
+When you create, modify, rename, move, or delete frontend code, content, screens, components, routes, assets, or configuration, review all related content/documentation files and update them when the change affects their accuracy.
+Do not leave documentation, content files, phase notes, design notes, architecture notes, skills, or other project reference files describing behavior that no longer exists.
+When adding a new screen, component, route, feature, content section, or user-facing behavior, update the appropriate project content/documentation file if one exists for that area.
+When changing or removing an existing screen, component, route, feature, content section, or user-facing behavior, update or remove the corresponding content/documentation entry so it remains synchronized with the React + Vite implementation.
+When deleting or renaming a file, search for references to that file/path and update all affected references before considering the change complete.
+When changing user-facing copy, labels, statuses, navigation names, help text, or other content, update the corresponding content/source-of-truth file rather than leaving stale copies elsewhere.
+When creating or changing content that has a documented source of truth, update the source-of-truth content file instead of creating a conflicting duplicate.
+If a change requires a new content file, create it in the appropriate existing project structure and document its purpose when necessary.
+If a content file becomes obsolete because its related feature/file was deleted, remove it only when it is no longer referenced or required.
+Before finishing a frontend task, verify that implementation files and their related content/documentation files are consistent.
+Do not update unrelated documentation or content files merely to make changes appear complete; keep updates targeted to the actual change.
+If it is unclear which content/documentation file is the source of truth, inspect the existing project structure and references first. Mark uncertainty as Needs verification rather than guessing.
+Never modify the original parking_maintenance source tree to synchronize content or documentation; all React + Vite frontend changes must remain in the migrated project.
+Sidebar rules (Phase 12+)
+Preserve existing MENU routes, active pageId matching, and group expand/collapse.
+Keep Settings as a bottom utility (not inside MENU); route is /settings.
+Desktop collapse (railCollapsed) must stay separate from mobile drawer (railOpen).
+Reuse NavIcons — do not add an icon library.
+Prefer local useState in AppLayout for rail width; no Redux/Zustand/Context for collapse; no localStorage unless product asks.
+Keep collapse animations lightweight (CSS width + label opacity).
+Do not redesign unrelated shell/page UI when touching the sidebar.
+Settings rules (Phase 13+)
+Settings is self-service only: name, email, mobile, and password for the signed-in user.
+Do not put admin Users/role management on Settings — that stays on Users.
+Profile updates use PATCH /api/auth/me (not admin PATCH /api/users/:id). Current password is only required when changing password.
+Password change must require current password and use POST /api/auth/change-password.
+After self password change, keep the session by accepting the reissued JWT (do not force a cold login unless the API fails).
+Role field on Settings is read-only.
+Settings panels size to content (.settings-grid); save actions sit at the bottom of each form (.settings-actions).
+Topbar logout uses an icon + confirmation modal before calling logout.
+Ticket visibility & signup approval (Phase 15+)
+Ticket access must be enforced server-side (lib/ticket-access.ts); do not rely on React filtering.
+Non–Admin/PM users only see tickets they raised or are assigned to (assignee_id / raised_by_user_id).
+Admin and Project manager keep existing city-wide ticket visibility.
+Do not AND ticket list/export with assigned_roads in a way that hides tickets the user raised on other roads (Phase 18). Device lists may still use road scope.
+Detail access: raiser and assignee always allowed, even outside user_roads; then road check; otherwise forbid.
+Assign (All tickets a) uses road access only — do not apply ownership filter on assign (Control room must assign others’ tickets).
+Project Manager signup approval reuses PATCH /api/users/:id + Users e (PM seeded vce...); do not duplicate Admin logic.
+Do not invent a separate role hierarchy unless product asks; avoid unnecessary queries and abstractions.
+Frontend ticket rendering (Phase 16+)
+TicketList / Dashboard / TicketDetail must consume scoped APIs; never download all tickets and filter in React for authorization.
+Reuse canPerm and Users loading/empty/error patterns; do not add a second role store.
+Preserve existing layout; only bind live data.
+Leave Raise/Update/Close/WorkReport mock until those APIs are wired (Work report backend is not ownership-scoped yet).
+Ticket list / detail UI (Phase 19+)
+Open tab (new) must not show the Updates column; Assigned keeps it.
+Closed tab (cls) shows Days After Close, not Days open.
+Open tab (new) = unassigned non-closed only; Assigned (asg) = has assignee; Closed unchanged — enforce in backend tabForStatus (not React row filters).
+Tile Open, not attended must match Open tab; assigned rows still stored as Open/New must listStatus as Under repair for pills and Under repair tile (DB unchanged).
+Add Update must reuse the existing form fields and toast submit; present it in Modal only.
+Work history displays oldest → newest (new entries at the bottom); keep the trail always visible.
+Show View Image only when event photos is non-empty; gallery reuses Modal (main + thumbnails).
+List → detail must pass state.from = /tickets?tab=…; Back to tickets / crumb must use that path so the active tab is preserved (do not hard-code /tickets when from is present).
+Do not add image/modal libraries; do not invent duplicate optimistic trail rows while update POST is unwired.
+Home & Dashboard access (Phase 18+)
+Only Admin and Project manager may open Dashboard (isDashboardRole / homePathForUser).
+After login (and GuestOnly / / / catch-all), non–ops-lead roles go to /tickets.
+Hide Dashboard in the sidebar for other roles even if permissions still list Dashboard v.
+Unauthorized Users redirect uses homePathForUser, not a hard-coded /dashboard.
+Ticket status & list columns (Phase 18+)
+Do not show ticket status New; use Open (normalize legacy API/DB values).
+Ticket list Open tab label is Open (keep tab id new for API compatibility unless product renames the query param).
+Keep Raised by immediately before Assigned to on TicketList.
+QR scan rules (Phase 17+)
+Camera Scan is for Site attendant and Technician only (user.role check).
+Until QR format is finalized, any successful decode uses resolveScan mock (not live security).
+Open ticket = status ≠ Closed; at most one open ticket per device (backend OPEN_TICKET_EXISTS + FE block on Raise).
+Do not rewrite Technician Update inspection panels — only open the camera before existing mock load.
+External inspection package path (PROJECT_PATH) is deferred until product supplies it.
+Landing chrome rules
+Prefer page-body toolbars (.page-toolbar, JumpLinks actions, panel-head actions, collapsible filters) over sticky topbar action slots for filters and primary CTAs.
+Dashboard no longer shows the open-tickets table; use All tickets for that list.
+Fleet legend secondary status notes belong in Tooltip, not inline <em> copy.
+Panel .foot-note should sit at the bottom of equal-height grid cards (margin-top: auto).
+Field ticket flow rules (Phase 14+)
+Raise ticket has two steps (device + problem). Do not restore the “Who should attend” assign/priority panel unless product asks.
+Reported by is the signed-in user (read-only). Assignment stays with Admin / control room elsewhere.
+Keep PhotoPicker as the original compact dashed tile — do not stretch Add photo full-width without product ask.
+Field action rows (.sticky-bar) must stay in document flow (position: static). Do not reintroduce viewport-fixed footers without product ask.
+Constrain action buttons with .sticky-bar-inner to the mobile form width (580px). Keep the bar background transparent (no full-bleed white strip).
+What to avoid
+No redesign, modernization, or “AI default” aesthetic.
+No purple gradients, cream+serif trends, or unrelated design systems.
+No unnecessary libraries or state managers.
+No modifying the original source project.
+No inventing APIs or features not in original or explicitly requested.
+Login / session were approved in Phase 10. Phase 11 adds self-signup (Pending → admin approve), forgot/reset password UI, and admin change-password via existing APIs. Phase 13 adds self-service Settings profile/password. Do not add OTP or third-party auth without asking.
+No reintroducing stripped features (inventory, SLA maps, SIM/battery fields, issue codes, etc.).
+No turning flow screens into top-level menu items.
+No merging multiple screens into one page.
+No excessive componentization (one wrapper per DOM node).
+No deep abstraction layers, magic helpers, or AI-only architecture.
+No silent swallowing of errors; match original toast/empty behavior.
+No changing business copy or sample data meaning without reason.
+Do not re-cap .page at 1360px without product ask — shell should fill available width beside the rail.
+Manual maintainability rule
 
-## What to do
+Code must remain maintainable without AI. Prefer:
 
-- Preserve original UI, spacing, typography, colors, and interactions.
-- Preserve all existing screens and flows unless the user explicitly drops them.
-- Treat original HTML/CSS/JS as visual/behavioral source of truth.
-- Treat product skill / Claude scope as product-rule source of truth when they constrain fields, menu, and statuses.
-- Reuse assets and inline SVG paths from the original.
-- Prefer reusable React components only when the same pattern appears on multiple pages.
-- Use Tailwind utilities for most styling; map CSS variables into the Tailwind theme.
-- Keep custom CSS for cases Tailwind cannot match cleanly (pseudo elements, split-table group headers, scan frame line, tooltips, etc.).
-- Prefer conventional React: props, local state, simple hooks, React Router.
-- Keep logic next to the page that uses it.
-- Name files after screens (`TicketList.jsx`, not `TicketsContainerView`).
-- Validate each migrated page against the original HTML side-by-side (except deliberate, documented deviations).
-- Update MEMORY.md when finishing a phase or making a decision.
-- Keep documentation (PR, ARCHITECTURE, RULES, DESIGN, PHASES, SKILLS) accurate.
-- Leave `parking_maintenance` (original path) **read-only**.
-
-## Sidebar rules (Phase 12+)
-
-- Preserve existing MENU routes, active `pageId` matching, and group expand/collapse.
-- Keep Settings as a **bottom utility** (not inside `MENU`); route is `/settings`.
-- Desktop collapse (`railCollapsed`) must stay separate from mobile drawer (`railOpen`).
-- Reuse `NavIcons` — do not add an icon library.
-- Prefer local `useState` in AppLayout for rail width; no Redux/Zustand/Context for collapse; no localStorage unless product asks.
-- Keep collapse animations lightweight (CSS width + label opacity).
-- Do not redesign unrelated shell/page UI when touching the sidebar.
-
-## Settings rules (Phase 13+)
-
-- Settings is **self-service only**: name, email, mobile, and password for the signed-in user.
-- Do not put admin Users/role management on Settings — that stays on Users.
-- Profile updates use `PATCH /api/auth/me` (not admin `PATCH /api/users/:id`). Current password is only required when changing password.
-- Password change must require **current password** and use `POST /api/auth/change-password`.
-- After self password change, keep the session by accepting the reissued JWT (do not force a cold login unless the API fails).
-- Role field on Settings is read-only.
-- Settings panels size to content (`.settings-grid`); save actions sit at the bottom of each form (`.settings-actions`).
-- Topbar logout uses an icon + confirmation modal before calling logout.
-
-## Ticket visibility & signup approval (Phase 15+)
-
-- Ticket access must be enforced **server-side** (`lib/ticket-access.ts`); do not rely on React filtering.
-- Non–Admin/PM users only see tickets they raised or are assigned to (`assignee_id` / `raised_by_user_id`).
-- Admin and Project manager keep existing city-wide ticket visibility.
-- **Do not** AND ticket list/export with `assigned_roads` in a way that hides tickets the user raised on other roads (Phase 18). Device lists may still use road scope.
-- Detail access: raiser and assignee always allowed, even outside `user_roads`; then road check; otherwise forbid.
-- Assign (`All tickets` `a`) uses **road access only** — do not apply ownership filter on assign (Control room must assign others’ tickets).
-- Project Manager signup approval reuses `PATCH /api/users/:id` + Users `e` (PM seeded `vce...`); do not duplicate Admin logic.
-- Do not invent a separate role hierarchy unless product asks; avoid unnecessary queries and abstractions.
-
-## Frontend ticket rendering (Phase 16+)
-
-- TicketList / Dashboard / TicketDetail must consume scoped APIs; never download all tickets and filter in React for authorization.
-- Reuse `canPerm` and Users loading/empty/error patterns; do not add a second role store.
-- Preserve existing layout; only bind live data.
-- Leave Raise/Update/Close/WorkReport mock until those APIs are wired (Work report backend is not ownership-scoped yet).
-
-## Home & Dashboard access (Phase 18+)
-
-- Only **Admin** and **Project manager** may open Dashboard (`isDashboardRole` / `homePathForUser`).
-- After login (and GuestOnly / `/` / catch-all), non–ops-lead roles go to `/tickets`.
-- Hide Dashboard in the sidebar for other roles even if permissions still list Dashboard `v`.
-- Unauthorized Users redirect uses `homePathForUser`, not a hard-coded `/dashboard`.
-
-## Ticket status & list columns (Phase 18+)
-
-- Do not show ticket status **New**; use **Open** (normalize legacy API/DB values).
-- Ticket list Open tab label is **Open** (keep tab id `new` for API compatibility unless product renames the query param).
-- Keep **Raised by** immediately before **Assigned to** on TicketList.
-
-## QR scan rules (Phase 17+)
-
-- Camera Scan is for **Site attendant** and **Technician** only (`user.role` check).
-- Until QR format is finalized, any successful decode uses `resolveScan` mock (not live security).
-- Open ticket = `status ≠ Closed`; at most one open ticket per device (backend `OPEN_TICKET_EXISTS` + FE block on Raise).
-- Do not rewrite Technician Update inspection panels — only open the camera before existing mock load.
-- External inspection package path (`PROJECT_PATH`) is deferred until product supplies it.
-
-## Landing chrome rules
-
-- Prefer page-body toolbars (`.page-toolbar`, JumpLinks `actions`, panel-head actions, collapsible filters) over sticky topbar action slots for filters and primary CTAs.
-- Dashboard no longer shows the open-tickets table; use All tickets for that list.
-- Fleet legend secondary status notes belong in `Tooltip`, not inline `<em>` copy.
-- Panel `.foot-note` should sit at the bottom of equal-height grid cards (`margin-top: auto`).
-
-## Field ticket flow rules (Phase 14+)
-
-- Raise ticket has **two steps** (device + problem). Do not restore the “Who should attend” assign/priority panel unless product asks.
-- **Reported by** is the signed-in user (read-only). Assignment stays with Admin / control room elsewhere.
-- Keep `PhotoPicker` as the original compact dashed tile — do not stretch Add photo full-width without product ask.
-- Field action rows (`.sticky-bar`) must stay in **document flow** (`position: static`). Do not reintroduce viewport-fixed footers without product ask.
-- Constrain action buttons with `.sticky-bar-inner` to the mobile form width (`580px`). Keep the bar background transparent (no full-bleed white strip).
-
-## What to avoid
-
-- No redesign, modernization, or “AI default” aesthetic.
-- No purple gradients, cream+serif trends, or unrelated design systems.
-- No unnecessary libraries or state managers.
-- No modifying the original source project.
-- No inventing APIs or features not in original or explicitly requested.
-- Login / session were approved in Phase 10. Phase 11 adds self-signup (Pending → admin approve), forgot/reset password UI, and admin change-password via existing APIs. Phase 13 adds self-service Settings profile/password. Do not add OTP or third-party auth without asking.
-- No reintroducing stripped features (inventory, SLA maps, SIM/battery fields, issue codes, etc.).
-- No turning flow screens into top-level menu items.
-- No merging multiple screens into one page.
-- No excessive componentization (one wrapper per DOM node).
-- No deep abstraction layers, magic helpers, or AI-only architecture.
-- No silent swallowing of errors; match original toast/empty behavior.
-- No changing business copy or sample data meaning without reason.
-- Do not re-cap `.page` at `1360px` without product ask — shell should fill available width beside the rail.
-
-## Manual maintainability rule
-
-Code must remain maintainable **without AI**. Prefer:
-
-```text
 Readable code · Simple components · Clear naming · Explicit logic · Predictable structure
-```
+
 
 Avoid:
 
-```text
 Deep abstractions · Over-engineering · Magic helpers · Unnecessary patterns · AI-dependent workflows
-```
 
-## Error handling
+Error handling
+Preview forms: prevent default submit; toast preview message (same as app.js).
+Connected forms (auth, Users, Settings): toast API error message via ApiRequestError.
+Scan miss: show empty panel (same as scan-qr.html).
+Do not invent global error boundaries that change UX unless needed for React crash safety (silent fallback UI ok for runtime crashes only).
+When APIs arrive later: surface failures in-page; do not invent a different error language than product copy.
+AI boundaries
+Do not invent requirements or screens.
+Do not invent functionality absent from original + approved scope.
+Do not change business logic without evidence from source or user.
+Do not replace APIs (none exist yet) with unrelated backends.
+Do not redesign UI.
+Prefer inspecting source over assuming.
+Mark uncertainty explicitly (Needs verification).
+Do not introduce abstractions that require tribal AI knowledge to edit.
+Write code a typical React developer can maintain from the docs alone.
+Authorization
+Preserve role matrix and role help text from users.html.
+Control room can assign but not close; closing belongs to the holder — keep this in UI copy and future permission checks.
+Deactivate users; never delete (preserve wording and buttons).
+Do not expose secrets; preview has none. Future tokens stay out of logs and client bundles beyond what the API requires.
+UI permission checks are advisory; backend is authoritative for Users edit (including password) and approval.
+Self Settings updates are scoped to the authenticated user only (backend /api/auth/me and /change-password).
+Backend rules (Phase 11+)
+Analyze existing APIs before modifying them.
+Reuse existing services and utilities (lib/auth.ts hashing, reset tokens, PATCH /api/users).
+Preserve existing API contracts where possible.
+Do not rewrite working authentication logic.
+Do not duplicate password or authorization logic.
+Prefer extending /api/auth/* for self-service account changes; keep admin user edits on /api/users.
+Do not create unnecessary database structures.
+Keep changes small, targeted, readable, and manually maintainable.
+Optimization rules
+Write the minimum code required; avoid unnecessary abstractions and dependencies.
+Avoid duplicate validation, queries, and authorization checks.
+Reuse existing error handling (ApiError / handleApiError).
+Do not perform unrelated refactoring.
+Security rules
+Never store plaintext passwords; reuse bcrypt via hashPassword / verifyPassword.
+Protect approval and admin password-change with existing authorize('Users', …).
+Self password change must verify the current password before updating.
+Validate reset tokens; respect expiration; do not return tokens in API responses.
+Do not expose whether an email exists on forgot-password (generic message).
+Do not allow unauthorized role changes or self-approval.
+Password version / denylist must remain authoritative after password changes.
+READ-ONLY SOURCE TREE
 
-- Preview forms: prevent default submit; toast preview message (same as `app.js`).
-- Connected forms (auth, Users, Settings): toast API error message via `ApiRequestError`.
-- Scan miss: show empty panel (same as `scan-qr.html`).
-- Do not invent global error boundaries that change UX unless needed for React crash safety (silent fallback UI ok for runtime crashes only).
-- When APIs arrive later: surface failures in-page; do not invent a different error language than product copy.
+The following original source tree is READ-ONLY:
 
-## AI boundaries
-
-- Do not invent requirements or screens.
-- Do not invent functionality absent from original + approved scope.
-- Do not change business logic without evidence from source or user.
-- Do not replace APIs (none exist yet) with unrelated backends.
-- Do not redesign UI.
-- Prefer inspecting source over assuming.
-- Mark uncertainty explicitly (`Needs verification`).
-- Do not introduce abstractions that require tribal AI knowledge to edit.
-- Write code a typical React developer can maintain from the docs alone.
-
-## Authorization
-
-- Preserve role matrix and role help text from `users.html`.
-- Control room can assign but not close; closing belongs to the holder — keep this in UI copy and future permission checks.
-- Deactivate users; never delete (preserve wording and buttons).
-- Do not expose secrets; preview has none. Future tokens stay out of logs and client bundles beyond what the API requires.
-- UI permission checks are advisory; backend is authoritative for Users edit (including password) and approval.
-- Self Settings updates are scoped to the authenticated user only (backend `/api/auth/me` and `/change-password`).
-
-## Backend rules (Phase 11+)
-
-- Analyze existing APIs before modifying them.
-- Reuse existing services and utilities (`lib/auth.ts` hashing, reset tokens, `PATCH /api/users`).
-- Preserve existing API contracts where possible.
-- Do not rewrite working authentication logic.
-- Do not duplicate password or authorization logic.
-- Prefer extending `/api/auth/*` for self-service account changes; keep admin user edits on `/api/users`.
-- Do not create unnecessary database structures.
-- Keep changes small, targeted, readable, and manually maintainable.
-
-## Optimization rules
-
-- Write the minimum code required; avoid unnecessary abstractions and dependencies.
-- Avoid duplicate validation, queries, and authorization checks.
-- Reuse existing error handling (`ApiError` / `handleApiError`).
-- Do not perform unrelated refactoring.
-
-## Security rules
-
-- Never store plaintext passwords; reuse bcrypt via `hashPassword` / `verifyPassword`.
-- Protect approval and admin password-change with existing `authorize('Users', …)`.
-- Self password change must verify the current password before updating.
-- Validate reset tokens; respect expiration; do not return tokens in API responses.
-- Do not expose whether an email exists on forgot-password (generic message).
-- Do not allow unauthorized role changes or self-approval.
-- Password version / denylist must remain authoritative after password changes.
-
-**READ-ONLY** on:
-
-`C:\Users\MTPC-359\Desktop\Project\parking_device_maintenance\parking_maintenance`
+C:\Users\MTPC-359\Desktop\Project\parking_device_maintenance\parking_maintenance
 
 No writes, deletes, installs, or formatters against that tree.
