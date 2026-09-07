@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast } from '../../context/ToastContext'
+import { ApiRequestError } from '../../services/api'
+import { uploadImages } from '../../services/uploads'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
 import { Field } from '../../components/ui/FilterBar'
@@ -19,6 +21,8 @@ const COST_ROWS = [
 export default function TicketClose() {
   const [category, setCategory] = useState('Mechanical')
   const [subCategory, setSubCategory] = useState('Motor failure')
+  const [photos, setPhotos] = useState([])
+  const [submitting, setSubmitting] = useState(false)
 
   const crumb = useMemo(
     () => (
@@ -37,6 +41,27 @@ export default function TicketClose() {
     ),
     [],
   )
+
+  async function tryClose() {
+    setSubmitting(true)
+    try {
+      let photoUrls = []
+      if (photos.length) {
+        const uploaded = await uploadImages(photos)
+        photoUrls = uploaded.map((u) => u.url)
+      }
+      // photoUrls ready for close-ticket API when wired
+      toast(
+        photoUrls.length
+          ? `Design preview — ticket would be closed here (${photoUrls.length} photo${photoUrls.length > 1 ? 's' : ''} ready).`
+          : 'Design preview — ticket would be closed here.',
+      )
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.message : 'Could not upload images.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <>
@@ -115,8 +140,9 @@ export default function TicketClose() {
             </Field>
             <Field label="Photos" style={{ marginBottom: 0 }}>
               <PhotoPicker
-                start={2}
                 hint="Photos carried over from the visits on this ticket."
+                onChange={setPhotos}
+                disabled={submitting}
               />
             </Field>
           </div>
@@ -202,11 +228,8 @@ export default function TicketClose() {
             <Link className="btn" to="/tickets/update">
               Back
             </Link>
-            <Button
-              variant="primary"
-              onClick={() => toast('Design preview — ticket would be closed here.')}
-            >
-              Close ticket
+            <Button variant="primary" onClick={tryClose} disabled={submitting}>
+              {submitting ? 'Uploading…' : 'Close ticket'}
             </Button>
           </div>
         </div>

@@ -4,7 +4,9 @@ import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast } from '../../context/ToastContext'
 import { ROAD_OPTIONS, SLOTS } from '../../data/slots'
+import { ApiRequestError } from '../../services/api'
 import { canScanWithCamera } from '../../services/devices'
+import { uploadImages } from '../../services/uploads'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
 import { Field } from '../../components/ui/FilterBar'
@@ -12,7 +14,6 @@ import { IssueSelects } from '../../components/ui/IssueSelects'
 import { PartChips } from '../../components/ui/PartChips'
 import { PhotoPicker } from '../../components/ui/PhotoPicker'
 import { QrScannerModal } from '../../components/ui/QrScannerModal'
-import { TeamSelect } from '../../components/ui/TeamSelect'
 
 function ScanIcon() {
   return (
@@ -34,8 +35,10 @@ export default function TicketUpdate() {
   const [category, setCategory] = useState('')
   const [subCategory, setSubCategory] = useState('')
   const [fixed, setFixed] = useState(null)
-  const [assignee, setAssignee] = useState('Keep it with me')
   const [scannerOpen, setScannerOpen] = useState(false)
+  const [photosFixed, setPhotosFixed] = useState([])
+  const [photosOpen, setPhotosOpen] = useState([])
+  const [submitting, setSubmitting] = useState(false)
 
   const slotOptions = road ? SLOTS[road] || [] : []
   const reclassed =
@@ -100,9 +103,29 @@ export default function TicketUpdate() {
     navigate('/tickets')
   }
 
-  function save() {
-    if (fixed) navigate('/tickets/close', { state: { from: backTo } })
-    else toast('Update saved. Ticket stays open.')
+  async function save() {
+    const pending = fixed ? photosFixed : photosOpen
+    setSubmitting(true)
+    try {
+      let photoUrls = []
+      if (pending.length) {
+        const uploaded = await uploadImages(pending)
+        photoUrls = uploaded.map((u) => u.url)
+      }
+      // photoUrls ready for update/close API when wired
+      if (fixed) navigate('/tickets/close', { state: { from: backTo } })
+      else {
+        toast(
+          photoUrls.length
+            ? `Update saved. Ticket stays open (${photoUrls.length} photo${photoUrls.length > 1 ? 's' : ''} ready).`
+            : 'Update saved. Ticket stays open.',
+        )
+      }
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.message : 'Could not upload images.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -264,9 +287,6 @@ export default function TicketUpdate() {
                   </div>
                 </div>
                 <div className="panel-body">
-                  <Field label="Work done">
-                    <textarea placeholder="e.g. Replaced motor and gearbox assembly, reset travel limits, tested 5 open-close cycles." />
-                  </Field>
                   <Field
                     label="Parts changed"
                     hint="Tap every part you replaced. Leave blank if nothing was changed."
@@ -279,8 +299,15 @@ export default function TicketUpdate() {
                   >
                     <input type="number" placeholder="0" />
                   </Field>
-                  <Field label="Photos after repair" style={{ marginBottom: 0 }}>
-                    <PhotoPicker hint="Photograph the repaired device before you leave." />
+                  <Field label="Photos after repair">
+                    <PhotoPicker
+                      hint="Photograph the repaired device before you leave."
+                      onChange={setPhotosFixed}
+                      disabled={submitting}
+                    />
+                  </Field>
+                  <Field label="Work done" style={{ marginBottom: 0 }}>
+                    <textarea placeholder="e.g. Replaced motor and gearbox assembly, reset travel limits, tested 5 open-close cycles." />
                   </Field>
                 </div>
               </section>
@@ -298,9 +325,6 @@ export default function TicketUpdate() {
                   </div>
                 </div>
                 <div className="panel-body">
-                  <Field label="Work done today">
-                    <textarea placeholder="e.g. Opened the housing, confirmed the gearbox is seized. Cannot repair on site. Slot barricaded." />
-                  </Field>
                   <Field label="Why it is not fixed">
                     <select defaultValue="Spare not available">
                       <option>Spare not available</option>
@@ -312,9 +336,6 @@ export default function TicketUpdate() {
                       <option>Rain, work stopped</option>
                     </select>
                   </Field>
-                  <Field label="Next visit planned">
-                    <input type="date" />
-                  </Field>
                   <Field
                     label="Parts changed today"
                     hint="A part can be changed even when the fault is not fully resolved."
@@ -325,18 +346,14 @@ export default function TicketUpdate() {
                     <input type="number" placeholder="0" />
                   </Field>
                   <Field label="Photos">
-                    <PhotoPicker hint="Photograph what you found, even if nothing was fixed." />
-                  </Field>
-                  <Field
-                    label="Hand over to"
-                    hint="Keep it with yourself, or pass it on. Whoever holds it last is the one who closes it."
-                    style={{ marginBottom: 0 }}
-                  >
-                    <TeamSelect
-                      value={assignee}
-                      onChange={(e) => setAssignee(e.target.value)}
-                      firstOption="Keep it with me"
+                    <PhotoPicker
+                      hint="Photograph what you found, even if nothing was fixed."
+                      onChange={setPhotosOpen}
+                      disabled={submitting}
                     />
+                  </Field>
+                  <Field label="Work done today" style={{ marginBottom: 0 }}>
+                    <textarea placeholder="e.g. Opened the housing, confirmed the gearbox is seized. Cannot repair on site. Slot barricaded." />
                   </Field>
                 </div>
                 <div className="foot-note">
@@ -357,12 +374,15 @@ export default function TicketUpdate() {
               <Button
                 variant={fixed === false ? 'dark' : 'primary'}
                 onClick={save}
+                disabled={submitting}
               >
-                {fixed === true
-                  ? 'Fix done, close ticket'
-                  : fixed === false
-                    ? 'Save update, keep open'
-                    : 'Save update'}
+                {submitting
+                  ? 'Uploading…'
+                  : fixed === true
+                    ? 'Fix done, close ticket'
+                    : fixed === false
+                      ? 'Save update, keep open'
+                      : 'Save update'}
               </Button>
             ) : null}
           </div>

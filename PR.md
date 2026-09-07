@@ -67,10 +67,10 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 
 1. Dashboard — fleet strip, why-down ranked bars, road-wise table (open-tickets table removed in Phase 13)
 2. All tickets — tiles, filters, Open/Assigned/Closed tabs, table (incl. Raised by before Assigned to); ticket status **Open** (not New)
-3. Raise ticket — mobile-first steps: device, problem; reported-by = session user (read-only); no assign/priority step; PhotoPicker stays compact tile; Cancel / Raise actions in page flow (not fixed)
-4. Update ticket — mobile-first: device → diagnosis → fixed/not fork
-5. Close ticket — mobile-first: final issue, resolution, cost, confirm
-6. Ticket detail — record header, work history timeline, classification, assignment trail
+3. Raise ticket — mobile-first steps: device, problem; reported-by = session user (read-only); no assign/priority step; PhotoPicker (max 5, folder/camera, upload on submit); Cancel / Raise actions in page flow (not fixed)
+4. Update ticket — mobile-first: device → diagnosis → fixed/not fork; Photos before Work done; no Hand over / Next visit planned
+5. Close ticket — mobile-first: final issue, resolution, cost, photos (upload on confirm), confirm
+6. Ticket detail — record header, work history timeline, classification, assignment trail; Add Update modal with PhotoPicker
 7. Work report — Day/Week/Month/Range, team strip, per-person panels
 8. Device list — tiles, filters, table with history/ticket actions
 9. Device history — record, life stats, split ticket/resolution table, parts, timeline
@@ -311,3 +311,39 @@ List → detail → Back to tickets → same tab via state.from = /tickets?tab=�
 | Work history chronological (oldest → newest), always visible | Pass |
 | View Image → main + thumbnail gallery when photos exist | Pass |
 | Detail Back to tickets preserves list tab (`state.from`) | Pass |
+
+### Phase 20 — Image attachment in ticket
+
+```text
+PhotoPicker → folder or camera → local File + object-URL preview (max 5)
+Camera → overlay flip → Take photo → crop/review (full width) → Upload / Recapture
+Form submit → uploadImages (POST /api/uploads) → toast (ticket APIs still mock)
+```
+
+| Criterion | Result |
+|-----------|--------|
+| PhotoPicker: Choose from folder | Pass |
+| PhotoPicker: Capture from camera (live preview + overlay flip icon) | Pass |
+| Camera step actions: Cancel + Take photo in one row | Pass |
+| Camera crop/review with Upload / Recapture | Pass |
+| Crop review image full width; no black side letterbox | Pass |
+| Max 5 photos; validate `image/*` ≤8 MB client-side | Pass |
+| Deferred upload: `uploadImages` on Raise / Update / Close / Detail Add Update submit | Pass |
+| Raise, Ticket Update, Ticket Close, Detail Add Update use PhotoPicker | Pass |
+| No new camera/upload libraries | Pass |
+
+### Phase 21 — Field label fix + Ticket Update trim
+
+```text
+Field → <div class="fld"> (not <label>) so PhotoPicker × does not activate first control
+PhotoPicker → preventDefault on .photos; revoke only removed object URL
+Ticket Update → remove Hand over / Next visit planned; Photos before Work done
+```
+
+| Criterion | Result |
+|-----------|--------|
+| `Field` is a `div.fld` (not `<label>`) | Pass |
+| Removing first photo does not wipe remaining thumbs | Pass |
+| Ticket Update drops Hand over + Next visit planned | Pass |
+| Ticket Update / Detail Add Update: Photos before work-done text | Pass |
+| Ticket Close uploads pending photos on confirm | Pass |
