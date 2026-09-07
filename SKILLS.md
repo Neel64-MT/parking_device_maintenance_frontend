@@ -160,6 +160,12 @@ Inspect existing code
 - Work history: reverse mapped events for chronological display; pass `photos` through.
 - Gallery: `ImagePreviewModal` on `Modal` — main image + thumbnail row; no new deps.
 
+## Photo attachment skills (Phase 20+)
+
+- Folder = native file input; camera = `CameraCaptureModal` (`getUserMedia` + facingMode flip → JPEG `File`); both call `uploadImage` then update thumbs/`onChange(urls)`.
+- Client-validate `image/*` and 8 MB before upload; toast via existing `toast`.
+- Do not use `html5-qrcode` for ticket photos.
+
 ## Definition of done (per page)
 
 - Matches original layout and key measurements

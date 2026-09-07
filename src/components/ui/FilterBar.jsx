@@ -1,6 +1,6 @@
 /**
  * Filter bar container — .filterbar
- * Children are typically label.fld fields; put action buttons in push slot.
+ * Children are typically .fld fields; put action buttons in push slot.
  */
 export function FilterBar({ children, actions }) {
   return (
@@ -11,10 +11,14 @@ export function FilterBar({ children, actions }) {
   )
 }
 
-/** Field label wrapper — label.fld */
+/**
+ * Field wrapper — .fld
+ * Uses a div (not <label>) so composite controls (PhotoPicker, chips, selects)
+ * are not hijacked by label activation of the first nested button/input.
+ */
 export function Field({ label, required, hint, children, className = '', style }) {
   return (
-    <label className={`fld${className ? ` ${className}` : ''}`} style={style}>
+    <div className={`fld${className ? ` ${className}` : ''}`} style={style}>
       {label ? (
         <span>
           {label}
@@ -23,6 +27,6 @@ export function Field({ label, required, hint, children, className = '', style }
       ) : null}
       {children}
       {hint ? <i className="hint">{hint}</i> : null}
-    </label>
+    </div>
   )
 }

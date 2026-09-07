@@ -360,10 +360,55 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 20: Image attachment in ticket
+
+**Objective:** Attach images on ticket flows (Raise, Ticket Update, Ticket Close, Detail Add Update) from folder or camera; upload via `POST /api/uploads` at form submit.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `services/uploads.js` — `validateImageFile`, `uploadImage`, `uploadImages`.
+2. PhotoPicker: folder + `CameraCaptureModal` (overlay flip icon, crop/review full-width, no letterbox) → local Files (max 5) → parent `onChange(File[])`.
+3. Camera UI: Cancel + Take photo in one row; crop → Upload / Recapture.
+4. Wire Raise / TicketUpdate / TicketClose / Detail Add Update to call `uploadImages` on submit.
+5. Detail Add Update: replace text Photo field with PhotoPicker.
+6. Docs finalize.
+
+**Out of scope:** Ticket create/update/close POST wiring; new camera libraries; QrScanner for photos.
+
+**Verification:** Lint/build; folder + camera on four flows; max 5; flip overlay; crop full width; remove one thumb; toasts on errors; submit uploads then toast.
+
+**Completion:** PR.md Phase 20 criteria pass.
+
+---
+
+## Phase 21: Field label fix + Ticket Update trim
+
+**Objective:** Fix photo-disappear when removing the first thumb; trim Ticket Update fields; keep Photos before work-done text.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `Field` → `<div class="fld">` (not `<label>`) so label activation cannot target the first photo ×.
+2. PhotoPicker: `preventDefault` on `.photos`; revoke only the removed object URL.
+3. Modal `closeOnEscape` / `closeDisabled` for crop review / exporting.
+4. Ticket Update: drop Hand over / Next visit planned; Photos before Work done.
+5. Docs finalize (MEMORY/PR/ARCHITECTURE/RULES/DESIGN).
+
+**Out of scope:** Ticket API POST; redesign of PhotoPicker tile; reworking Phase 20 camera attachment.
+
+**Verification:** Click first photo × → only that thumb removes; remaining previews stay; Update form fields match product; docs list the label rule.
+
+**Completion:** PR.md Phase 21 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 17 ──► Phase 18 ──► Phase 19
+Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

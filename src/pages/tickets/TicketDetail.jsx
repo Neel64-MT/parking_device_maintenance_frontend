@@ -7,12 +7,14 @@ import { PART_MASTER } from '../../data/partMaster'
 import { TEAM } from '../../data/team'
 import { ApiRequestError } from '../../services/api'
 import { getTicket } from '../../services/tickets'
+import { uploadImages } from '../../services/uploads'
 import { canPerm } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/FilterBar'
 import { ImagePreviewModal } from '../../components/ui/ImagePreviewModal'
 import { IssueSelects } from '../../components/ui/IssueSelects'
 import { Modal } from '../../components/ui/Modal'
+import { PhotoPicker } from '../../components/ui/PhotoPicker'
 import { Pill } from '../../components/ui/Pill'
 import { TeamSelect } from '../../components/ui/TeamSelect'
 
@@ -91,6 +93,8 @@ export default function TicketDetail() {
   const [updSub, setUpdSub] = useState('')
   const [handover, setHandover] = useState(TEAM[0])
   const [previewImages, setPreviewImages] = useState(null)
+  const [updPhotos, setUpdPhotos] = useState([])
+  const [updSubmitting, setUpdSubmitting] = useState(false)
 
   const resolved = updType.includes('resolved')
 
@@ -176,10 +180,27 @@ export default function TicketDetail() {
     )
   }, [header, fromHere])
 
-  function submitUpdate(e) {
+  async function submitUpdate(e) {
     e.preventDefault()
-    setUpdOpen(false)
-    toast('Design preview — this form is not connected yet.')
+    setUpdSubmitting(true)
+    try {
+      let photoUrls = []
+      if (updPhotos.length) {
+        const uploaded = await uploadImages(updPhotos)
+        photoUrls = uploaded.map((u) => u.url)
+      }
+      // photoUrls ready for add-update API when wired
+      setUpdOpen(false)
+      toast(
+        photoUrls.length
+          ? `Design preview — this form is not connected yet (${photoUrls.length} photo${photoUrls.length > 1 ? 's' : ''} ready).`
+          : 'Design preview — this form is not connected yet.',
+      )
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.message : 'Could not upload images.')
+    } finally {
+      setUpdSubmitting(false)
+    }
   }
 
   function submitAssign(e) {
@@ -239,7 +260,14 @@ export default function TicketDetail() {
                   {canReassign ? (
                     <Button onClick={() => setAssignOpen(true)}>Reassign</Button>
                   ) : null}
-                  <Button onClick={() => setUpdOpen(true)}>Add update</Button>
+                  <Button
+                    onClick={() => {
+                      setUpdPhotos([])
+                      setUpdOpen(true)
+                    }}
+                  >
+                    Add update
+                  </Button>
                   <Link className="btn btn-primary" to="/tickets/close">
                     Close ticket
                   </Link>
@@ -479,15 +507,6 @@ export default function TicketDetail() {
           </div>
 
           <div className="row" style={{ marginTop: 12 }}>
-            <Field label="What was done today" className="span-2" style={{ flex: 3 }}>
-              <textarea
-                style={{ minHeight: 64 }}
-                placeholder="Plain description of the work done on this visit, even if nothing was fixed."
-              />
-            </Field>
-          </div>
-
-          <div className="row" style={{ marginTop: 12 }}>
             <IssueSelects
               category={updCat}
               subCategory={updSub}
@@ -508,19 +527,35 @@ export default function TicketDetail() {
             </Field>
           </div>
           <div className="row" style={{ marginTop: 12 }}>
-            <Field label="Photo">
-              <input type="text" placeholder="Upload site photo" />
+            <Field label="Photos" className="span-2" style={{ flex: 2 }}>
+              <PhotoPicker
+                key={updOpen ? 'upd-photos-open' : 'upd-photos-closed'}
+                hint="Add site photos from folder or camera."
+                onChange={setUpdPhotos}
+                disabled={updSubmitting}
+              />
             </Field>
-            <Field label="Next visit planned" style={{ opacity: resolved ? 0.4 : 1 }}>
-              <input type="date" />
+          </div>
+
+          <div className="row" style={{ marginTop: 12 }}>
+            <Field label="What was done today" className="span-2" style={{ flex: 3 }}>
+              <textarea
+                style={{ minHeight: 64 }}
+                placeholder="Plain description of the work done on this visit, even if nothing was fixed."
+              />
             </Field>
           </div>
 
           <div className="row" style={{ marginTop: 14 }}>
-            <Button type="submit" size="sm" variant="primary">
-              Save update
+            <Button type="submit" size="sm" variant="primary" disabled={updSubmitting}>
+              {updSubmitting ? 'Uploading…' : 'Save update'}
             </Button>
-            <Button type="button" size="sm" onClick={() => setUpdOpen(false)}>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setUpdOpen(false)}
+              disabled={updSubmitting}
+            >
               Cancel
             </Button>
             <span className="muted" style={{ marginLeft: 6 }}>
