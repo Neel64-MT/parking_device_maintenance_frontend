@@ -6,7 +6,14 @@ import { useAuth } from '../../context/AuthContext'
 import { usePageMeta } from '../../context/PageMetaContext'
 import { canPerm, isDashboardRole } from '../../services/users'
 
-export function Sidebar({ open, onNavigate, collapsed = false }) {
+export function Sidebar({
+  open,
+  onNavigate,
+  collapsed = false,
+  opening = false,
+  closing = false,
+  onCloseTransitionEnd,
+}) {
   const { pageId } = usePageMeta()
   const { user } = useAuth()
   /** Manual open/close overrides; unset keys fall back to “child page is active”. */
@@ -32,19 +39,26 @@ export function Sidebar({ open, onNavigate, collapsed = false }) {
 
   const tip = collapsed
 
+  function handleTransitionEnd(e) {
+    if (!closing || !onCloseTransitionEnd) return
+    if (e.target !== e.currentTarget) return
+    if (e.propertyName !== 'transform') return
+    onCloseTransitionEnd()
+  }
+
   return (
-    <aside className={`rail${open ? ' show' : ''}${collapsed ? ' collapsed' : ''}`} id="rail">
+    <aside
+      className={`rail${open ? ' show' : ''}${opening ? ' is-opening' : ''}${closing ? ' is-closing' : ''}${collapsed ? ' collapsed' : ''}`}
+      id="rail"
+      onTransitionEnd={handleTransitionEnd}
+    >
       <div className="brand">
         <div className="brand-mark">
           <div className="glyph" aria-hidden="true">
             P
           </div>
           <div className="brand-text">
-            <h1>
-              {APP.nameLines[0]}
-              <br />
-              {APP.nameLines[1]}
-            </h1>
+            <h1>{APP.nameLines.join(' ')}</h1>
             <p>{APP.sub}</p>
           </div>
         </div>

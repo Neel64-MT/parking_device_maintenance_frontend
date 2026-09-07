@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from '../../context/ToastContext'
 import { validateImageFile } from '../../services/uploads'
 import { CameraCaptureModal } from './CameraCaptureModal'
@@ -10,6 +11,8 @@ function revokeUrl(url) {
 /**
  * Multi-photo picker — folder or camera → local File + object-URL preview.
  * Uploads happen on parent form submit (see `uploadImages` in services/uploads).
+ * Source menu + camera overlay portal to document.body so they work inside Modals
+ * the same way they do on Raise Ticket (page form).
  * @param {{
  *   hint?: string,
  *   max?: number,
@@ -23,10 +26,13 @@ export function PhotoPicker({
   onChange,
   disabled = false,
 }) {
-  const folderId = useId()
   const folderRef = useRef(null)
+  const addBtnRef = useRef(null)
+  const menuRef = useRef(null)
+  const pickingFolderRef = useRef(false)
   const [items, setItems] = useState([])
   const [menuOpen, setMenuOpen] = useState(false)
+  const [menuPos, setMenuPos] = useState(null)
   const [busy, setBusy] = useState(false)
   const [cameraOpen, setCameraOpen] = useState(false)
   const onChangeRef = useRef(onChange)
@@ -50,25 +56,81 @@ export function PhotoPicker({
     }
   }, [])
 
+  useLayoutEffect(() => {
+    if (!menuOpen) {
+      setMenuPos(null)
+      return undefined
+    }
+
+    function place() {
+      const btn = addBtnRef.current
+      if (!btn) return
+      const rect = btn.getBoundingClientRect()
+      // Same as Raise: open upward above the Add photo tile.
+      setMenuPos({
+        left: Math.max(8, rect.left),
+        bottom: Math.max(8, window.innerHeight - rect.top + 6),
+        minWidth: Math.max(200, rect.width),
+      })
+    }
+
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [menuOpen])
+
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    function onPointerDown(e) {
+      // OS file dialog steals focus; don't tear down while a pick is in flight.
+      if (pickingFolderRef.current) return
+      const t = e.target
+      if (addBtnRef.current?.contains(t)) return
+      if (menuRef.current?.contains(t)) return
+      if (folderRef.current?.contains(t)) return
+      setMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [menuOpen])
+
   function closeMenu() {
     setMenuOpen(false)
   }
 
-  function openFolder() {
-    closeMenu()
+  function openFolderPicker() {
     if (itemsRef.current.length >= max) {
       toast(`You can attach up to ${max} photos.`)
+      closeMenu()
       return
     }
-    folderRef.current?.click()
+    pickingFolderRef.current = true
+    closeMenu()
+    // Defer so the portaled menu unmounts before the native dialog opens.
+    requestAnimationFrame(() => {
+      folderRef.current?.click()
+      // If the user cancels, some browsers never fire change/cancel — clear the lock on focus.
+      const clearPickLock = () => {
+        window.setTimeout(() => {
+          pickingFolderRef.current = false
+        }, 300)
+        window.removeEventListener('focus', clearPickLock)
+      }
+      window.addEventListener('focus', clearPickLock)
+    })
   }
 
   function openCamera() {
-    closeMenu()
     if (itemsRef.current.length >= max) {
       toast(`You can attach up to ${max} photos.`)
+      closeMenu()
       return
     }
+    closeMenu()
     if (!navigator.mediaDevices?.getUserMedia) {
       toast('Camera is not available on this device. Choose from folder instead.')
       return
@@ -76,17 +138,25 @@ export function PhotoPicker({
     setCameraOpen(true)
   }
 
+  function onFolderInputChange(e) {
+    // Copy first — clearing the input empties the live FileList.
+    const files = Array.from(e.target.files || [])
+    if (folderRef.current) folderRef.current.value = ''
+    pickingFolderRef.current = false
+    handleFiles(files)
+  }
+
+  function onFolderInputCancel() {
+    pickingFolderRef.current = false
+  }
+
   function handleFiles(fileList) {
     const files = Array.from(fileList || [])
-    if (!files.length) {
-      toast('No image captured. Try again or choose from folder.')
-      return
-    }
+    if (!files.length) return
 
     const remaining = max - itemsRef.current.length
     if (remaining <= 0) {
       toast(`You can attach up to ${max} photos.`)
-      if (folderRef.current) folderRef.current.value = ''
       return
     }
 
@@ -112,8 +182,6 @@ export function PhotoPicker({
         })
       }
       if (added.length) {
-        // Decide keep/discard before setState so the updater stays pure
-        // (React Strict Mode may double-invoke updaters).
         const room = Math.max(0, max - itemsRef.current.length)
         const keep = added.slice(0, room)
         added.slice(room).forEach((item) => revokeUrl(item.url))
@@ -133,14 +201,12 @@ export function PhotoPicker({
       }
     } finally {
       setBusy(false)
-      if (folderRef.current) folderRef.current.value = ''
     }
   }
 
   function removeAt(index) {
     setItems((prev) => {
       const target = prev[index]
-      // Revoke only the removed item; do not touch remaining preview URLs.
       if (target?.url) revokeUrl(target.url)
       return prev.filter((_, i) => i !== index)
     })
@@ -150,10 +216,59 @@ export function PhotoPicker({
   const atLimit = count >= max
   const addDisabled = disabled || busy
 
+  const sourceMenu =
+    menuOpen && !addDisabled && menuPos
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="photo-source-menu photo-source-menu--portal"
+            role="menu"
+            style={{
+              left: menuPos.left,
+              bottom: menuPos.bottom,
+              minWidth: menuPos.minWidth,
+            }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation()
+                openFolderPicker()
+              }}
+            >
+              Choose from folder
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation()
+                openCamera()
+              }}
+            >
+              Capture from camera
+            </button>
+          </div>,
+          document.body,
+        )
+      : null
+
   return (
-    // preventDefault: if a parent still wraps this in <label>, clicks on thumbs /
-    // count must not activate the first control (the first photo's remove button).
-    <div className="photos" onClick={(e) => e.preventDefault()}>
+    <div className="photos">
+      {/* Always mounted — survives menu close so folder picks are not lost. */}
+      <input
+        ref={folderRef}
+        type="file"
+        accept="image/*"
+        multiple
+        tabIndex={-1}
+        aria-hidden="true"
+        className="photo-folder-input-hidden"
+        onChange={onFolderInputChange}
+        onCancel={onFolderInputCancel}
+      />
+
       {items.map((item, index) => (
         <div key={item.id} className="photo-thumb has-img">
           <img src={item.url} alt={item.name || `Photo ${index + 1}`} />
@@ -162,7 +277,10 @@ export function PhotoPicker({
             className="x"
             aria-label={`Remove photo ${index + 1}`}
             disabled={addDisabled}
-            onClick={() => removeAt(index)}
+            onClick={(e) => {
+              e.stopPropagation()
+              removeAt(index)
+            }}
           >
             &times;
           </button>
@@ -172,12 +290,16 @@ export function PhotoPicker({
       {!atLimit ? (
         <div className="photo-add-wrap">
           <button
+            ref={addBtnRef}
             type="button"
             className="photo-add"
             disabled={addDisabled}
             aria-expanded={menuOpen}
             aria-haspopup="menu"
-            onClick={() => setMenuOpen((o) => !o)}
+            onClick={(e) => {
+              e.stopPropagation()
+              setMenuOpen((o) => !o)
+            }}
           >
             <svg
               className="ico"
@@ -191,30 +313,9 @@ export function PhotoPicker({
             </svg>
             {busy ? 'Adding…' : count ? 'Add more' : 'Add photo'}
           </button>
-
-          {menuOpen && !addDisabled ? (
-            <div className="photo-source-menu" role="menu">
-              <button type="button" role="menuitem" onClick={openFolder}>
-                Choose from folder
-              </button>
-              <button type="button" role="menuitem" onClick={openCamera}>
-                Capture from camera
-              </button>
-            </div>
-          ) : null}
+          {sourceMenu}
         </div>
       ) : null}
-
-      <input
-        id={folderId}
-        ref={folderRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="sr-only"
-        tabIndex={-1}
-        onChange={(e) => handleFiles(e.target.files)}
-      />
 
       {cameraOpen ? (
         <CameraCaptureModal

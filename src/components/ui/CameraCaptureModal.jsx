@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from './Button'
 import { Modal } from './Modal'
 
@@ -336,7 +337,7 @@ export function CameraCaptureModal({ open, onClose, onCapture }) {
 
   const isReview = step === 'review'
 
-  return (
+  return createPortal(
     <Modal
       open={open}
       title={isReview ? 'Crop photo' : 'Capture photo'}
@@ -349,6 +350,7 @@ export function CameraCaptureModal({ open, onClose, onCapture }) {
       closeOnEscape={!isReview}
       closeDisabled={exporting}
       wide
+      elevated
     >
       {error ? (
         <div className="hint-strip auth-error" role="alert" style={{ marginBottom: 12 }}>
@@ -499,6 +501,7 @@ export function CameraCaptureModal({ open, onClose, onCapture }) {
           </>
         )}
       </div>
-    </Modal>
+    </Modal>,
+    document.body,
   )
 }

@@ -128,6 +128,13 @@ Inspect existing code
 - Collapsed tooltips: native `title` / `aria-label` — no tooltip library.
 - Extend `NavIcons.jsx` for new glyphs; do not add lucide/heroicons.
 - Collapsed group click: expand the rail, then open the group (no flyout menus).
+- Collapsed column: keep glyph/nav icons centered; never invent a second left offset for the topbar.
+
+## Ticket list pagination skills (Phase 22+)
+
+- Pass `page` + `limit` to `listTickets`; read `pagination` from the envelope.
+- Use shared `TablePagination` with limits `[10, 25, 50, 100]`; default `25`.
+- On tab / Apply / Reset / limit change → `page = 1` then refetch.
 
 ## Ticket access skills (Phase 15+)
 
