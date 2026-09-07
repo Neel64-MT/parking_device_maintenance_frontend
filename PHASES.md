@@ -78,7 +78,7 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 5. **TicketClose** — cost table, chips, sticky bar
 6. **WorkReport** — REPORT dataset, setView, person panels
 
-**Verification:** Each page vs original HTML; raise→update→close navigation; New tab Assign buttons; report Day/Week/Month.
+**Verification:** Each page vs original HTML; raise→update→close navigation; Open tab Assign buttons; report Day/Week/Month.
 
 **Completion:** Full ticket flow clickable with preview toasts.
 
@@ -228,17 +228,116 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 14: Raise ticket flow + field action bars
+
+**Objective:** Simplify Raise ticket; keep PhotoPicker compact; put Cancel/primary actions in page flow (not fixed).
+
+**Status:** Complete
+
+**Frontend:**
+
+1. `TicketRaise.jsx` — drop step 3 assign/priority; reported-by from `useAuth()`; wrap actions in `.sticky-bar-inner`.
+2. `TicketUpdate.jsx` / `TicketClose.jsx` — same `.sticky-bar-inner` pattern.
+3. `index.css` — `.sticky-bar { position: static; background: transparent }`; inner `max-width: 580px`; reduce `.mobile` bottom padding (was for fixed bar).
+4. `PhotoPicker` — remain original 86×86 dashed tile (full-width experiment reverted).
+
+**Verification:** Raise shows two steps only; reported-by matches session; actions scroll with form and align to form width; Add photo is compact tile; docs updated.
+
+**Completion:** PR.md Phase 14 criteria pass.
+
+---
+
+## Phase 15: Ticket visibility + PM signup approval
+
+**Objective:** Enforce role-based ticket visibility; ensure Project Manager can approve/update signups like Admin.
+
+**Backend (mostly shipped; finish gaps):**
+
+1. `lib/ticket-access.ts` — already on list/export/detail/updates/close.
+2. Assign: road access only (Control room).
+3. Dashboard: `appendTicketVisibilitySql` on ticket-backed queries.
+4. PM Users `vce...` + migration `006` (already in backend).
+
+**Frontend:** Mirror ROLES PM Users; copy Admin/PM approval.
+
+**Verification:** Smoke visibility + PM approve + Control-room assign; dashboard scoped for tech.
+
+**Completion:** PR.md Phase 15 criteria pass.
+
+---
+
+## Phase 16: Frontend role-scoped ticket rendering
+
+**Objective:** Wire TicketList, Dashboard, and TicketDetail to backend-scoped APIs without client-side security filtering.
+
+**Tasks:**
+
+1. `services/tickets.js` + `services/dashboard.js` (+ envelope helper if list returns sibling tiles).
+2. TicketList → `GET /api/tickets`.
+3. Dashboard → `GET /api/dashboard`.
+4. TicketDetail → `GET /api/tickets/:id` with 403 UI.
+5. Docs finalize.
+
+**Out of scope:** Raise/Update/Close/WorkReport/DeviceDetail mocks; Work report ownership on backend.
+
+**Verification:** Lint; Admin/PM see broad data; technician scoped; foreign detail id errors.
+
+**Completion:** PR.md Phase 16 criteria pass.
+
+---
+
+## Phase 17: QR scan + role routing
+
+**Objective:** Camera QR for Site attendant / Technician; mock device resolve; one open ticket per device; Technician Update flow unchanged after scan.
+
+**Tasks:**
+
+1. `scanDevice` mock + `services/devices.resolveScan`.
+2. `QrScannerModal` + `html5-qrcode`.
+3. TicketRaise / TicketUpdate / ScanQr wiring + role gate.
+4. Align backend `GET /api/devices/scan` structured fields + lat/lng.
+5. Docs finalize.
+
+**Out of scope:** Live raise POST; final QR string format; external `PROJECT_PATH` inspection package.
+
+**Verification:** Lint/build; Site attendant blocked on open device; Technician scan → same Update mock.
+
+**Completion:** PR.md Phase 17 criteria pass.
+
+---
+
+## Phase 18: Home by role, Open status, Raised by, raiser visibility
+
+**Objective:** Admin/PM open Dashboard after login; ticket status is Open (not New); show Raised by on the list; raisers see their tickets even outside assigned roads.
+
+**Status:** Complete
+
+**Frontend:**
+
+1. `homePathForUser` / `isDashboardRole` in `services/users.js`; Login, GuestOnly, `HomeRedirect`, Users unauthorized redirect.
+2. Dashboard page redirects non–Admin/PM; Sidebar hides Dashboard without ops-lead role.
+3. Ticket status normalize `New` → `Open`; Open tab label; mock data + list column **Raised by**.
+4. Docs finalize.
+
+**Backend (`../backend`):**
+
+1. List/export: drop `assigned_roads` AND that hid raiser rows; keep `appendTicketVisibilitySql`.
+2. `assertTicketAccess`: raiser/assignee before road check.
+3. List returns `raisedBy`; displayStatus maps legacy `New` → `Open`.
+4. Smoke: Site attendant sees TK-1099 (raised on non-assigned road).
+
+**Out of scope:** Changing Open-tab assignment rules beyond status label; live Raise POST.
+
+**Verification:** Admin → Dashboard; Site attendant → `/tickets` and sees all tickets they raised; no **New** status pills; Raised by column populated; smoke passes.
+
+**Completion:** PR.md Phase 18 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► Phase 1 ──► Phase 2 ──┬──► Phase 3
-                                  ├──► Phase 4
-                                  ├──► Phase 5
-                                  ├──► Phase 6
-                                  └──► Phase 7
-                                         │
-                                         ▼
-                      Phase 8 ──► Phase 9 ──► Phase 10 ──► Phase 11 ──► Phase 12 ──► Phase 13
+Phase 0 ──► … ──► Phase 15 ──► Phase 16 ──► Phase 17 ──► Phase 18
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

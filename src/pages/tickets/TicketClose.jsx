@@ -198,15 +198,17 @@ export default function TicketClose() {
         </section>
 
         <div className="sticky-bar">
-          <Link className="btn" to="/tickets/update">
-            Back
-          </Link>
-          <Button
-            variant="primary"
-            onClick={() => toast('Design preview — ticket would be closed here.')}
-          >
-            Close ticket
-          </Button>
+          <div className="sticky-bar-inner">
+            <Link className="btn" to="/tickets/update">
+              Back
+            </Link>
+            <Button
+              variant="primary"
+              onClick={() => toast('Design preview — ticket would be closed here.')}
+            >
+              Close ticket
+            </Button>
+          </div>
         </div>
       </main>
     </>

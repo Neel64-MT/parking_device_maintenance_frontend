@@ -1,5 +1,5 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
-import { GuestOnly, RequireAuth } from './context/AuthContext'
+import { Route, Routes } from 'react-router-dom'
+import { GuestOnly, HomeRedirect, RequireAuth } from './context/AuthContext'
 import { AppLayout } from './layouts/AppLayout'
 import { AuthLayout } from './layouts/AuthLayout'
 import Dashboard from './pages/Dashboard'
@@ -50,7 +50,7 @@ export function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route index element={<HomeRedirect />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="dev/ui" element={<UiKitDemoPage />} />
 
@@ -73,7 +73,7 @@ export function AppRoutes() {
         <Route path="users" element={<Users />} />
         <Route path="settings" element={<Settings />} />
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<HomeRedirect />} />
       </Route>
     </Routes>
   )

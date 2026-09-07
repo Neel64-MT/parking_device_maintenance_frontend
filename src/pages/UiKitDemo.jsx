@@ -101,14 +101,14 @@ export function UiKitDemoPage() {
           value={tab}
           onChange={setTab}
           tabs={[
-            { id: 'new', label: 'New', count: 42 },
+            { id: 'new', label: 'Open', count: 42 },
             { id: 'asg', label: 'Assigned', count: 41 },
             { id: 'cls', label: 'Closed', count: 412 },
           ]}
         />
 
         <Panel
-          title={`${tab === 'new' ? 'New' : tab === 'asg' ? 'Assigned' : 'Closed'} preview`}
+          title={`${tab === 'new' ? 'Open' : tab === 'asg' ? 'Assigned' : 'Closed'} preview`}
           subtitle="Tabs + panel pairing"
           linkTo="/tickets"
           link="All tickets"

@@ -244,7 +244,7 @@ export const ROLES = {
     },
   },
   'Project manager': {
-    note: 'Everything except creating users and deleting masters.',
+    note: 'City-wide ops; can manage users and approve signups; cannot delete masters.',
     p: {
       Dashboard: 'v.....',
       'Raise ticket': 'vc....',
@@ -257,7 +257,7 @@ export const ROLES = {
       'Scan QR': 'v.....',
       'Issue master': 'vce...',
       'Road master': 'vce...',
-      Users: 'v.....',
+      Users: 'vce...',
       'Roles & permissions': 'v.....',
     },
   },

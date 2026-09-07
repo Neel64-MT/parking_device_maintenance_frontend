@@ -1,6 +1,9 @@
 /**
  * Shared navigation config — ported from original asset/nav.js.
  * Edit MENU here to change the sidebar everywhere at once.
+ *
+ * `screen` = key in user.permissions (from /api/auth/me); used for view (`v`) gating.
+ * Settings has no permission screen — always shown for authenticated users.
  */
 
 export const APP = {
@@ -15,6 +18,7 @@ export const APP = {
  * id      = pageId for active matching
  * match   = other pageIds that keep this item highlighted
  * path    = React Router path
+ * screen  = permissions map key (omit only if always visible)
  */
 export const MENU = [
   {
@@ -22,6 +26,7 @@ export const MENU = [
     label: 'Dashboard',
     icon: 'dashboard',
     path: '/dashboard',
+    screen: 'Dashboard',
   },
   {
     label: 'Tickets',
@@ -33,12 +38,14 @@ export const MENU = [
         icon: 'ticket-list',
         path: '/tickets',
         match: ['ticket-raise', 'ticket-update', 'ticket-close', 'ticket-detail'],
+        screen: 'All tickets',
       },
       {
         id: 'ticket-report',
         label: 'Work report',
         icon: 'report',
         path: '/tickets/report',
+        screen: 'Work report',
       },
     ],
   },
@@ -48,6 +55,7 @@ export const MENU = [
     icon: 'device',
     path: '/devices',
     match: ['device-add', 'device-detail', 'scan-qr'],
+    screen: 'Device list',
   },
   {
     label: 'Masters',
@@ -58,6 +66,7 @@ export const MENU = [
         label: 'Issue master',
         icon: 'issue',
         path: '/masters/issues',
+        screen: 'Issue master',
       },
       {
         id: 'road-list',
@@ -65,6 +74,7 @@ export const MENU = [
         icon: 'road',
         path: '/masters/roads',
         match: ['road-add'],
+        screen: 'Road master',
       },
     ],
   },
@@ -73,6 +83,7 @@ export const MENU = [
     label: 'Users',
     icon: 'user',
     path: '/users',
+    screen: 'Users',
   },
 ]
 
@@ -87,4 +98,22 @@ export const SETTINGS = {
 export function isMenuItemOn(item, pageId) {
   if (item.id === pageId) return true
   return !!(item.match && item.match.includes(pageId))
+}
+
+/**
+ * Drop menu leaves (and empty parent groups) the user cannot view.
+ * `canView(screen)` should return true when permission flag `v` is set.
+ */
+export function filterMenuByView(menu, canView) {
+  return menu
+    .map((item) => {
+      if (item.children) {
+        const children = item.children.filter((c) => !c.screen || canView(c.screen))
+        if (!children.length) return null
+        return { ...item, children }
+      }
+      if (item.screen && !canView(item.screen)) return null
+      return item
+    })
+    .filter(Boolean)
 }

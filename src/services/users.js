@@ -26,3 +26,13 @@ export function canPerm(user, screen, flag) {
   const idx = 'vceaxd'.indexOf(flag)
   return idx >= 0 && code[idx] === flag
 }
+
+/** Dashboard is the home screen only for Admin and Project manager. */
+export function isDashboardRole(user) {
+  return user?.role === 'Admin' || user?.role === 'Project manager'
+}
+
+/** Post-login / index landing path by role. */
+export function homePathForUser(user) {
+  return isDashboardRole(user) ? '/dashboard' : '/tickets'
+}

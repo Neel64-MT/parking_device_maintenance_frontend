@@ -12,7 +12,7 @@ export const TICKET_LIST_TILES = [
 
 export const TICKET_TAB_META = {
   new: {
-    title: 'New tickets',
+    title: 'Open tickets',
     subtitle: 'Raised but not yet assigned to anyone',
   },
   asg: {
@@ -38,6 +38,7 @@ export const TICKET_TAB_COUNTS = { new: 42, asg: 41, cls: 412 }
  * @property {string} issueReportedDetail
  * @property {string|null} issueFound
  * @property {string|null} issueFoundDetail
+ * @property {string} raisedBy
  * @property {string|null} assignedTo
  * @property {number} updates
  * @property {number} daysOpen
@@ -60,6 +61,7 @@ export const TICKET_ROWS = [
     issueReportedDetail: 'Electrical › Controller board failure',
     issueFound: 'Motor failure',
     issueFoundDetail: 'Mechanical',
+    raisedBy: 'Nilesh Chauhan',
     assignedTo: 'Ramesh Vaghela',
     updates: 5,
     daysOpen: 8,
@@ -79,6 +81,7 @@ export const TICKET_ROWS = [
     issueReportedDetail: 'Power › Mains supply cut',
     issueFound: 'Power supply / SMPS failure',
     issueFoundDetail: 'Power',
+    raisedBy: 'Control room',
     assignedTo: 'Jignesh Solanki',
     updates: 3,
     daysOpen: 7,
@@ -98,6 +101,7 @@ export const TICKET_ROWS = [
     issueReportedDetail: 'External damage',
     issueFound: 'Vehicle hit the flap',
     issueFoundDetail: 'External damage',
+    raisedBy: 'Site attendant',
     assignedTo: 'Ramesh Vaghela',
     updates: 2,
     daysOpen: 6,
@@ -117,6 +121,7 @@ export const TICKET_ROWS = [
     issueReportedDetail: 'QR / payment › QR plate damaged',
     issueFound: 'QR plate damaged',
     issueFoundDetail: 'QR / payment',
+    raisedBy: 'Citizen complaint',
     assignedTo: 'Mahesh Thakor',
     updates: 2,
     daysOpen: 5,
@@ -136,6 +141,7 @@ export const TICKET_ROWS = [
     issueReportedDetail: 'Auto — no data 24 hrs',
     issueFound: null,
     issueFoundDetail: null,
+    raisedBy: 'Auto — no data 24 hrs',
     assignedTo: null,
     updates: 1,
     daysOpen: 4,
@@ -155,6 +161,7 @@ export const TICKET_ROWS = [
     issueReportedDetail: 'Mechanical › Jammed by debris',
     issueFound: 'Limit switch faulty',
     issueFoundDetail: 'Mechanical',
+    raisedBy: 'Maintenance team',
     assignedTo: 'Ramesh Vaghela',
     updates: 3,
     daysOpen: 2,
@@ -174,6 +181,7 @@ export const TICKET_ROWS = [
     issueReportedDetail: 'Civil › Water ingress in pit',
     issueFound: null,
     issueFoundDetail: null,
+    raisedBy: 'Site attendant',
     assignedTo: 'Jignesh Solanki',
     updates: 1,
     daysOpen: 1,
@@ -193,6 +201,7 @@ export const TICKET_ROWS = [
     issueReportedDetail: 'Sensor › Sensor not detecting vehicle',
     issueFound: null,
     issueFoundDetail: null,
+    raisedBy: 'Control room',
     assignedTo: null,
     updates: 1,
     daysOpen: 0,
@@ -212,6 +221,7 @@ export const TICKET_ROWS = [
     issueReportedDetail: 'Electrical › Fuse blown',
     issueFound: 'Power supply / SMPS failure',
     issueFoundDetail: 'Power',
+    raisedBy: 'Site attendant',
     assignedTo: 'Ramesh Vaghela',
     updates: 2,
     daysOpen: 1,
@@ -231,6 +241,7 @@ export const TICKET_ROWS = [
     issueReportedDetail: 'External damage › Vehicle hit the flap',
     issueFound: 'Vehicle hit the flap',
     issueFoundDetail: 'External damage',
+    raisedBy: 'Site attendant',
     assignedTo: 'Ramesh Vaghela',
     updates: 4,
     daysOpen: 4,
@@ -250,11 +261,12 @@ export const TICKET_ROWS = [
     issueReportedDetail: 'Mechanical › Jammed by debris',
     issueFound: null,
     issueFoundDetail: null,
+    raisedBy: 'Site attendant',
     assignedTo: null,
     updates: 1,
     daysOpen: 0,
     daysBad: false,
-    status: 'New',
+    status: 'Open',
     statusTone: 'bad',
     actionLabel: 'Assign',
     actionPrimary: true,
@@ -269,11 +281,12 @@ export const TICKET_ROWS = [
     issueReportedDetail: 'Power › Mains supply cut',
     issueFound: null,
     issueFoundDetail: null,
+    raisedBy: 'Control room',
     assignedTo: null,
     updates: 1,
     daysOpen: 0,
     daysBad: false,
-    status: 'New',
+    status: 'Open',
     statusTone: 'bad',
     actionLabel: 'Assign',
     actionPrimary: true,
@@ -288,6 +301,7 @@ export const TICKET_ROWS = [
     issueReportedDetail: 'Sensor › Sensor not detecting vehicle',
     issueFound: 'Sensor dirty or blocked',
     issueFoundDetail: 'Sensor',
+    raisedBy: 'Site attendant',
     assignedTo: 'Ramesh Vaghela',
     updates: 2,
     daysOpen: 0,

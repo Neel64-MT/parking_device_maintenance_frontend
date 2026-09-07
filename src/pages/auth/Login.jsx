@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { ApiRequestError } from '../../services/api'
+import { homePathForUser, isDashboardRole } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/FilterBar'
 import { Panel } from '../../components/ui/Panel'
@@ -28,9 +29,12 @@ export default function Login() {
 
     setSubmitting(true)
     try {
-      await login(id, password)
-      const to = location.state?.from && location.state.from !== '/login' ? location.state.from : '/dashboard'
-      navigate(to, { replace: true })
+      const user = await login(id, password)
+      const from = location.state?.from
+      const home = homePathForUser(user)
+      const deepLink =
+        from && from !== '/login' && from !== '/' && !(from === '/dashboard' && !isDashboardRole(user))
+      navigate(deepLink ? from : home, { replace: true })
     } catch (err) {
       const message =
         err instanceof ApiRequestError ? err.message : 'Could not sign in. Try again.'

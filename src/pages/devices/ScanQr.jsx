@@ -1,18 +1,25 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast } from '../../context/ToastContext'
-import { SCAN_HIT_CODES, SCAN_RESULT } from '../../data/devices'
+import { scanDeviceFacts, scanStatusTone } from '../../data/scanDevice'
+import { canScanWithCamera, resolveScan } from '../../services/devices'
 import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Field } from '../../components/ui/FilterBar'
 import { JumpLinks } from '../../components/ui/JumpLinks'
 import { Panel } from '../../components/ui/Panel'
 import { Pill } from '../../components/ui/Pill'
+import { QrScannerModal } from '../../components/ui/QrScannerModal'
 
 export default function ScanQr() {
+  const { user } = useAuth()
+  const canScan = canScanWithCamera(user)
   const [manual, setManual] = useState('')
   const [state, setState] = useState('idle') // idle | hit | miss
+  const [scan, setScan] = useState(null)
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   const crumb = useMemo(
     () => (
@@ -32,15 +39,26 @@ export default function ScanQr() {
     [],
   )
 
-  function findDevice(raw) {
-    const v = (raw || '').trim().toUpperCase()
+  async function findDevice(raw) {
+    const v = (raw || '').trim()
     if (!v) {
       setState('idle')
+      setScan(null)
       toast('Enter a device ID, QR code or slot number.')
       return
     }
-    const hit = SCAN_HIT_CODES.includes(v)
-    setState(hit ? 'hit' : 'miss')
+    const result = await resolveScan(v)
+    if (!result) {
+      setState('miss')
+      setScan(null)
+      return
+    }
+    setScan(result)
+    setState('hit')
+  }
+
+  function onQrScan(text) {
+    findDevice(text)
   }
 
   return (
@@ -63,10 +81,23 @@ export default function ScanQr() {
               <h4>Waiting for a QR code</h4>
               <p>On a phone this opens the camera. Hold it about 20 cm from the sticker.</p>
             </div>
-            <div style={{ marginTop: 16 }}>
-              <Button variant="primary" onClick={() => findDevice('QR-PD0428')}>
-                Simulate a scan
+            <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {canScan ? (
+                <Button variant="primary" onClick={() => setScannerOpen(true)}>
+                  Open camera
+                </Button>
+              ) : (
+                <p className="muted" style={{ margin: 0 }}>
+                  Camera scan is available to Site attendants and Technicians.
+                </p>
+              )}
+              <Button
+                variant="dark"
+                onClick={() => findDevice('QR-PD0428')}
+              >
+                Simulate open ticket
               </Button>
+              <Button onClick={() => findDevice('PD-0501')}>Simulate free device</Button>
             </div>
           </Panel>
 
@@ -96,7 +127,7 @@ export default function ScanQr() {
           </Panel>
         </div>
 
-        {state === 'hit' ? (
+        {state === 'hit' && scan ? (
           <section className="panel">
             <div className="panel-head">
               <div>
@@ -107,15 +138,17 @@ export default function ScanQr() {
             <div className="panel-body">
               <div className="record-top">
                 <div>
-                  <h3>{SCAN_RESULT.id}</h3>
-                  <div className="sub">{SCAN_RESULT.location}</div>
+                  <h3>{scan.deviceId}</h3>
+                  <div className="sub">
+                    {scan.deviceName} · {scan.locationSite} · Slot {scan.slot}
+                  </div>
                 </div>
                 <div style={{ marginLeft: 20 }}>
-                  <Pill tone={SCAN_RESULT.statusTone}>{SCAN_RESULT.status}</Pill>
+                  <Pill tone={scanStatusTone(scan)}>{scan.currentStatus}</Pill>
                 </div>
               </div>
               <div className="facts">
-                {SCAN_RESULT.facts.map((f) => (
+                {scanDeviceFacts(scan).map((f) => (
                   <div key={f.label}>
                     <small>{f.label}</small>
                     <span>{f.value}</span>
@@ -124,14 +157,22 @@ export default function ScanQr() {
               </div>
             </div>
             <div className="form-actions">
-              <Link className="btn btn-primary" to="/tickets/raise">
-                Raise a ticket
-              </Link>
-              <Link className="btn" to={`/devices/${SCAN_RESULT.id}`}>
+              {scan.openTicketId ? (
+                <>
+                  <Link className="btn btn-primary" to="/tickets/update">
+                    Update ticket
+                  </Link>
+                  <Link className="btn" to={`/tickets/${scan.openTicketId}`}>
+                    Open {scan.openTicketId}
+                  </Link>
+                </>
+              ) : (
+                <Link className="btn btn-primary" to="/tickets/raise">
+                  Raise a ticket
+                </Link>
+              )}
+              <Link className="btn" to={`/devices/${scan.deviceId}`}>
                 View history
-              </Link>
-              <Link className="btn" to={`/tickets/${SCAN_RESULT.openTicketId}`}>
-                Open {SCAN_RESULT.openTicketId}
               </Link>
             </div>
           </section>
@@ -152,6 +193,12 @@ export default function ScanQr() {
           </section>
         ) : null}
       </main>
+
+      <QrScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={onQrScan}
+      />
     </>
   )
 }
