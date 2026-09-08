@@ -126,6 +126,14 @@ Live-data screens (TicketList, TicketDetail, Dashboard, Users, Auth boot) must s
 Reuse Skeleton / SkeletonTiles / SkeletonTable; keep empty and error paths unchanged.
 Shimmer CSS must respect prefers-reduced-motion (animation: none).
 Do not add skeleton libraries.
+Parts & visit cost (Phase 23+)
+Live Parts changed must load from GET /api/parts (or lookups/parts) — do not hardcode part lists for live submits.
+Submit parts as UUID arrays; cost on update/close is labour / other charges only — server adds master part amounts.
+Do not treat client-displayed part amounts or a client sum as authoritative Cost of Visit.
+Do not invent edit-update-parts APIs; trail shows snapshots from workHistory after create.
+Masters submenu labels are Issue / Road / Parts (keep group title Masters). Permission screen keys remain Issue master / Road master until backend renames.
+Technicians may create and update parts (`POST` / `PATCH /api/parts`); deactivate in the UI still needs Issue master edit. Do not grant Technicians Issue master create/edit solely for this — backend allows Technician role on parts create/update only.
+Parts nav icon must be interlocking gears — not a bolt and not the Settings single gear.
 What to avoid
 No redesign, modernization, or “AI default” aesthetic.
 No purple gradients, cream+serif trends, or unrelated design systems.

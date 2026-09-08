@@ -44,7 +44,7 @@ export default function RoadList() {
     <>
       <PageMeta
         pageId="road-list"
-        title="Road master"
+        title="Road"
         crumb="5 roads · 1,000 devices mapped"
       />
 

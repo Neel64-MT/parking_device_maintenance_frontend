@@ -20,10 +20,14 @@ export function Sidebar({
   /** Manual open/close overrides; unset keys fall back to “child page is active”. */
   const [expanded, setExpanded] = useState({})
 
-  const menu = filterMenuByView(MENU, (screen) => {
-    if (screen === 'Dashboard' && !isDashboardRole(user)) return false
-    return canPerm(user, screen, 'v')
-  })
+  const menu = filterMenuByView(
+    MENU,
+    (screen) => {
+      if (screen === 'Dashboard' && !isDashboardRole(user)) return false
+      return canPerm(user, screen, 'v')
+    },
+    user?.role,
+  )
 
   function isGroupOpen(index, item) {
     if (Object.prototype.hasOwnProperty.call(expanded, index)) {

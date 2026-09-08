@@ -116,7 +116,7 @@ export function UiKitDemoPage() {
           foot={
             <>
               Filtered rows: {categories.length}
-              <Link to="/masters/issues">Issue master</Link>
+              <Link to="/masters/issues">Issue</Link>
             </>
           }
         >

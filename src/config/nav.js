@@ -63,18 +63,26 @@ export const MENU = [
     children: [
       {
         id: 'issue-master',
-        label: 'Issue master',
+        label: 'Issue',
         icon: 'issue',
         path: '/masters/issues',
         screen: 'Issue master',
       },
       {
         id: 'road-list',
-        label: 'Road master',
+        label: 'Road',
         icon: 'road',
         path: '/masters/roads',
         match: ['road-add'],
         screen: 'Road master',
+      },
+      {
+        id: 'part-master',
+        label: 'Parts',
+        icon: 'parts',
+        path: '/masters/parts',
+        /** All roles except Site attendant. */
+        hideForRoles: ['Site attendant'],
       },
     ],
   },
@@ -103,16 +111,23 @@ export function isMenuItemOn(item, pageId) {
 /**
  * Drop menu leaves (and empty parent groups) the user cannot view.
  * `canView(screen)` should return true when permission flag `v` is set.
+ * Optional `role` applies `hideForRoles` on items (e.g. Parts vs Site attendant).
  */
-export function filterMenuByView(menu, canView) {
+export function filterMenuByView(menu, canView, role) {
+  function allow(item) {
+    if (role && item.hideForRoles?.includes(role)) return false
+    if (item.screen && !canView(item.screen)) return false
+    return true
+  }
+
   return menu
     .map((item) => {
       if (item.children) {
-        const children = item.children.filter((c) => !c.screen || canView(c.screen))
+        const children = item.children.filter(allow)
         if (!children.length) return null
         return { ...item, children }
       }
-      if (item.screen && !canView(item.screen)) return null
+      if (!allow(item)) return null
       return item
     })
     .filter(Boolean)

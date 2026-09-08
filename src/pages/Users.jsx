@@ -728,7 +728,7 @@ export default function Users() {
                             const code = roleDef.p[scr] || '......'
                             return (
                               <tr key={scr}>
-                                <td>{scr}</td>
+                                <td>{scr.replace(/ master$/i, '')}</td>
                                 {PERM_FLAGS.map((flag, i) => (
                                   <td key={flag}>
                                     <input

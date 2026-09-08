@@ -29,7 +29,7 @@ export default function RoadAdd() {
   const crumb = useMemo(
     () => (
       <>
-        <Link to="/masters/roads">Road master</Link> › New road
+        <Link to="/masters/roads">Road</Link> › New road
       </>
     ),
     [],

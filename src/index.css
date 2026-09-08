@@ -242,7 +242,7 @@ body.rail-lock {
   align-items: center;
   gap: 10px;
   padding: 9px 16px;
-  font-size: 14px;
+  font-size: 16px;
   color: #c6d4e0;
   background: none;
   border: 0;
@@ -254,8 +254,8 @@ body.rail-lock {
 .nav-item>a .ico,
 .nav-group>button .ico,
 .rail-bottom .nav-item>a .ico {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   flex: none;
   display: block;
   margin: 0;
@@ -341,15 +341,16 @@ body.rail-lock {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 16px 7px 44px;
-  font-size: 13px;
+  /* Indent past parent icons so nested items read clearly */
+  padding: 7px 16px 7px 38px;
+  font-size: 15px;
   color: #93a7b8;
   white-space: nowrap;
 }
 
 .nav-sub a .ico {
-  width: 15px;
-  height: 15px;
+  width: 20px;
+  height: 20px;
   flex: none;
   opacity: 0.9;
 }
@@ -1042,6 +1043,17 @@ td.act {
   white-space: nowrap;
 }
 
+.act-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-reassign {
+  background: #fff;
+}
+
 .code {
   font-weight: 600;
   color: var(--navy-3);
@@ -1510,6 +1522,47 @@ td a:not(.btn):not(.code):hover {
 .dev-card .row2 div span {
   font-size: 13px;
   font-weight: 500;
+}
+
+/* Selected parts total under PartChips (display-only master sum) */
+.parts-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: #f7f9fb;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+
+.parts-total-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.parts-total-meta strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.parts-total-meta span {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.parts-total-amount {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .chip-row {
@@ -2287,8 +2340,8 @@ a.rank-row:hover .name {
 
 .facts {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px 22px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px 18px;
   margin-top: 18px;
   padding-top: 16px;
   border-top: 1px solid var(--line-soft);

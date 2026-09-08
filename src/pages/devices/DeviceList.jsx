@@ -63,7 +63,7 @@ export default function DeviceList() {
           links={[
             { to: '/devices/add', label: 'Add device' },
             { to: '/devices/scan', label: 'Scan QR' },
-            { to: '/masters/roads', label: 'Road master' },
+            { to: '/masters/roads', label: 'Road' },
             { to: '/tickets', label: 'All tickets' },
           ]}
           actions={
@@ -138,7 +138,7 @@ export default function DeviceList() {
         <Panel
           title="Devices"
           subtitle={`Showing ${filteredRows.length} of 1,000`}
-          link="Road master"
+          link="Road"
           linkTo="/masters/roads"
           flush
           foot={

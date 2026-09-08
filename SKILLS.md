@@ -180,6 +180,12 @@ Inspect existing code
 - Honor `prefers-reduced-motion` via CSS (no shimmer).
 - Live create/update buttons: disable + busy label (`Saving…` / `Creating…`) while the request runs; gate Cancel/modal close the same way (Users create/edit/password/approve).
 
+## Parts Master / visit cost (Phase 23+)
+
+- Use `listParts()` from `services/parts.js` (session cache); do not fetch per chip click.
+- `PartChips` selects by UUID; submit `parts: id[]` and labour-only `cost`.
+- Display backend `cost` / `partsCost` after save; never send a client-calculated visit total as authoritative.
+
 ## Definition of done (per page)
 
 - Matches original layout and key measurements

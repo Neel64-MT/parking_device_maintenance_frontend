@@ -89,7 +89,7 @@ export default function DeviceAdd() {
 
           <Panel
             title="Where it is installed"
-            subtitle="Roads come from the road master, so add the road first if it is missing"
+            subtitle="Roads come from Masters → Road, so add the road first if it is missing"
             link="Add a road"
             linkTo="/masters/roads/add"
           >
