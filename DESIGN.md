@@ -225,7 +225,9 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Summary tiles | Open not attended = Open tab; Under repair counts assigned+Open via API `listStatus` |
 | Add Update | `Modal` wide; same form; Cancel / Escape / overlay close |
 | Work history | Always visible; oldest first; newest at bottom |
-| Photos | Text **View Image** (no inline imgs); `ImagePreviewModal` main + thumbs |
+| Photos | Text **View Update** (always) + **View Image** when photos exist (no inline imgs) |
+| View Update | `Modal` with trail fields only — no image preview |
+| View Image | `ImagePreviewModal` main + thumbs; Zoom in / Zoom out / Rotate; pan/explore when zoomed |
 | Back to tickets | Restores list tab via `state.from` (`/tickets?tab=…`); crumb matches |
 
 ## Phase 20 — Image attachment in ticket
@@ -282,5 +284,21 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | After save | Toast uses backend `cost`; trail lists part snapshot names |
 | Masters nav | Child labels **Issue** / **Road** / **Parts** (group **Masters** unchanged) |
 | Parts icon | Interlocking gear cluster in `NavIcons` `parts` (not bolt; distinct from Settings) |
+
+## Phase 24 — Image viewer zoom/rotate + Trail View Update
+
+| Item | Pattern |
+|------|---------|
+| Trail actions | `.tl-trail-actions`: **View Update** (always) then **View Image** (when photos) — `linkish` |
+| View Update modal | Standard `Modal`; `.view-update-facts` label/value rows; long text wraps |
+| View Update content | When, By, Update type, Status, What was done, Cost, Next visit, Parts — skip empty; **no images** |
+| Image controls | Below main image, above thumbs: `.img-preview-controls` + `.img-preview-ctrl` (40px tap) |
+| Zoom | Scale 1 → 3 step 0.25; Zoom out disabled at 1; Zoom in disabled at 3 |
+| Pan / explore | When zoom > 1: move pointer over stage (desktop) or drag (touch/mouse) to scroll the zoomed image; grab cursor; `touch-action: none` |
+| Rotate | +90° CSS rotate; wraps at 360; `.is-sideways` caps for 90/270 fit |
+| Containment | `.img-preview-main { overflow: hidden }`; transform origin center; pan clamped to stage |
+| Reset | Selecting another thumbnail resets zoom + rotation + pan |
+| Icons | Inline SVG stroke icons + native `title` / `aria-label` (no new icon lib) |
+| Reduced motion | No transform transition under `prefers-reduced-motion` |
 
 

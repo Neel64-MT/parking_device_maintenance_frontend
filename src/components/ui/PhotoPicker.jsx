@@ -237,6 +237,16 @@ export function PhotoPicker({
                 openFolderPicker()
               }}
             >
+              <svg
+                className="ico"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                aria-hidden="true"
+              >
+                <path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h4.2l1.6 1.8H19a1.5 1.5 0 0 1 1.5 1.5V18a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18V7.5z" />
+              </svg>
               Choose from folder
             </button>
             <button
@@ -247,6 +257,17 @@ export function PhotoPicker({
                 openCamera()
               }}
             >
+              <svg
+                className="ico"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                aria-hidden="true"
+              >
+                <path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" />
+                <circle cx="12" cy="13" r="3.2" />
+              </svg>
               Capture from camera
             </button>
           </div>,

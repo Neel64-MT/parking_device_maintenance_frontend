@@ -204,7 +204,10 @@ export function UiKitDemoPage() {
         </Panel>
 
         <Panel title="Parts & photos" subtitle="Update / close flows">
-          <Field label="Parts changed">
+          <Field
+            label="Parts changed"
+            hint="Tap every part you replaced. Leave blank if nothing was changed."
+          >
             <PartChips defaultSelected={['Motor']} />
           </Field>
           <Field label="Photos" style={{ marginBottom: 0 }}>

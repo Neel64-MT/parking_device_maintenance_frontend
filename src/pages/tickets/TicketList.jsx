@@ -47,6 +47,7 @@ export default function TicketList() {
   const { user } = useAuth()
   const canView = canPerm(user, 'All tickets', 'v')
   const canAssign = canPerm(user, 'All tickets', 'a')
+  const canViewWorkReport = canPerm(user, 'Work report', 'v')
   const canFilterAssignee =
     user?.role === 'Admin' || user?.role === 'Project manager'
   const [searchParams, setSearchParams] = useSearchParams()
@@ -215,7 +216,9 @@ export default function TicketList() {
           links={[
             { to: '/tickets/raise', label: 'Raise a ticket' },
             { to: '/tickets/update', label: 'Update a ticket' },
-            { to: '/tickets/report', label: 'Work report' },
+            ...(canViewWorkReport
+              ? [{ to: '/tickets/report', label: 'Work report' }]
+              : []),
             { to: '/devices', label: 'Devices' },
           ]}
         />

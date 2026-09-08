@@ -164,8 +164,9 @@ Inspect existing code
 - Tabs come from API `tab` / `tabCounts` (`tabForStatus`: unassigned → Open, assignee → Assigned). Do not re-filter Open in React for security.
 - Tiles come from API; Open not attended equals Open tab; assigned+Open may appear as Under repair via backend `listStatus`.
 - Add Update: open existing form in `Modal`; keep toast submit until POST is wired.
-- Work history: reverse mapped events for chronological display; pass `photos` through.
-- Gallery: `ImagePreviewModal` on `Modal` — main image + thumbnail row; no new deps.
+- Work history: reverse mapped events for chronological display; pass `photos`, `actor`, `parts` through.
+- Gallery: `ImagePreviewModal` on `Modal` — main image + thumbnail row; Zoom in / Zoom out / Rotate via CSS `transform` only; when zoomed, move/drag to pan (explore clipped areas); reset transform on thumbnail change; no new deps.
+- Trail: **View Update** (Modal, details only — never images) on every row; **View Image** only when photos exist — keep them separate.
 
 ## Photo attachment skills (Phase 20+)
 

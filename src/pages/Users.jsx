@@ -41,6 +41,7 @@ export default function Users() {
   const canView = canPerm(user, 'Users', 'v')
   const canCreate = canPerm(user, 'Users', 'c')
   const canEdit = canPerm(user, 'Users', 'e')
+  const canViewWorkReport = canPerm(user, 'Work report', 'v')
 
   const [tab, setTab] = useState('users')
   const [query, setQuery] = useState('')
@@ -290,7 +291,9 @@ export default function Users() {
       <main className="page">
         <JumpLinks
           links={[
-            { to: '/tickets/report', label: 'Work report' },
+            ...(canViewWorkReport
+              ? [{ to: '/tickets/report', label: 'Work report' }]
+              : []),
             { to: '/tickets', label: 'All tickets' },
             { to: '/dashboard', label: 'Dashboard' },
           ]}

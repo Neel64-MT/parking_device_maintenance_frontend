@@ -246,6 +246,7 @@ cost table with ticket total, “was the device tested?”, multiple photos.
 
 - Reported vs found side by side, with who/when
 - Work history: one row per visit, status tag (still open vs closed)
+- Trail actions: **View Update** (details only) and, when photos exist, **View Image** (gallery with zoom/rotate) — keep separate
 - Assignment trail: who held it, in order, with Reassign
 - Add update / close from here
 
