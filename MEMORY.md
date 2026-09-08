@@ -98,11 +98,22 @@
 - Follow-up: Users create / edit / password / approve use button busy labels (`Creating…` / `Saving…` / `Updating…` / `Approving…`); Cancel/modal close disabled while busy
 - Lint (touched files) + production build pass
 
+### Phase 24 — Image viewer zoom/rotate + Trail View Update (complete)
+
+- Existing `ImagePreviewModal` + TicketDetail trail analyzed; no new image libraries
+- Zoom in / Zoom out (1–3, step 0.25) + Rotate (+90°) via CSS transform only
+- When zoomed: move pointer or drag to pan/explore clipped regions (magnifier-style scroll)
+- Thumbnail change resets zoom/rotation/pan; `.img-preview-main` overflow hidden
+- Trail: **View Update** on every work-history item (Modal, details only — no photos)
+- **View Image** remains separate when photos exist
+- `mapWorkHistory` passes `actor` / `parts` / `cost` / `nextVisit` for View Update
+- Lint on touched files + production build pass
+
 ## Currently working on
 
-- **Phase:** Phase 23 — Parts & visit cost (frontend)
-- **Task:** Parts API + PartChips + Add Update / Ticket Update + Parts page; Masters labels Issue / Road / Parts; Parts hex-nut icon
-- **File:** `services/parts.js`, `PartChips.jsx`, TicketDetail, TicketUpdate, `PartMaster.jsx`, `nav.js`, `NavIcons.jsx`
+- **Phase:** Phase 24 complete — idle / next product request
+- **Task:** —
+- **File:** —
 
 ## Pending
 
@@ -113,6 +124,7 @@
 - Real Settings preferences beyond profile/password
 - Backend Work report ownership scoping (if product requires)
 - Run migration `007_ticket_status_open.sql` / `009_parts_amount.sql` on environments that need them
+- Finish / verify remaining Phase 23 Parts criteria if still Pending in PR.md
 
 ## Important decisions
 
@@ -134,7 +146,7 @@
 30. Phase 22 — Live-data loading uses shared `Skeleton` primitives (no new libs); auth boot is minimal bars, not a fake dashboard; empty/error states stay text, not skeleton.
 31. Phase 22 follow-up — Users live mutations use button busy text (not skeletons); match Settings/Detail Add Update pattern.
 32. Phase 23 — Live parts from `GET /api/parts`; labour-only `cost` + UUID `parts`; Parts page under Masters. Masters child UI labels **Issue** / **Road** / **Parts** (group **Masters**). Permission keys stay `Issue master` / `Road master`. Parts nav icon = hex nut (not Settings gear).
-
+33. Phase 24 — Image transforms are CSS-only on the viewed image (do not rewrite files). Reset zoom/rotation/pan on thumbnail change via click handler (not an effect). When zoomed, pointer-move and drag pan explore the image (single-pane magnifier-style scroll). View Update is on every trail item and must never embed the gallery; View Image stays the only photo path.
 ## Important decisions (detail)
 
 1–11. Prior phases (filters UI-only, static detail samples, responsive, Phase 10 JWT).

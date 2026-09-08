@@ -78,10 +78,12 @@ Add Update must reuse the existing form fields; present it in Modal only.
 Add Update submit (Phase 21+): POST /api/tickets/:id/updates first (photos may be empty), then uploadImages, then PATCH …/updates/:eventId/photos. Do not upload photos before the update is accepted. Toast success only when all required steps succeed; reload work history from GET ticket.
 Show Add Update only when canPerm(user, 'Update ticket', 'e'). Backend remains the authority (Admin/PM, holder, unassigned claim, or raiser).
 Work history displays oldest → newest (new entries at the bottom); keep the trail always visible.
-Show View Image only when event photos is non-empty; gallery reuses Modal (main + thumbnails).
+Show **View Update** on every work-history row; open a Modal with mapped trail fields only (when, actor, title, status, body, cost, next visit, parts). Do **not** put images, thumbnails, or ImagePreviewModal inside View Update.
+Show **View Image** only when event photos is non-empty; gallery reuses Modal (main + thumbnails). Keep View Image separate from View Update.
+ImagePreviewModal zoom/rotate/pan (Phase 24+): CSS `transform` only on the viewed image; do not modify or re-upload the original file; reset zoom/rotation/pan when the active thumbnail changes; when zoom > 1, allow pointer-move and drag pan inside `.img-preview-main` (overflow hidden) so the user can explore clipped regions; keep the modal layout from breaking.
+Do not add image/modal libraries; do not invent duplicate optimistic trail rows; do not add a second GET for View Update when trail data is already loaded.
 List → detail must pass state.from = /tickets?tab=…; Back to tickets / crumb must use that path so the active tab is preserved (do not hard-code /tickets when from is present).
 Raise ticket Cancel / All tickets / crumb must use the same state.from tab return when opened from All tickets (JumpLinks already passes from; list Raise button must pass it too).
-Do not add image/modal libraries; do not invent duplicate optimistic trail rows.
 Home & Dashboard access (Phase 18+)
 Only Admin and Project manager may open Dashboard (isDashboardRole / homePathForUser).
 After login (and GuestOnly / / / catch-all), non–ops-lead roles go to /tickets.

@@ -77,6 +77,117 @@ function normalizePhotos(photos) {
   return photos.map((p) => String(p || '').trim()).filter(Boolean)
 }
 
+function normalizeParts(parts) {
+  if (!parts) return []
+  if (typeof parts === 'string') {
+    try {
+      return normalizeParts(JSON.parse(parts))
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(parts)) return []
+  return parts
+    .map((p) => {
+      if (!p) return null
+      if (typeof p === 'string') return { name: p }
+      const name = String(p.name || '').trim()
+      if (!name) return null
+      const amount = p.amount != null && p.amount !== '' ? Number(p.amount) : null
+      return {
+        id: p.id,
+        name,
+        amount: amount != null && !Number.isNaN(amount) ? amount : null,
+      }
+    })
+    .filter(Boolean)
+}
+
+/** View Update details only — never includes photos / ImagePreviewModal. */
+function ViewUpdateDetails({ item }) {
+  if (!item) return null
+  const whenLabel = formatRaisedOn(item.when)
+  const costLabel =
+    item.cost != null && Number(item.cost) > 0
+      ? `₹ ${Number(item.cost).toLocaleString('en-IN')}`
+      : ''
+  const nextVisit = item.nextVisit ? String(item.nextVisit).slice(0, 10) : ''
+  const parts = item.parts || []
+  const extraMeta = (item.meta || []).filter((m) => m.kind !== 'nextVisit' && m.kind !== 'cost')
+
+  return (
+    <div className="view-update-facts">
+      {whenLabel ? (
+        <div>
+          <small>When</small>
+          <span>{whenLabel}</span>
+        </div>
+      ) : null}
+      {item.actor ? (
+        <div>
+          <small>By</small>
+          <span>{item.actor}</span>
+        </div>
+      ) : null}
+      {item.title ? (
+        <div>
+          <small>Update type</small>
+          <span>{item.title}</span>
+        </div>
+      ) : null}
+      {item.status ? (
+        <div>
+          <small>Status</small>
+          <span>{item.status}</span>
+        </div>
+      ) : null}
+      {item.body ? (
+        <div>
+          <small>What was done</small>
+          <p>{item.body}</p>
+        </div>
+      ) : null}
+      {costLabel ? (
+        <div>
+          <small>Cost</small>
+          <span>{costLabel}</span>
+        </div>
+      ) : null}
+      {nextVisit ? (
+        <div>
+          <small>Next visit</small>
+          <span>{nextVisit}</span>
+        </div>
+      ) : null}
+      {parts.length ? (
+        <div>
+          <small>Parts changed</small>
+          <span>
+            {parts
+              .map((p) =>
+                p.amount != null ? `${p.name} (₹${Number(p.amount).toLocaleString('en-IN')})` : p.name,
+              )
+              .join(', ')}
+          </span>
+        </div>
+      ) : null}
+      {extraMeta.length ? (
+        <div>
+          <small>Notes</small>
+          <span>
+            {extraMeta.map((m, i) => (
+              <span key={i}>
+                {i > 0 ? ' · ' : ''}
+                <TimelineMeta item={m} />
+              </span>
+            ))}
+          </span>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 /** Prefer returning to All tickets with the same tab query when navigated from the list. */
 function ticketsListReturnPath(from) {
   if (typeof from !== 'string') return '/tickets'
@@ -95,11 +206,15 @@ function mapWorkHistory(events) {
     const closed = String(e.status || '').toLowerCase().includes('closed')
     return {
       when: e.when,
+      actor: e.actor || '',
       title: e.title || e.actor || 'Update',
       body: e.body || '',
       status: e.status || '',
       statusClass: closed ? 'ok' : 'warn',
       tone: closed ? 'ok' : undefined,
+      cost: e.cost,
+      nextVisit: e.nextVisit || null,
+      parts: normalizeParts(e.parts),
       meta: meta.length ? meta : null,
       photos: normalizePhotos(e.photos),
     }
@@ -129,6 +244,7 @@ export default function TicketDetail() {
   const [updSub, setUpdSub] = useState('')
   const [handover, setHandover] = useState(TEAM[0])
   const [previewImages, setPreviewImages] = useState(null)
+  const [viewingUpdate, setViewingUpdate] = useState(null)
   const [updPhotos, setUpdPhotos] = useState([])
   const [updWorkDone, setUpdWorkDone] = useState('')
   const [updCost, setUpdCost] = useState('')
@@ -443,8 +559,15 @@ export default function TicketDetail() {
                           ) : null}
                         </h4>
                         {item.body ? <p>{item.body}</p> : null}
-                        {item.photos?.length ? (
-                          <p className="tl-view-image">
+                        <p className="tl-trail-actions">
+                          <button
+                            type="button"
+                            className="linkish"
+                            onClick={() => setViewingUpdate(item)}
+                          >
+                            View Update
+                          </button>
+                          {item.photos?.length ? (
                             <button
                               type="button"
                               className="linkish"
@@ -452,8 +575,8 @@ export default function TicketDetail() {
                             >
                               View Image
                             </button>
-                          </p>
-                        ) : null}
+                          ) : null}
+                        </p>
                         {item.meta ? (
                           <div className="tl-meta">
                             {item.meta.map((m, i) => (
@@ -667,7 +790,7 @@ export default function TicketDetail() {
             />
             <Field
               label="Labour / other charges"
-              hint="Part prices come from Parts and are added by the server."
+              hintAfter="Part prices come from Parts and are added by the server."
             >
               <input
                 type="number"
@@ -757,6 +880,15 @@ export default function TicketDetail() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(viewingUpdate)}
+        title="View update"
+        subtitle="Update details only — photos open from View Image"
+        onClose={() => setViewingUpdate(null)}
+      >
+        <ViewUpdateDetails item={viewingUpdate} />
       </Modal>
 
       <ImagePreviewModal

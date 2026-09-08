@@ -455,10 +455,33 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 24: Image viewer zoom/rotate + Trail View Update
+
+**Objective:** Add Zoom in / Zoom out / Rotate to the existing image gallery; add View Update on the ticket trail while keeping View Image separate (no image inside View Update).
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Analyze existing `ImagePreviewModal`, TicketDetail trail, Modal, and workHistory API fields.
+2. Extend `ImagePreviewModal` with CSS-only zoom (1–3) and +90° rotate; when zoomed, pointer-move / drag pan to explore; reset on thumbnail change; overflow contained.
+3. Trail: **View Update** on every work-history item; Modal shows mapped fields only (actor, parts, cost, etc.) — no photos.
+4. Keep **View Image** → `ImagePreviewModal` when photos exist.
+5. Responsive CSS for controls and View Update facts; lint/build.
+6. Docs: PR, ARCHITECTURE, RULES, DESIGN, MEMORY, PHASES, SKILLS, SKILL.
+
+**Out of scope:** Pan/pinch/wheel zoom; new image libraries; Add Update / PhotoPicker changes; extra GET for View Update.
+
+**Verification:** Gallery zoom/rotate; thumbnail reset; View Update without images; View Image still works; lint on touched files; production build.
+
+**Completion:** PR.md Phase 24 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21 ──► Phase 22 ──► Phase 23
+Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21 ──► Phase 22 ──► Phase 23 ──► Phase 24
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

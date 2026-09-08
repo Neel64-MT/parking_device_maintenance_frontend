@@ -389,4 +389,25 @@ GET /api/parts → PartChips (UUID multi-select) → POST /updates { parts, cost
 | Masters child labels drop “master” postfix (Issue / Road / Parts); Parts nav icon = interlocking gears | Pending |
 | Lint/build on touched files | Pending |
 
+### Phase 24 — Image viewer zoom/rotate + Trail View Update
+
+```text
+Trail → View Update → Modal (details only, no photos)
+Trail → View Image → ImagePreviewModal → Zoom In / Zoom Out / Rotate / Pan when zoomed
+```
+
+| Criterion | Result |
+|-----------|--------|
+| ImagePreviewModal Zoom in / Zoom out / Rotate | Pass |
+| When zoomed, move or drag over image to explore (pan) | Pass |
+| Rotation does not modify original image file | Pass |
+| Zoom/rotation/pan reset when selecting another thumbnail | Pass |
+| Gallery thumbnails + multi-image behavior preserved | Pass |
+| View Update on every work-history item | Pass |
+| View Update shows trail fields only (no image) | Pass |
+| View Image remains a separate action when photos exist | Pass |
+| No extra API call for View Update | Pass |
+| No new image-viewer dependency | Pass |
+| Lint on touched files + production build | Pass |
+
 

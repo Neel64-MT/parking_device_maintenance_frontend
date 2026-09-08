@@ -135,7 +135,10 @@ export default function TicketClose() {
                 placeholder="e.g. Replaced motor and gearbox assembly, reset travel limits, tested 5 open-close cycles."
               />
             </Field>
-            <Field label="Parts changed on this ticket">
+            <Field
+              label="Parts changed on this ticket"
+              hint="Tap every part you replaced. Leave blank if nothing was changed."
+            >
               <PartChips defaultSelected={['Motor', 'Gearbox']} />
             </Field>
             <Field label="Photos" style={{ marginBottom: 0 }}>
