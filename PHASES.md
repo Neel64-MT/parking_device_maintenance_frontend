@@ -478,10 +478,31 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 25: Forgot password role gate + 404 page
+
+**Objective:** Restrict Forgot/Reset Password to Admin and Project Manager (backend + explicit FE error); replace unknown-route home redirects with a themed 404 page and gear animation.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Backend `forgot-password` / `reset-password` role gate + smoke; backend RULES/MEMORY.
+2. ForgotPassword Admin/PM note + show API deny message; keep Login link.
+3. `NotFound` + `GearLoader` (themed CSS, no black bg, no styled-components); top-level `*` catch-all.
+4. FE docs Phase 25; lint/build.
+
+**Out of scope:** Hiding Forgot link by role at Login; dedicated 401/403 page; OTP; styled-components.
+
+**Verification:** Admin/PM reset works; Technician 403; unknown generic; `/does-not-exist` 404; lint/build.
+
+**Completion:** PR.md Phase 25 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21 ──► Phase 22 ──► Phase 23 ──► Phase 24
+Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21 ──► Phase 22 ──► Phase 23 ──► Phase 24 ──► Phase 25
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

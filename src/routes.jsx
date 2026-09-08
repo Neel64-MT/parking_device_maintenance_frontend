@@ -5,6 +5,7 @@ import { AuthLayout } from './layouts/AuthLayout'
 import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
 import Settings from './pages/Settings'
+import NotFound from './pages/NotFound'
 import Login from './pages/auth/Login'
 import Signup from './pages/auth/Signup'
 import ForgotPassword from './pages/auth/ForgotPassword'
@@ -74,9 +75,10 @@ export function AppRoutes() {
 
         <Route path="users" element={<Users />} />
         <Route path="settings" element={<Settings />} />
-
-        <Route path="*" element={<HomeRedirect />} />
       </Route>
+
+      {/* Unknown paths for guests and signed-in users (outside AppLayout chrome). */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }

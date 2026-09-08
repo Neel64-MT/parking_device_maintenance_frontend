@@ -1,14 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
+import { useAuth } from '../../context/AuthContext'
 import { toast } from '../../context/ToastContext'
-import { DEVICE_LIST_TILES, DEVICE_ROWS } from '../../data/devices'
+import { DEFAULT_PAGE_SIZE } from '../../constants/pagination'
 import { ROAD_OPTIONS } from '../../data/slots'
+import { ApiRequestError } from '../../services/api'
+import { listDevices } from '../../services/devices'
+import { canPerm } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field, FilterBar } from '../../components/ui/FilterBar'
 import { JumpLinks } from '../../components/ui/JumpLinks'
 import { Panel } from '../../components/ui/Panel'
 import { Pill } from '../../components/ui/Pill'
+import { SkeletonTable, SkeletonTiles } from '../../components/ui/Skeleton'
+import { TablePagination } from '../../components/ui/TablePagination'
 import { Tile } from '../../components/ui/Tile'
 
 const FILTER_DEFAULTS = {
@@ -25,77 +31,209 @@ function PlusIcon() {
   )
 }
 
+/** Format API date (ISO / YYYY-MM-DD) for the Installed column. */
+function formatInstalled(value) {
+  if (value == null || value === '') return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value)
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`
+}
+
+function tileHref(label) {
+  if (label === 'Working') return '/devices'
+  if (label === 'Under repair' || label === 'Not working') return '/tickets'
+  return null
+}
+
 export default function DeviceList() {
+  const { user } = useAuth()
+  const canView = canPerm(user, 'Device list', 'v')
+  const canAdd = canPerm(user, 'Add device', 'c')
+  const canScan = canPerm(user, 'Scan QR', 'v')
+
   const [query, setQuery] = useState('')
   const [road, setRoad] = useState(FILTER_DEFAULTS.road)
   const [status, setStatus] = useState(FILTER_DEFAULTS.status)
   const [repeats, setRepeats] = useState(FILTER_DEFAULTS.repeats)
+  const [applied, setApplied] = useState({
+    q: '',
+    road: FILTER_DEFAULTS.road,
+    status: FILTER_DEFAULTS.status,
+    repeats: FILTER_DEFAULTS.repeats,
+  })
 
-  const filteredRows = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return DEVICE_ROWS
-    return DEVICE_ROWS.filter((row) => {
-      const hay = [row.id, row.qr, row.road, row.slot, row.issue, row.ticketId]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return hay.includes(q)
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: DEFAULT_PAGE_SIZE,
+    total: 0,
+    totalPages: 1,
+  })
+
+  const [rows, setRows] = useState([])
+  const [tiles, setTiles] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function run() {
+      if (!canView) {
+        if (!cancelled) {
+          setLoading(false)
+          setLoadError('You do not have permission to view devices.')
+          setRows([])
+          setTiles([])
+          setPagination({ page: 1, limit, total: 0, totalPages: 1 })
+        }
+        return
+      }
+      if (!cancelled) {
+        setLoadError('')
+        setLoading(true)
+      }
+      try {
+        const result = await listDevices({
+          q: applied.q,
+          road: applied.road,
+          status: applied.status,
+          repeats: applied.repeats,
+          page,
+          limit,
+        })
+        if (cancelled) return
+        setRows(result.rows)
+        setTiles(result.tiles)
+        setPagination(result.pagination)
+      } catch (err) {
+        if (!cancelled) {
+          setRows([])
+          setTiles([])
+          setPagination({ page: 1, limit, total: 0, totalPages: 1 })
+          setLoadError(err instanceof ApiRequestError ? err.message : 'Could not load devices.')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [canView, applied, page, limit])
+
+  const crumb = useMemo(() => {
+    const total = pagination.total || 0
+    const totalLabel = total.toLocaleString('en-IN')
+    if (!total) return 'Devices'
+    return `${totalLabel} device${total === 1 ? '' : 's'}`
+  }, [pagination.total])
+
+  function applyFilters() {
+    setPage(1)
+    setApplied({
+      q: query.trim(),
+      road,
+      status,
+      repeats,
     })
-  }, [query])
+  }
 
   function resetFilters() {
     setRoad(FILTER_DEFAULTS.road)
     setStatus(FILTER_DEFAULTS.status)
     setRepeats(FILTER_DEFAULTS.repeats)
     setQuery('')
+    setPage(1)
+    setApplied({
+      q: '',
+      road: FILTER_DEFAULTS.road,
+      status: FILTER_DEFAULTS.status,
+      repeats: FILTER_DEFAULTS.repeats,
+    })
   }
+
+  function handleLimitChange(next) {
+    setLimit(next)
+    setPage(1)
+  }
+
+  const showingFrom = pagination.total
+    ? (pagination.page - 1) * pagination.limit + 1
+    : 0
+  const showingTo = Math.min(pagination.page * pagination.limit, pagination.total || 0)
+  const panelSubtitle = loading
+    ? 'Loading…'
+    : pagination.total
+      ? `Showing ${showingFrom}–${showingTo} of ${pagination.total.toLocaleString('en-IN')}`
+      : 'No devices match these filters'
 
   return (
     <>
-      <PageMeta
-        pageId="device-list"
-        title="Device list"
-        crumb="1,000 devices across 5 roads"
-      />
+      <PageMeta pageId="device-list" title="Device list" crumb={crumb} />
 
       <main className="page">
         <JumpLinks
           links={[
-            { to: '/devices/add', label: 'Add device' },
-            { to: '/devices/scan', label: 'Scan QR' },
+            ...(canAdd ? [{ to: '/devices/add', label: 'Add device' }] : []),
+            ...(canScan ? [{ to: '/devices/scan', label: 'Scan QR' }] : []),
             { to: '/masters/roads', label: 'Road' },
             { to: '/tickets', label: 'All tickets' },
           ]}
           actions={
-            <>
-              <Link className="btn" to="/devices/scan">
-                Scan QR
-              </Link>
+            canAdd ? (
               <Link className="btn btn-primary" to="/devices/add">
                 <PlusIcon />
                 Add device
               </Link>
-            </>
+            ) : null
           }
         />
 
-        <div className="tiles">
-          {DEVICE_LIST_TILES.map((t) =>
-            t.to ? (
-              <Link key={t.label} className="tile-link" to={t.to}>
-                <Tile value={t.value} label={t.label} tone={t.tone} />
-              </Link>
-            ) : (
-              <Tile key={t.label} value={t.value} label={t.label} tone={t.tone} />
-            ),
-          )}
-        </div>
+        {loadError ? (
+          <div className="hint-strip auth-error" role="alert" style={{ marginBottom: 16 }}>
+            <span>{loadError}</span>
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div aria-busy="true" aria-live="polite">
+            <span className="sr-only">Loading devices</span>
+            <SkeletonTiles count={4} />
+          </div>
+        ) : (
+          <div className="tiles">
+            {tiles.map((t) => {
+              const href = tileHref(t.label)
+              return href ? (
+                <Link key={t.label} className="tile-link" to={href}>
+                  <Tile value={t.value} label={t.label} tone={t.tone} />
+                </Link>
+              ) : (
+                <Tile key={t.label} value={t.value} label={t.label} tone={t.tone} />
+              )
+            })}
+          </div>
+        )}
 
         <FilterBar
           actions={
             <>
-              <Button onClick={resetFilters}>Reset</Button>
-              <Button variant="dark" onClick={() => toast('Design preview — export would run here.')}>
+              <Button onClick={resetFilters} disabled={loading}>
+                Reset
+              </Button>
+              <Button variant="dark" onClick={applyFilters} disabled={loading}>
+                Apply
+              </Button>
+              <Button
+                variant="dark"
+                onClick={() => toast('Design preview — export would run here.')}
+                disabled={loading}
+              >
                 Export
               </Button>
             </>
@@ -106,8 +244,15 @@ export default function DeviceList() {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  applyFilters()
+                }
+              }}
               placeholder="Device ID, QR code or slot"
               aria-label="Search devices"
+              disabled={loading && !rows.length}
             />
           </Field>
           <Field label="Road">
@@ -137,17 +282,10 @@ export default function DeviceList() {
 
         <Panel
           title="Devices"
-          subtitle={`Showing ${filteredRows.length} of 1,000`}
+          subtitle={panelSubtitle}
           link="Road"
           linkTo="/masters/roads"
           flush
-          foot={
-            <>
-              Devices with 3 or more tickets in 6 months are shown in red — these are the ones to
-              consider replacing rather than repairing again.{' '}
-              <Link to="/devices/add">Add device</Link>
-            </>
-          }
         >
           <div className="table-wrap">
             <table>
@@ -168,50 +306,76 @@ export default function DeviceList() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRows.map((row) => (
-                  <tr key={row.id}>
-                    <td>
-                      <Link className="code" to={`/devices/${row.id}`}>
-                        {row.id}
-                      </Link>
-                    </td>
-                    <td>{row.qr}</td>
-                    <td>
-                      {row.road}
-                      <div className="muted">{row.slot}</div>
-                    </td>
-                    <td>{row.installed}</td>
-                    <td>
-                      <Pill tone={row.statusTone}>{row.status}</Pill>
-                    </td>
-                    <td>
-                      {row.issue ? (
-                        <>
-                          {row.issue}
-                          <div className="muted">
-                            <Link to={`/tickets/${row.ticketId}`}>{row.ticketId}</Link>
-                            {' · '}
-                            {row.ticketNote}
-                          </div>
-                        </>
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </td>
-                    <td className={`num${row.ticketsBad ? ' strong-bad' : ''}`}>{row.tickets6m}</td>
-                    <td className="act">
-                      <Link className="btn btn-sm" to={`/devices/${row.id}`}>
-                        History
-                      </Link>{' '}
-                      <Link className="btn btn-sm" to="/tickets/raise">
-                        Ticket
-                      </Link>
+                {loading ? <SkeletonTable rows={6} cols={8} /> : null}
+                {!loading && !rows.length ? (
+                  <tr>
+                    <td colSpan={8}>
+                      <span className="muted">No devices found.</span>
                     </td>
                   </tr>
-                ))}
+                ) : null}
+                {!loading
+                  ? rows.map((row) => (
+                      <tr key={row.id}>
+                        <td>
+                          <Link className="code" to={`/devices/${row.id}`}>
+                            {row.id}
+                          </Link>
+                        </td>
+                        <td>{row.qr}</td>
+                        <td>
+                          {row.road}
+                          <div className="muted">{row.slot}</div>
+                        </td>
+                        <td>{formatInstalled(row.installed)}</td>
+                        <td>
+                          <Pill tone={row.statusTone}>{row.status}</Pill>
+                        </td>
+                        <td>
+                          {row.issue ? (
+                            <>
+                              {row.issue}
+                              <div className="muted">
+                                {row.ticketId ? (
+                                  <Link to={`/tickets/${row.ticketId}`}>{row.ticketId}</Link>
+                                ) : null}
+                                {row.ticketId && row.ticketNote ? ' · ' : null}
+                                {row.ticketNote || null}
+                              </div>
+                            </>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td className={`num${row.ticketsBad ? ' strong-bad' : ''}`}>
+                          {row.tickets6m}
+                        </td>
+                        <td className="act">
+                          <Link className="btn btn-sm" to={`/devices/${row.id}`}>
+                            History
+                          </Link>{' '}
+                          <Link
+                            className="btn btn-sm"
+                            to={row.ticketId ? `/tickets/${row.ticketId}` : '/tickets/raise'}
+                          >
+                            Ticket
+                          </Link>
+                        </td>
+                      </tr>
+                    ))
+                  : null}
               </tbody>
             </table>
           </div>
+          <TablePagination
+            page={pagination.page || page}
+            limit={limit}
+            total={pagination.total || 0}
+            totalPages={pagination.totalPages || 1}
+            disabled={loading}
+            onPageChange={setPage}
+            onLimitChange={handleLimitChange}
+          />
         </Panel>
       </main>
     </>

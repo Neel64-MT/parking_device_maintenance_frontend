@@ -99,7 +99,7 @@ Grids: `.grid-2` 1.25fr/1fr; `.grid-2-even` 1fr/1fr; collapse ≤1080. `.grid-ma
 |-------|----------|
 | ≤820px | Sidebar off-canvas; menu button; hide `.topbar-actions`; page padding shrink; facts 2-col; collapse toggle N/A (full labels in drawer) |
 | ≥821px | Sticky bar offset by rail; desktop expand/collapse toggle |
-| ≤760px | Form grid / class-pair stack |
+| ≤760px | Form grid / class-pair stack; filterbar stacks; `.tabs-row` stacks equal-width tabs above search/actions (touch targets) |
 | ≤900px | Tiles → 2 columns |
 | ≤940px | Master grid stacks |
 | ≤1080px | `.grid-2` stacks |
@@ -256,7 +256,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Collapsed rail | Brand glyph + nav icons centered in `--rail-collapsed` (64px); brand height = `--topbar-h` |
 | Expanded rail | `--rail-expanded: 280px`; single-line title |
 | Shell / topbar | Topbar inside `.shell`; width follows `--rail`; menu X held through collapse animation |
-| TicketList pager | `.table-pagination`: Rows per page + range; Prev/Next with `<` / `>` |
+| TicketList pager | `.table-pagination` Card Minimal right: Page X of Y + N per page left; Previous / Next right; one row at all widths (≤560: tighter gap, Prev short label, content-sized select) |
 | Limit options | 10 / 25 / 50 / 100 (default 25) |
 | PhotoPicker in modal | Source menu + camera portaled to `body`; hidden folder input; Add photo leftmost when empty |
 | Add Update save | `POST /updates` → `uploadImages` → `PATCH …/photos`; button needs Update-ticket `e` |
@@ -300,5 +300,17 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Reset | Selecting another thumbnail resets zoom + rotation + pan |
 | Icons | Inline SVG stroke icons + native `title` / `aria-label` (no new icon lib) |
 | Reduced motion | No transform transition under `prefers-reduced-motion` |
+
+## Phase 25 — Forgot password role gate + 404
+
+| Item | Pattern |
+|------|---------|
+| Forgot note | Muted copy: Admin / Project Manager only |
+| Role deny | `.hint-strip.auth-error` shows API message (`FORGOT_PASSWORD_ROLE_DENIED`) |
+| Success | Unchanged generic “check your email” strip for Admin/PM / unknown |
+| 404 shell | `.not-found-shell` / `.not-found-inner` centered on `--bg` |
+| Gear animation | `.gearbox` transparent; gears `--navy-2`/`--navy-3`; hub ring `--teal`; no black panel |
+| Motion | Clockwise / counter-clockwise; paused under `prefers-reduced-motion` |
+| CTA | Primary button → `homePathForUser` or `/login` |
 
 

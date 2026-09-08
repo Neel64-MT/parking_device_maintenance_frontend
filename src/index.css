@@ -643,7 +643,8 @@ html.rail-opening .nav-group>button::after {
 .page {
   padding: 22px 24px 48px;
   width: 100%;
-  max-width: none;
+  max-width: 100%;
+  min-width: 0;
 }
 
 /* ---------- Buttons (needed for shell smoke test) ---------- */
@@ -1071,77 +1072,103 @@ td.act {
 
 .table-wrap {
   overflow-x: auto;
-}
-
-.table-pagination {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px 16px;
-  padding: 10px 16px;
-  border-top: 1px solid var(--line-soft, var(--line));
-  background: var(--surface);
-}
-.table-pagination-left {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 16px;
+  max-width: 100%;
   min-width: 0;
 }
-.table-pagination-limit {
-  display: inline-flex;
+
+/* Card Minimal right-aligned: meta left, Prev/Next right — one row at all widths */
+.table-pagination {
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  white-space: nowrap;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line-soft, var(--line));
+  background: var(--surface);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
-.table-pagination-limit select {
+.table-pagination-meta {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  min-width: 0;
+}
+.table-pagination-limit-select {
+  width: auto;
+  max-width: max-content;
   height: 32px;
-  min-width: 64px;
-  padding: 0 8px;
+  min-width: 7.5em;
+  flex: none;
+  padding: 0 10px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: #fff;
   font: inherit;
-}
-.table-pagination-range {
-  white-space: nowrap;
   font-size: 13px;
+  color: var(--ink);
 }
 .table-pagination-nav {
   display: inline-flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
+  flex: none;
   margin-left: auto;
 }
 .table-pagination-page {
   white-space: nowrap;
   font-size: 13px;
-  min-width: 7.5em;
-  text-align: center;
+  font-weight: 500;
+  color: var(--ink-2);
+  flex: none;
 }
 .table-pagination-btn {
   gap: 6px;
+  flex: none;
 }
-.table-pagination-chevron {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1;
+.table-pagination-btn-label-short {
+  display: none;
 }
-@media (max-width: 520px) {
-  .table-pagination-nav {
-    margin-left: 0;
-    width: 100%;
-    justify-content: space-between;
+@media (max-width: 560px) {
+  .table-pagination {
+    padding: 10px 12px;
+    gap: 6px 8px;
   }
-  .table-pagination-btn-label {
-    display: none;
+  .table-pagination-meta {
+    gap: 8px;
+  }
+  .table-pagination-page {
+    font-size: 12px;
+  }
+  .table-pagination-limit-select {
+    width: auto;
+    max-width: max-content;
+    min-width: 0;
+    height: 36px;
+    font-size: 12px;
+    padding: 0 8px;
+  }
+  .table-pagination-nav {
+    gap: 6px;
   }
   .table-pagination-btn {
-    min-width: 36px;
-    padding: 0 10px;
+    min-height: 36px;
+    padding-inline: 10px;
+  }
+  .table-pagination-btn-label {
+    font-size: 12px;
+  }
+  .table-pagination-btn-label-full {
+    display: none;
+  }
+  .table-pagination-btn-label-short {
+    display: inline;
   }
 }
 
@@ -1195,17 +1222,66 @@ td.act {
   border-radius: var(--r);
   padding: 14px 18px;
   margin-bottom: 18px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .filterbar .fld {
   margin-bottom: 0;
-  min-width: 170px;
+  min-width: min(170px, 100%);
+  max-width: 100%;
+}
+
+.filterbar .fld select,
+.filterbar .fld input[type='search'],
+.filterbar .fld input[type='text'],
+.filterbar .fld input[type='date'] {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .filterbar .push {
   margin-left: auto;
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+/* ≤760: stack filters for phone/tablet; keep tiles from clipping */
+@media (max-width: 760px) {
+  .filterbar {
+    padding: 12px 14px;
+  }
+
+  .filterbar .fld {
+    flex: 1 1 100%;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .filterbar .push {
+    margin-left: 0;
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .filterbar .push .btn {
+    flex: 1 1 auto;
+  }
+
+  .tiles,
+  .tiles.five {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .tile-link,
+  .tile {
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 
 /* ---------- Empty (original §§13) ---------- */
@@ -1829,28 +1905,68 @@ td a:not(.btn):not(.code):hover {
   height: 34px;
 }
 
+/* ≤760: stack tabs above actions so Open/Assigned/Closed stay tappable on phones */
 @media (max-width: 760px) {
-  .tabs-row {
-    flex-wrap: wrap;
+  .tabs.tabs-row {
+    flex-direction: column;
+    align-items: stretch;
+    overflow: visible;
   }
 
   .tabs-row .tabs-list {
+    display: flex;
     width: 100%;
-    overflow-x: auto;
+    flex: none;
+    min-width: 0;
+    overflow: visible;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .tabs-row .tabs-list button {
+    flex: 1 1 0;
+    justify-content: center;
+    padding: 12px 6px;
+    min-height: 48px;
+    font-size: 13px;
+    gap: 6px;
+  }
+
+  .tabs-row .tabs-list .cnt {
+    padding: 2px 6px;
   }
 
   .tabs-row .tabs-actions {
     width: 100%;
     margin-left: 0;
-    padding: 0 14px 12px;
-    justify-content: flex-end;
-    flex-wrap: wrap;
+    padding: 10px 12px 12px;
+    justify-content: stretch;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
 
   .tabs-actions input[type='search'],
   .tabs-actions input[type='text'] {
     min-width: 0;
-    flex: 1;
+    flex: 1 1 auto;
+    height: 44px;
+  }
+
+  .tabs-actions .btn {
+    flex: none;
+    white-space: nowrap;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .tabs-row .tabs-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tabs-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 
@@ -1946,7 +2062,7 @@ td a:not(.btn):not(.code):hover {
 
   .tiles,
   .tiles.five {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -3786,5 +3902,215 @@ button.linkish:hover {
 @media (max-width: 760px) {
   .modal-dialog.wide {
     max-width: 480px;
+  }
+}
+
+/* ---------- 404 + gear loader (themed, no black panel) ---------- */
+@keyframes gearbox-clockwise {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes gearbox-counter-clockwise {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(-360deg);
+  }
+}
+
+.not-found-shell {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  background: var(--bg);
+}
+
+.not-found-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 420px;
+  gap: 10px;
+}
+
+.not-found-code {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--teal-dk);
+}
+
+.not-found-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.not-found-copy {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.gearbox {
+  position: relative;
+  /* Fit all four gears fully (original 200×150 cropped the large gear) */
+  height: 188px;
+  width: 268px;
+  overflow: visible;
+  background: transparent;
+  border: none;
+}
+
+.gear {
+  position: absolute;
+  height: 60px;
+  width: 60px;
+  border-radius: 30px;
+  box-shadow:
+    0 -1px 0 0 color-mix(in srgb, var(--ink-3) 55%, transparent),
+    0 1px 0 0 color-mix(in srgb, var(--navy) 35%, transparent);
+}
+
+.gear.large {
+  height: 120px;
+  width: 120px;
+  border-radius: 60px;
+}
+
+/* Interlocking cluster — same relative mesh as original, fully on-canvas */
+.gear.one {
+  top: 8px;
+  left: 8px;
+}
+
+.gear.two {
+  top: 57px;
+  left: 58px;
+}
+
+.gear.three {
+  top: 106px;
+  left: 8px;
+}
+
+.gear.four {
+  top: 9px;
+  left: 126px;
+}
+
+.gear:after {
+  content: '';
+  position: absolute;
+  height: 36px;
+  width: 36px;
+  border-radius: 36px;
+  /* Hub punches through to page bg (was #111 matching black panel) */
+  background: var(--bg);
+  top: 50%;
+  left: 50%;
+  margin-left: -18px;
+  margin-top: -18px;
+  z-index: 3;
+  box-shadow:
+    0 0 8px color-mix(in srgb, var(--navy) 12%, transparent),
+    inset 0 0 8px color-mix(in srgb, var(--navy) 10%, transparent),
+    inset 0 2px 0 0 color-mix(in srgb, var(--navy) 18%, transparent),
+    inset 0 -1px 0 0 color-mix(in srgb, var(--ink-3) 40%, transparent);
+}
+
+.gear.large:after {
+  height: 96px;
+  width: 96px;
+  border-radius: 48px;
+  margin-left: -48px;
+  margin-top: -48px;
+}
+
+.gear-inner {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  background: var(--navy-3);
+  border-radius: 30px;
+  border: 1px solid color-mix(in srgb, var(--teal) 28%, var(--line));
+}
+
+.large .gear-inner {
+  border-radius: 60px;
+}
+
+.gear.one .gear-inner {
+  animation: gearbox-counter-clockwise 3s infinite linear;
+}
+
+.gear.two .gear-inner {
+  animation: gearbox-clockwise 3s infinite linear;
+}
+
+.gear.three .gear-inner {
+  animation: gearbox-counter-clockwise 3s infinite linear;
+}
+
+.gear.four .gear-inner {
+  animation: gearbox-counter-clockwise 6s infinite linear;
+}
+
+.gear-inner .bar {
+  background: var(--navy-3);
+  height: 16px;
+  width: 76px;
+  position: absolute;
+  left: 50%;
+  margin-left: -38px;
+  top: 50%;
+  margin-top: -8px;
+  border-radius: 2px;
+  border-left: 1px solid color-mix(in srgb, var(--teal) 22%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--teal) 22%, transparent);
+}
+
+.large .gear-inner .bar {
+  margin-left: -68px;
+  width: 136px;
+}
+
+.gear-inner .bar:nth-child(2) {
+  transform: rotate(60deg);
+}
+
+.gear-inner .bar:nth-child(3) {
+  transform: rotate(120deg);
+}
+
+.gear-inner .bar:nth-child(4) {
+  transform: rotate(90deg);
+}
+
+.gear-inner .bar:nth-child(5) {
+  transform: rotate(30deg);
+}
+
+.gear-inner .bar:nth-child(6) {
+  transform: rotate(150deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gear.one .gear-inner,
+  .gear.two .gear-inner,
+  .gear.three .gear-inner,
+  .gear.four .gear-inner {
+    animation: none;
   }
 }

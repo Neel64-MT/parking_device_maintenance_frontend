@@ -204,7 +204,10 @@ Never store plaintext passwords; reuse bcrypt via hashPassword / verifyPassword.
 Protect approval and admin password-change with existing authorize('Users', …).
 Self password change must verify the current password before updating.
 Validate reset tokens; respect expiration; do not return tokens in API responses.
-Do not expose whether an email exists on forgot-password (generic message).
+Do not expose whether an email exists on forgot-password for unknown / Pending / Inactive accounts (generic success message).
+Forgot / email reset is **Admin** and **Project manager** only. Backend must return `403` / `FORGOT_PASSWORD_ROLE_DENIED` for other Active roles (explicit message). Do not issue a reset token for denied roles. Reset-password must enforce the same role check and must not mark the token used when denying.
+Do not add `styled-components` for the 404 gear animation — use `GearLoader` + `index.css` theme tokens; no black gearbox background.
+Unknown routes must render `NotFound` (not silent `HomeRedirect` to home).
 Do not allow unauthorized role changes or self-approval.
 Password version / denylist must remain authoritative after password changes.
 READ-ONLY SOURCE TREE

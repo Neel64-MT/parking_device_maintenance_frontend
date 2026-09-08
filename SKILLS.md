@@ -106,7 +106,8 @@ AI must not invent screens, redesign, or depend on chat memory in place of MEMOR
 - API analysis before change; reuse Express routes + `lib/auth.ts` (bcrypt, JWT, reset tokens).
 - Database: SQL migrations only; extend status CHECK carefully; never lock out Active users.
 - Authorization: `authorize(screen, flag)` — Users `e` for approve/password.
-- Forgot password: reuse existing token email flow; do not invent OTP.
+- Forgot password: reuse existing token email flow; do not invent OTP. Backend allows Admin / Project manager only; surface `FORGOT_PASSWORD_ROLE_DENIED` on the Forgot page. Unknown emails stay generic.
+- 404: top-level `*` → `NotFound` + `GearLoader` (CSS only, theme tokens, no styled-components).
 - Frontend: AuthLayout forms; Users page live list via `services/users.js`.
 - Preferred workflow:
 

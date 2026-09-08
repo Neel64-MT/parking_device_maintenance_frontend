@@ -410,4 +410,23 @@ Trail → View Image → ImagePreviewModal → Zoom In / Zoom Out / Rotate / Pan
 | No new image-viewer dependency | Pass |
 | Lint on touched files + production build | Pass |
 
+### Phase 25 — Forgot password role gate + 404 page
+
+```text
+Forgot password → Admin / Project manager only (API 403 FORGOT_PASSWORD_ROLE_DENIED for other Active roles)
+Unknown routes → NotFound + GearLoader (themed, no black panel)
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Admin / Project manager forgot-password still sends reset (generic OK) | Pass |
+| Other Active roles get explicit 403 / `FORGOT_PASSWORD_ROLE_DENIED` | Pass |
+| Unknown email still generic 200 (no existence leak) | Pass |
+| Reset-password rejects non–Admin/PM tokens with same code | Pass |
+| Forgot page shows Admin/PM note + API error message | Pass |
+| Login Forgot password link remains | Pass |
+| Unknown route shows 404 page with gear animation | Pass |
+| GearLoader uses theme tokens; no black background; no styled-components | Pass |
+| Lint/build on touched files | Pass |
+
 
