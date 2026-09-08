@@ -3,21 +3,45 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
 import { toast } from '../../context/ToastContext'
-import { PART_MASTER } from '../../data/partMaster'
 import { TEAM } from '../../data/team'
 import { ApiRequestError } from '../../services/api'
+import { listParts, sumSelectedPartsAmount } from '../../services/parts'
 import { getTicket, addTicketUpdate, attachTicketUpdatePhotos } from '../../services/tickets'
 import { uploadImages } from '../../services/uploads'
-import { canPerm } from '../../services/users'
+import { canPerm, isDashboardRole } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/FilterBar'
 import { ImagePreviewModal } from '../../components/ui/ImagePreviewModal'
 import { IssueSelects } from '../../components/ui/IssueSelects'
 import { Modal } from '../../components/ui/Modal'
+import { PartChips } from '../../components/ui/PartChips'
 import { PhotoPicker } from '../../components/ui/PhotoPicker'
 import { Pill } from '../../components/ui/Pill'
 import { TicketDetailSkeleton } from '../../components/ui/Skeleton'
 import { TeamSelect } from '../../components/ui/TeamSelect'
+
+/** Local time: DD/MM/YYYY at HH:MM AM/PM */
+function formatRaisedOn(value) {
+  if (value == null || value === '') return value
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value)
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  let hours = d.getHours()
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  const ampm = hours >= 12 ? 'PM' : 'AM'
+  hours = hours % 12
+  if (hours === 0) hours = 12
+  const hh = String(hours).padStart(2, '0')
+  return `${dd}/${mm}/${yyyy} at ${hh}:${minutes} ${ampm}`
+}
+
+function factDisplayValue(fact) {
+  if (!fact) return ''
+  if (fact.label === 'Raised on') return formatRaisedOn(fact.value)
+  return fact.value
+}
 
 function TimelineMeta({ item }) {
   if (!item) return null
@@ -91,7 +115,7 @@ export default function TicketDetail() {
   const canView = canPerm(user, 'All tickets', 'v')
   const canAssign = canPerm(user, 'All tickets', 'a')
   const canAddUpdate = canPerm(user, 'Update ticket', 'e')
-  const fromHere = `${location.pathname}${location.search}`
+  const pickVisitedBy = isDashboardRole(user)
   const backToTickets = ticketsListReturnPath(location.state?.from)
 
   const [ticket, setTicket] = useState(null)
@@ -108,8 +132,12 @@ export default function TicketDetail() {
   const [updPhotos, setUpdPhotos] = useState([])
   const [updWorkDone, setUpdWorkDone] = useState('')
   const [updCost, setUpdCost] = useState('')
-  const [updPart, setUpdPart] = useState('')
+  const [updPartIds, setUpdPartIds] = useState([])
+  const [updVisitedBy, setUpdVisitedBy] = useState(() => (isDashboardRole(user) ? '' : user?.name || ''))
   const [updSubmitting, setUpdSubmitting] = useState(false)
+  const [partsItems, setPartsItems] = useState([])
+  const [partsLoading, setPartsLoading] = useState(false)
+  const [partsError, setPartsError] = useState('')
 
   function resetUpdateForm() {
     setUpdType('Site visit — not resolved')
@@ -118,8 +146,37 @@ export default function TicketDetail() {
     setUpdPhotos([])
     setUpdWorkDone('')
     setUpdCost('')
-    setUpdPart('')
+    setUpdPartIds([])
+    setUpdVisitedBy(pickVisitedBy ? '' : user?.name || '')
   }
+
+  useEffect(() => {
+    if (!updOpen) return undefined
+    let cancelled = false
+    listParts()
+      .then((list) => {
+        if (!cancelled) {
+          setPartsItems(list)
+          setPartsError('')
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setPartsItems([])
+          setPartsError(err instanceof ApiRequestError ? err.message : 'Could not load parts.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPartsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [updOpen])
+
+  const partsHintTotal = sumSelectedPartsAmount(partsItems, updPartIds)
+  const labourHint = updCost === '' ? 0 : Number(updCost) || 0
+  const visitHintTotal = partsHintTotal + labourHint
 
   async function reloadTicket() {
     if (!ticketId) return
@@ -179,7 +236,12 @@ export default function TicketDetail() {
   const workHistory = useMemo(() => mapWorkHistory(ticket?.workHistory), [ticket])
   const assignmentTrail = ticket?.assignmentTrail || []
   const devicePreviousTickets = ticket?.devicePreviousTickets || []
-  const canReassign = canAssign && header && header.status !== 'Closed'
+  const assignedTo =
+    (header?.facts || []).find((f) => f.label === 'Assigned to')?.value || ''
+  const isAssigned = Boolean(assignedTo && assignedTo !== 'Not assigned')
+  const canManageAssign = canAssign && header && header.status !== 'Closed'
+  const canReassign = canManageAssign && isAssigned
+  const canFirstAssign = canManageAssign && !isAssigned
 
   const crumb = useMemo(() => {
     if (!header) return null
@@ -195,25 +257,21 @@ export default function TicketDetail() {
   const actions = useMemo(() => {
     if (!header) return null
     return (
-      <>
-        <Link className="btn" to={`/devices/${header.deviceId}`}>
-          Device history
-        </Link>
-        <Link className="btn" to="/tickets/update" state={{ from: fromHere }}>
-          Update on site
-        </Link>
-        <Link className="btn btn-primary" to="/tickets/close" state={{ from: fromHere }}>
-          Close ticket
-        </Link>
-      </>
+      <Link className="btn" to={`/devices/${header.deviceId}`}>
+        Device history
+      </Link>
     )
-  }, [header, fromHere])
+  }, [header])
 
   async function submitUpdate(e) {
     e.preventDefault()
     if (!ticketId) return
     if (!canAddUpdate) {
       toast('You do not have permission to add ticket updates.')
+      return
+    }
+    if (pickVisitedBy && !updVisitedBy.trim()) {
+      toast('Select who visited.')
       return
     }
     setUpdSubmitting(true)
@@ -223,7 +281,7 @@ export default function TicketDetail() {
         updateType: updType,
         workDone: updWorkDone.trim() || undefined,
         cost: updCost === '' ? 0 : Number(updCost) || 0,
-        parts: updPart ? [updPart] : [],
+        parts: [...new Set(updPartIds)],
         photos: [],
       })
 
@@ -247,7 +305,12 @@ export default function TicketDetail() {
       await reloadTicket()
       resetUpdateForm()
       setUpdOpen(false)
-      toast('Update saved.')
+      const visitCost = saved?.cost != null ? Number(saved.cost) : null
+      if (visitCost != null && !Number.isNaN(visitCost)) {
+        toast(`Update saved. Visit cost ₹${visitCost.toLocaleString('en-IN')}.`)
+      } else {
+        toast('Update saved.')
+      }
     } catch (err) {
       toast(err instanceof ApiRequestError ? err.message : 'Could not save update.')
     } finally {
@@ -313,6 +376,8 @@ export default function TicketDetail() {
                     <Button
                       onClick={() => {
                         resetUpdateForm()
+                        setPartsLoading(true)
+                        setPartsError('')
                         setUpdOpen(true)
                       }}
                     >
@@ -321,6 +386,11 @@ export default function TicketDetail() {
                   ) : null}
                   {canReassign ? (
                     <Button onClick={() => setAssignOpen(true)}>Reassign</Button>
+                  ) : null}
+                  {canFirstAssign ? (
+                    <Button variant="primary" onClick={() => setAssignOpen(true)}>
+                      Assign
+                    </Button>
                   ) : null}
                   <Link className="btn btn-primary" to="/tickets/close">
                     Close ticket
@@ -332,7 +402,7 @@ export default function TicketDetail() {
                 {(header.facts || []).map((f) => (
                   <div key={f.label}>
                     <small>{f.label}</small>
-                    <span className={f.bad ? 'strong-bad' : undefined}>{f.value}</span>
+                    <span className={f.bad ? 'strong-bad' : undefined}>{factDisplayValue(f)}</span>
                   </div>
                 ))}
               </div>
@@ -438,11 +508,16 @@ export default function TicketDetail() {
                           Reassign
                         </Button>
                       ) : null}
+                      {canFirstAssign ? (
+                        <Button size="sm" variant="primary" onClick={() => setAssignOpen((o) => !o)}>
+                          Assign
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
 
-                  <div className={`inline-form${assignOpen && canReassign ? ' open' : ''}`}>
-                    {canReassign ? (
+                  <div className={`inline-form${assignOpen && canManageAssign ? ' open' : ''}`}>
+                    {canManageAssign ? (
                     <form onSubmit={submitAssign}>
                       <div className="row">
                         <Field label="Hand to">
@@ -556,9 +631,26 @@ export default function TicketDetail() {
               </select>
             </Field>
             <Field label="Visited by">
-              <select defaultValue={user?.name || ''}>
-                <option>{user?.name || 'Current user'}</option>
-              </select>
+              {pickVisitedBy ? (
+                <select
+                  value={updVisitedBy}
+                  onChange={(e) => setUpdVisitedBy(e.target.value)}
+                  disabled={updSubmitting}
+                  required
+                >
+                  <option value="">Select who visited</option>
+                  {user?.name ? <option value={user.name}>{user.name}</option> : null}
+                  {TEAM.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <select value={user?.name || ''} disabled>
+                  <option value={user?.name || ''}>{user?.name || 'Current user'}</option>
+                </select>
+              )}
             </Field>
             <Field label="Date and time">
               <input type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
@@ -573,22 +665,52 @@ export default function TicketDetail() {
               onSubCategoryChange={setUpdSub}
               categoryLabel="Issue category found"
             />
-            <Field label="Part replaced">
-              <select value={updPart} onChange={(e) => setUpdPart(e.target.value)}>
-                <option value="">No part replaced</option>
-                {PART_MASTER.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Cost added today" hint="Only what was spent on this visit.">
+            <Field
+              label="Labour / other charges"
+              hint="Part prices come from Parts and are added by the server."
+            >
               <input
                 type="number"
                 placeholder="0"
                 value={updCost}
                 onChange={(e) => setUpdCost(e.target.value)}
                 min="0"
+                disabled={updSubmitting}
               />
+            </Field>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <Field
+              label="Parts changed"
+              hint="Tap every part you replaced. Leave blank if nothing was changed."
+            >
+              <PartChips
+                items={partsItems}
+                selected={updPartIds}
+                onChange={setUpdPartIds}
+                loading={partsLoading}
+                error={partsError}
+                disabled={updSubmitting}
+              />
+              {updPartIds.length > 0 ? (
+                <div className="parts-total" aria-live="polite">
+                  <div className="parts-total-meta">
+                    <strong>
+                      Parts total · {updPartIds.length} selected
+                    </strong>
+                    <span>
+                      From Parts (display only). Server adds this to labour
+                      {labourHint > 0
+                        ? ` · est. visit ₹${visitHintTotal.toLocaleString('en-IN')}`
+                        : ''}
+                      .
+                    </span>
+                  </div>
+                  <div className="parts-total-amount">
+                    ₹{partsHintTotal.toLocaleString('en-IN')}
+                  </div>
+                </div>
+              ) : null}
             </Field>
           </div>
           <div style={{ marginTop: 12 }}>

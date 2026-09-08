@@ -59,7 +59,7 @@ export default function IssueMaster() {
     <>
       <PageMeta
         pageId="issue-master"
-        title="Issue master"
+        title="Issue"
         crumb="Masters › Issue category and sub-category"
       />
 

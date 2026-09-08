@@ -100,19 +100,19 @@
 
 ## Currently working on
 
-- **Phase:** —
-- **Task:** —
-- **File:** —
+- **Phase:** Phase 23 — Parts & visit cost (frontend)
+- **Task:** Parts API + PartChips + Add Update / Ticket Update + Parts page; Masters labels Issue / Road / Parts; Parts hex-nut icon
+- **File:** `services/parts.js`, `PartChips.jsx`, TicketDetail, TicketUpdate, `PartMaster.jsx`, `nav.js`, `NavIcons.jsx`
 
 ## Pending
 
-- Wire Raise/Update/Close create APIs (photos may upload on submit; ticket POST still toast except Detail Add Update)
+- Wire Raise/Close create APIs (Update posts when ticketId known in Phase 23)
 - Live `GET /api/devices/scan` after QR payload finalized
 - External inspection package (`PROJECT_PATH` — deferred until path provided)
 - Roles tab on Users still mostly preview matrix
 - Real Settings preferences beyond profile/password
 - Backend Work report ownership scoping (if product requires)
-- Run migration `007_ticket_status_open.sql` on environments that still store status `New`
+- Run migration `007_ticket_status_open.sql` / `009_parts_amount.sql` on environments that need them
 
 ## Important decisions
 
@@ -133,6 +133,7 @@
 29. Phase 21 (single commit scope): never wrap PhotoPicker in `<label>` — use `div.fld`. TicketList pagination is server `page`/`limit` (10/25/50/100, default 25). Collapsed rail icons centered; shell offset remains `--rail` only. PhotoPicker menu/camera portal for Modal use; Add Update is live update→upload→attach; gate on Update-ticket `e`. Backend update access: Admin/PM, holder, unassigned claim, or raiser (close remains holder-only). Next phase number is **22**.
 30. Phase 22 — Live-data loading uses shared `Skeleton` primitives (no new libs); auth boot is minimal bars, not a fake dashboard; empty/error states stay text, not skeleton.
 31. Phase 22 follow-up — Users live mutations use button busy text (not skeletons); match Settings/Detail Add Update pattern.
+32. Phase 23 — Live parts from `GET /api/parts`; labour-only `cost` + UUID `parts`; Parts page under Masters. Masters child UI labels **Issue** / **Road** / **Parts** (group **Masters**). Permission keys stay `Issue master` / `Road master`. Parts nav icon = hex nut (not Settings gear).
 
 ## Important decisions (detail)
 
@@ -175,4 +176,4 @@
 
 ## Handoff notes
 
-Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: Site attendant / Technician; mock scan defaults to open TK-1042; use PD-0501 or FREE for a free device. Live screens show skeleton loaders while fetching (Phase 22). **Next phase: 23.**
+Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: Site attendant / Technician; mock scan defaults to open TK-1042; use PD-0501 or FREE for a free device. Live screens show skeleton loaders while fetching (Phase 22). Masters submenu labels are Issue / Road / Parts; Parts icon is interlocking gears. **Next phase: 23.**

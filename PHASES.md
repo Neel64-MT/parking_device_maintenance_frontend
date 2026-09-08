@@ -431,10 +431,34 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 23: Parts & visit cost (frontend)
+
+**Objective:** Load parts from Parts API; multi-select Parts changed by UUID; treat Cost of Visit labour as client input and total as server-calculated.
+
+**Status:** In progress
+
+**Tasks:**
+
+1. `services/parts.js` (`listParts` + session cache) + upgrade `PartChips` (id / name / amount).
+2. TicketDetail Add Update: multi parts + labour cost; trail shows part snapshots.
+3. TicketUpdate: bind PartChips/labour; `POST /updates` when ticket id known.
+4. Parts page under Masters → Parts; Masters child labels Issue / Road / Parts; Parts nav icon = interlocking gears.
+5. Docs finalize; lint/build.
+
+**Out of scope:** Backend permission key renames; edit past update parts; Vitest; live TicketClose API.
+
+**Verification:** Manual checklist in PR; eslint on touched files; build if practical.
+
+**Completion:** PR.md Phase 23 criteria pass.
+
+**Decision (labels / icon):** Masters submenu display labels are **Issue**, **Road**, **Parts** (group title stays **Masters**). API permission `screen` keys remain `Issue master` / `Road master`. `NavIcons.parts` is an interlocking gear cluster (not a bolt; distinct from Settings).
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21 ──► Phase 22
+Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21 ──► Phase 22 ──► Phase 23
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

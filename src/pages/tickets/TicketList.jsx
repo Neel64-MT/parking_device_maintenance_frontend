@@ -409,7 +409,9 @@ export default function TicketList() {
                         </td>
                         <td className="act">
                           <div className="act-row">
-                            {canAssign && row.status !== 'Closed' ? (
+                            {canAssign &&
+                            row.status !== 'Closed' &&
+                            row.assignedTo ? (
                               <Link
                                 className="btn btn-sm btn-reassign"
                                 to={`/tickets/${row.id}`}
@@ -419,11 +421,23 @@ export default function TicketList() {
                               </Link>
                             ) : null}
                             <Link
-                              className={`btn btn-sm${row.actionPrimary ? ' btn-primary' : ''}`}
+                              className={`btn btn-sm${
+                                row.assignedTo && row.actionLabel === 'Assign'
+                                  ? ''
+                                  : row.actionPrimary
+                                    ? ' btn-primary'
+                                    : ''
+                              }`}
                               to={`/tickets/${row.id}`}
-                              state={ticketLinkState}
+                              state={
+                                !row.assignedTo && row.actionLabel === 'Assign'
+                                  ? { ...ticketLinkState, openAssign: true }
+                                  : ticketLinkState
+                              }
                             >
-                              {row.actionLabel}
+                              {row.assignedTo && row.actionLabel === 'Assign'
+                                ? 'Open'
+                                : row.actionLabel}
                             </Link>
                           </div>
                         </td>

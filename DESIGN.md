@@ -271,3 +271,16 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Users | Tiles + table skeleton |
 | Auth boot | Minimal brand-width bars in `.auth-boot` |
 
+## Phase 23 — Parts & visit cost
+
+| Item | Pattern |
+|------|---------|
+| PartChips | Multi-toggle by part `id`; label `Name · ₹amount` |
+| Loading / empty / error | Muted line in chip row; no hardcoded live fallback |
+| Cost field | Label **Labour / other charges**; hint that part prices are server-added |
+| Selected parts hint | Optional display-only sum of master amounts (not sent as `cost`) |
+| After save | Toast uses backend `cost`; trail lists part snapshot names |
+| Masters nav | Child labels **Issue** / **Road** / **Parts** (group **Masters** unchanged) |
+| Parts icon | Interlocking gear cluster in `NavIcons` `parts` (not bolt; distinct from Settings) |
+
+

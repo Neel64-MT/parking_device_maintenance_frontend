@@ -48,7 +48,7 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 - Dashboard
 - Tickets → All tickets, Work report
 - Devices
-- Masters → Issue master, Road master
+- Masters → Issue, Road, Parts
 - Users
 - Settings (bottom utility above company/version — self-service profile + password)
 
@@ -76,11 +76,12 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 9. Device history — record, life stats, split ticket/resolution table, parts, timeline
 10. Add device — identity, location, installation form
 11. Scan QR — scan simulate + manual find + result/not-found
-12. Issue master — category pick list + sub-category table
-13. Road master — filters + roads table
+12. Issue — category pick list + sub-category table
+13. Road — filters + roads table
 14. Add road — road details, capacity/rate, status/contact
 15. Users — Users tab + Roles & permissions matrix
 16. Settings — profile (name/email/mobile) + change password
+17. Parts — list/create/edit/deactivate spare parts (Masters; hidden from Site attendant)
 
 #### Shared chrome
 
@@ -369,4 +370,23 @@ Skeleton / SkeletonTiles / SkeletonTable → TicketList, TicketDetail, Dashboard
 | Auth boot: minimal skeleton (not fake dashboard) | Pass |
 | Empty/error paths unchanged; no new libraries | Pass |
 | Users create/edit/password/approve: button busy labels (no double-submit) | Pass |
+
+### Phase 23 — Parts & visit cost
+
+```text
+GET /api/parts → PartChips (UUID multi-select) → POST /updates { parts, cost: labour } → server cost
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Parts loaded from `GET /api/parts` (cached); not hardcoded on live flows | Pending |
+| PartChips show name + amount; select multiple by id | Pending |
+| Add Update submits UUID `parts` + labour-only `cost` | Pending |
+| Toast/trail use backend `cost` / parts snapshots | Pending |
+| Ticket Update binds parts/labour; POST when ticketId known | Pending |
+| No client authoritative part-cost math; no edit-update API | Pending |
+| Parts under Masters (after Road); hidden from Site attendant | Pending |
+| Masters child labels drop “master” postfix (Issue / Road / Parts); Parts nav icon = interlocking gears | Pending |
+| Lint/build on touched files | Pending |
+
 

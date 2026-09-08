@@ -60,9 +60,6 @@ export function TablePagination({
           title="Previous"
           onClick={() => onPageChange(safePage - 1)}
         >
-          <span className="table-pagination-chevron" aria-hidden="true">
-            &lt;
-          </span>
           <span className="table-pagination-btn-label">Previous</span>
         </Button>
         <span className="table-pagination-page muted" aria-live="polite">
@@ -78,9 +75,6 @@ export function TablePagination({
           onClick={() => onPageChange(safePage + 1)}
         >
           <span className="table-pagination-btn-label">Next</span>
-          <span className="table-pagination-chevron" aria-hidden="true">
-            &gt;
-          </span>
         </Button>
       </div>
     </div>

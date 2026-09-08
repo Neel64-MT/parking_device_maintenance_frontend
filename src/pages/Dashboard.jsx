@@ -228,7 +228,7 @@ export default function Dashboard() {
           <Panel
             title="Road-wise status"
             subtitle="Devices by installation location"
-            link="Road master"
+            link="Road"
             linkTo="/masters/roads"
             flush
             foot="Working / repair / down derived from open tickets in your access scope."

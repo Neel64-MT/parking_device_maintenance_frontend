@@ -16,6 +16,7 @@ import ScanQr from './pages/devices/ScanQr'
 import IssueMaster from './pages/masters/IssueMaster'
 import RoadList from './pages/masters/RoadList'
 import RoadAdd from './pages/masters/RoadAdd'
+import PartMaster from './pages/masters/PartMaster'
 import TicketList from './pages/tickets/TicketList'
 import TicketRaise from './pages/tickets/TicketRaise'
 import TicketUpdate from './pages/tickets/TicketUpdate'
@@ -69,6 +70,7 @@ export function AppRoutes() {
         <Route path="masters/issues" element={<IssueMaster />} />
         <Route path="masters/roads" element={<RoadList />} />
         <Route path="masters/roads/add" element={<RoadAdd />} />
+        <Route path="masters/parts" element={<PartMaster />} />
 
         <Route path="users" element={<Users />} />
         <Route path="settings" element={<Settings />} />
