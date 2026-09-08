@@ -259,6 +259,15 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | PhotoPicker in modal | Source menu + camera portaled to `body`; hidden folder input; Add photo leftmost when empty |
 | Add Update save | `POST /updates` → `uploadImages` → `PATCH …/photos`; button needs Update-ticket `e` |
 
-## Phase 22 — (next)
+## Phase 22 — Responsive skeleton loaders
 
-Patterns for the next phase go here when scoped.
+| Item | Pattern |
+|------|---------|
+| Primitive | `.sk` block with shimmer; tokens `--line` / `--hover` / `--panel` |
+| Reduced motion | `animation: none` under `prefers-reduced-motion: reduce` |
+| TicketList | `SkeletonTiles` (4) + `SkeletonTable` in panel body |
+| TicketDetail | Record + facts + `grid-2` panel skeletons |
+| Dashboard | Fleet strip + `grid-2` panel skeletons (filters stay visible) |
+| Users | Tiles + table skeleton |
+| Auth boot | Minimal brand-width bars in `.auth-boot` |
+

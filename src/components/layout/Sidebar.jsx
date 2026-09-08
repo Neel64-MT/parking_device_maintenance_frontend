@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { APP, MENU, SETTINGS, filterMenuByView, isMenuItemOn } from '../../config/nav'
 import { NavIcon } from '../icons/NavIcons'
+import { BrandMark } from '../ui/BrandMark'
 import { useAuth } from '../../context/AuthContext'
 import { usePageMeta } from '../../context/PageMetaContext'
 import { canPerm, isDashboardRole } from '../../services/users'
@@ -54,9 +55,7 @@ export function Sidebar({
     >
       <div className="brand">
         <div className="brand-mark">
-          <div className="glyph" aria-hidden="true">
-            P
-          </div>
+          <BrandMark size={36} />
           <div className="brand-text">
             <h1>{APP.nameLines.join(' ')}</h1>
             <p>{APP.sub}</p>

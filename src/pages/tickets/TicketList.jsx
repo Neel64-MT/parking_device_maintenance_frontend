@@ -15,6 +15,7 @@ import { Field, FilterBar } from '../../components/ui/FilterBar'
 import { JumpLinks } from '../../components/ui/JumpLinks'
 import { Panel } from '../../components/ui/Panel'
 import { Pill } from '../../components/ui/Pill'
+import { SkeletonTable, SkeletonTiles } from '../../components/ui/Skeleton'
 import { TablePagination } from '../../components/ui/TablePagination'
 import { Tabs } from '../../components/ui/Tabs'
 import { Tile } from '../../components/ui/Tile'
@@ -225,19 +226,26 @@ export default function TicketList() {
           </div>
         ) : null}
 
-        <div className="tiles five">
-          {(tiles.length
-            ? tiles
-            : [
-                { value: '—', label: 'Open, not attended', tone: 'bad' },
-                { value: '—', label: 'Under repair', tone: 'warn' },
-                { value: '—', label: 'Waiting for spare', tone: 'warn' },
-                { value: '—', label: 'Open over 3 days', tone: 'bad' },
-              ]
-          ).map((t) => (
-            <Tile key={t.label} value={t.value} label={t.label} tone={t.tone} />
-          ))}
-        </div>
+        {loading ? (
+          <div aria-busy="true" aria-live="polite">
+            <span className="sr-only">Loading tickets</span>
+            <SkeletonTiles count={4} />
+          </div>
+        ) : (
+          <div className="tiles five">
+            {(tiles.length
+              ? tiles
+              : [
+                  { value: '—', label: 'Open, not attended', tone: 'bad' },
+                  { value: '—', label: 'Under repair', tone: 'warn' },
+                  { value: '—', label: 'Waiting for spare', tone: 'warn' },
+                  { value: '—', label: 'Open over 3 days', tone: 'bad' },
+                ]
+            ).map((t) => (
+              <Tile key={t.label} value={t.value} label={t.label} tone={t.tone} />
+            ))}
+          </div>
+        )}
 
         <FilterBar
           actions={
@@ -338,13 +346,7 @@ export default function TicketList() {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={colCount}>
-                      <span className="muted">Loading tickets…</span>
-                    </td>
-                  </tr>
-                ) : null}
+                {loading ? <SkeletonTable rows={6} cols={colCount} /> : null}
                 {!loading && !rows.length ? (
                   <tr>
                     <td colSpan={colCount}>

@@ -408,20 +408,33 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
-## Phase 22: (next)
+## Phase 22: Responsive skeleton loaders
 
-**Objective:** TBD — begin here after Phase 21.
+**Objective:** Replace plain `Loading…` on live-data screens with layout-matching responsive skeletons (no new libraries).
 
-**Status:** Not started
+**Status:** Complete
 
-**Dependencies:** Phase 21 complete.
+**Tasks:**
+
+1. Shared `Skeleton` / `SkeletonText` / `SkeletonTable` / `SkeletonTiles` + CSS shimmer (reduced-motion safe).
+2. TicketList + TicketDetail loading skeletons.
+3. Dashboard + Users loading skeletons.
+4. Auth boot (`RequireAuth` / `GuestOnly` / `HomeRedirect`) minimal skeleton.
+5. Docs finalize.
+6. Follow-up: Users create / edit / password / approve button busy states (disabled + busy label; Cancel/close gated).
+
+**Out of scope:** Mock-only Raise/Update/Close forms; new npm deps; redesign of loaded content.
+
+**Verification:** Lint on touched files + production build; each live page shows skeleton then content; empty/error unchanged; reduced-motion disables shimmer; Users mutations show busy button labels.
+
+**Completion:** PR.md Phase 22 criteria pass.
 
 ---
 
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21 ──► Phase 22 (next)
+Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21 ──► Phase 22
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

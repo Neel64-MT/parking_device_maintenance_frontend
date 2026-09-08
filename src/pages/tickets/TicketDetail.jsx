@@ -16,6 +16,7 @@ import { IssueSelects } from '../../components/ui/IssueSelects'
 import { Modal } from '../../components/ui/Modal'
 import { PhotoPicker } from '../../components/ui/PhotoPicker'
 import { Pill } from '../../components/ui/Pill'
+import { TicketDetailSkeleton } from '../../components/ui/Skeleton'
 import { TeamSelect } from '../../components/ui/TeamSelect'
 
 function TimelineMeta({ item }) {
@@ -288,7 +289,7 @@ export default function TicketDetail() {
           </div>
         ) : null}
 
-        {loading ? <p className="muted">Loading ticket…</p> : null}
+        {loading ? <TicketDetailSkeleton /> : null}
 
         {!loading && header ? (
           <>

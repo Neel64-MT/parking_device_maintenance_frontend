@@ -58,6 +58,7 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **Ticket list tabs & tiles (Phase 19 follow-up, backend `tickets.ts`):** `tabForStatus` — Closed → `cls`; no `assignee_id` → `new` (Open tab); else → `asg`. Tile **Open, not attended** = count of tab `new` (matches Open badge). `listStatus` (list/tiles only, no DB write): assignee + stored Open/New → display/count as **Under repair** so Under repair (+ Waiting for spare) aligns with Assigned; **Open over 3 days** = non-closed with daysOpen > 3.
 - **Photo attachments (Phase 20 — Image attachment in ticket):** Shared `PhotoPicker` — Choose from folder or Capture from camera (`CameraCaptureModal` via `getUserMedia`). Live preview: front/rear via overlay **flip icon** (`.camera-flip-btn`, camera + circular arrows SVG); bottom actions **Cancel** + **Take photo**. After capture: crop/review (drag box / corner handles) → **Upload** (confirm cropped JPEG `File`) or **Recapture**. Crop image is **full width** of the modal (`.camera-crop-image { width: 100% }`); stage background transparent — no black letterbox side bars. Both sources validate (`image/*`, ≤8 MB), keep local `File` + object-URL thumbs (max **5**). **`uploadImages` / `uploadImage` run on form submit** (Raise, Ticket Update, Ticket Close, Detail Add Update) — not when each photo is added. Ticket create/update/close POST remains toast until wired (Detail Add Update wired in Phase 21). Do not use `QrScannerModal` for photos.
 - **Phase 21 — Sidebar, pagination, PhotoPicker/modal, live Add Update:** Collapsed desktop rail centered on 64px column; `TablePagination` + `listTickets({ page, limit })` (10/25/50/100, default 25). `Field` is `div.fld`. PhotoPicker: persistent hidden file input; folder menu + camera portaled to `document.body`; Modal `elevated` for camera over Add Update. Detail Add Update: `POST /api/tickets/:id/updates` (photos `[]`) → `uploadImages` → `PATCH …/updates/:eventId/photos`; button requires `Update ticket` `e`. Backend allows Admin/PM, holder, unassigned claim, or raiser for updates (close still holder-only).
+- **Phase 22 — Responsive skeleton loaders:** Shared `Skeleton` primitives replace plain `Loading…` on TicketList, TicketDetail, Dashboard, Users, and Auth boot. CSS shimmer uses existing tokens; `prefers-reduced-motion` disables animation. No new libraries.
 - **Forgot/reset:** Existing backend `POST /api/auth/forgot-password` + `reset-password` (SHA-256 token, 1h TTL, bcrypt). FE: `/forgot-password`, `/reset-password`.
 - **Admin change password:** Reuse `PATCH /api/users/:id` with `password` (requires Users edit). Increments `password_version` (invalidates JWTs).
 - **Self-service Settings (Phase 13):**
@@ -108,7 +109,7 @@ frontend/
     ├── components/
     │   ├── layout/             # Sidebar (filterMenuByView + Dashboard role gate), Topbar
     │   ├── icons/              # NavIcons (incl. logout)
-    │   └── ui/                 # Button, Panel, Field (div.fld), PhotoPicker, CameraCaptureModal, TablePagination, Modal, QrScannerModal, …
+    │   └── ui/                 # Button, Panel, Field (div.fld), PhotoPicker, CameraCaptureModal, TablePagination, Skeleton, Modal, …
     ├── pages/
     │   ├── auth/               # Login (homePathForUser), Signup, Forgot, Reset
     │   ├── Dashboard.jsx       # Admin/PM only; fleet + why-down + road-wise

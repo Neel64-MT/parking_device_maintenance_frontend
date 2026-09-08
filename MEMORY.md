@@ -86,9 +86,23 @@
 - Raise Cancel / list Raise preserve `state.from` tab where applicable
 - Lint + production build expected; brand-icon asset swaps are out of this phase’s doc scope
 
+### Phase 22 — Responsive skeleton loaders (complete)
+
+- Shared `Skeleton` / `SkeletonText` / `SkeletonTable` / `SkeletonTiles` + page helpers in `components/ui/Skeleton.jsx`
+- CSS `.sk` shimmer on `--hover` tokens; `prefers-reduced-motion` disables animation
+- TicketList: tile skeletons + `SkeletonTable` in panel; filters/tabs stay visible
+- TicketDetail: record / facts / `grid-2` panel skeleton while loading
+- Dashboard: `DashboardSkeleton` (fleet + panels); JumpLinks/filters stay visible
+- Users: tile + table skeletons
+- Auth boot: `AuthBootSkeleton` in RequireAuth / GuestOnly / HomeRedirect
+- Follow-up: Users create / edit / password / approve use button busy labels (`Creating…` / `Saving…` / `Updating…` / `Approving…`); Cancel/modal close disabled while busy
+- Lint (touched files) + production build pass
+
 ## Currently working on
 
-- (none) — next work starts as **Phase 22**
+- **Phase:** —
+- **Task:** —
+- **File:** —
 
 ## Pending
 
@@ -117,6 +131,8 @@
 27. All tickets tiles: “Open, not attended” = tab `new` (same as Open tab). Assigned tickets still stored as Open/New are `listStatus` → Under repair for list pills + Under repair tile (no DB rewrite). `tabCounts` and tiles both use `tabForStatus` / `listStatus`. “Open over 3 days” = non-closed (Open+Assigned) with daysOpen>3.
 28. Phase 20 — Image attachment in ticket: folder and camera → local `File` + object-URL preview (max 5); same validate; **`uploadImages` on form submit**. Camera uses in-app `getUserMedia` modal with overlay flip icon + crop/review (Upload confirms File into picker; Recapture restarts). Crop preview is full width (no black letterbox). Camera footer is Cancel + Take photo only. No second pipeline; ticket POST remains toast until create/update/close APIs are wired (except Detail Add Update in Phase 21).
 29. Phase 21 (single commit scope): never wrap PhotoPicker in `<label>` — use `div.fld`. TicketList pagination is server `page`/`limit` (10/25/50/100, default 25). Collapsed rail icons centered; shell offset remains `--rail` only. PhotoPicker menu/camera portal for Modal use; Add Update is live update→upload→attach; gate on Update-ticket `e`. Backend update access: Admin/PM, holder, unassigned claim, or raiser (close remains holder-only). Next phase number is **22**.
+30. Phase 22 — Live-data loading uses shared `Skeleton` primitives (no new libs); auth boot is minimal bars, not a fake dashboard; empty/error states stay text, not skeleton.
+31. Phase 22 follow-up — Users live mutations use button busy text (not skeletons); match Settings/Detail Add Update pattern.
 
 ## Important decisions (detail)
 
@@ -159,4 +175,4 @@
 
 ## Handoff notes
 
-Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: Site attendant / Technician; mock scan defaults to open TK-1042; use PD-0501 or FREE for a free device. **Next phase: 22.**
+Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: Site attendant / Technician; mock scan defaults to open TK-1042; use PD-0501 or FREE for a free device. Live screens show skeleton loaders while fetching (Phase 22). **Next phase: 23.**

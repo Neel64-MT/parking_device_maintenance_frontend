@@ -353,6 +353,20 @@ Add Update → POST /updates → uploadImages → PATCH …/photos · canPerm Up
 | Detail Add Update: update API first, then uploads, then attach photos; trail reloads | Pass |
 | Add Update button gated on `Update ticket` edit (`e`) | Pass |
 
-### Phase 22 — (next)
+### Phase 22 — Responsive skeleton loaders
 
-Not started. Begin new work here after Phase 21.
+```text
+Skeleton / SkeletonTiles / SkeletonTable → TicketList, TicketDetail, Dashboard, Users, Auth boot
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Shared Skeleton primitives + CSS shimmer (reduced-motion off) | Pass |
+| TicketList: tiles + table skeleton while loading | Pass |
+| TicketDetail: record/facts/panels skeleton while loading | Pass |
+| Dashboard: fleet + grid panels skeleton while loading | Pass |
+| Users: tiles + table skeleton while loading | Pass |
+| Auth boot: minimal skeleton (not fake dashboard) | Pass |
+| Empty/error paths unchanged; no new libraries | Pass |
+| Users create/edit/password/approve: button busy labels (no double-submit) | Pass |
+

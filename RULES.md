@@ -121,6 +121,11 @@ Reported by is the signed-in user (read-only). Assignment stays with Admin / con
 Keep PhotoPicker as the original compact dashed tile — do not stretch Add photo full-width without product ask.
 Field action rows (.sticky-bar) must stay in document flow (position: static). Do not reintroduce viewport-fixed footers without product ask.
 Constrain action buttons with .sticky-bar-inner to the mobile form width (580px). Keep the bar background transparent (no full-bleed white strip).
+Loading skeletons (Phase 22+)
+Live-data screens (TicketList, TicketDetail, Dashboard, Users, Auth boot) must show layout-matching skeletons while fetching — not a lone “Loading…” line.
+Reuse Skeleton / SkeletonTiles / SkeletonTable; keep empty and error paths unchanged.
+Shimmer CSS must respect prefers-reduced-motion (animation: none).
+Do not add skeleton libraries.
 What to avoid
 No redesign, modernization, or “AI default” aesthetic.
 No purple gradients, cream+serif trends, or unrelated design systems.
