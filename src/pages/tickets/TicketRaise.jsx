@@ -33,6 +33,14 @@ function applyScanToDevice(scan) {
   }
 }
 
+/** Prefer returning to All tickets with the same tab query when navigated from the list. */
+function ticketsListReturnPath(from) {
+  if (typeof from !== 'string') return '/tickets'
+  const [pathname, query = ''] = from.split('?')
+  if (pathname !== '/tickets') return '/tickets'
+  return query ? `/tickets?${query}` : '/tickets'
+}
+
 export default function TicketRaise() {
   const { user } = useAuth()
   const location = useLocation()
@@ -50,23 +58,24 @@ export default function TicketRaise() {
   const slotOptions = road ? SLOTS[road] || [] : []
   const fromHere = `${location.pathname}${location.search}`
   const blocked = Boolean(device?.dup)
+  const backToTickets = ticketsListReturnPath(location.state?.from)
 
   const crumb = useMemo(
     () => (
       <>
-        <Link to="/tickets">Tickets</Link> › New ticket
+        <Link to={backToTickets}>Tickets</Link> › New ticket
       </>
     ),
-    [],
+    [backToTickets],
   )
 
   const actions = useMemo(
     () => (
-      <Link className="btn" to="/tickets">
+      <Link className="btn" to={backToTickets}>
         All tickets
       </Link>
     ),
-    [],
+    [backToTickets],
   )
 
   function fillSlots(nextRoad) {
@@ -270,7 +279,7 @@ export default function TicketRaise() {
 
         <div className="sticky-bar">
           <div className="sticky-bar-inner">
-            <Link className="btn" to="/tickets">
+            <Link className="btn" to={backToTickets}>
               Cancel
             </Link>
             <Button

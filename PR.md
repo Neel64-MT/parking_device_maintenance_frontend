@@ -87,7 +87,7 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 - Fixed navy sidebar (`nav.js` MENU + icons)
 - Sticky topbar (title, crumb, page-body actions preferred, user chip + logout icon with confirm modal)
 - Mobile hamburger drawer at ≤820px (`railOpen`)
-- Desktop expand/collapse icon-rail ≥821px (`railCollapsed`; expanded 248px / collapsed ~64px)
+- Desktop expand/collapse icon-rail ≥821px (`railCollapsed`; expanded 280px / collapsed ~64px)
 - Settings link in sidebar bottom section above EXILIO / version
 - Toast notifications
 - Jump pill strips on landing pages (optional right-side actions)
@@ -332,18 +332,41 @@ Form submit → uploadImages (POST /api/uploads) → toast (ticket APIs still mo
 | Raise, Ticket Update, Ticket Close, Detail Add Update use PhotoPicker | Pass |
 | No new camera/upload libraries | Pass |
 
-### Phase 21 — Field label fix + Ticket Update trim
+### Phase 21 — Sidebar alignment, TicketList pagination & Add Update fixes
 
 ```text
-Field → <div class="fld"> (not <label>) so PhotoPicker × does not activate first control
-PhotoPicker → preventDefault on .photos; revoke only removed object URL
-Ticket Update → remove Hand over / Next visit planned; Photos before Work done
+Collapsed rail ↔ shell/--rail · TablePagination (10/25/50/100)
+Field = div.fld · PhotoPicker portal (menu + camera) · Add photo leftmost when empty
+Add Update → POST /updates → uploadImages → PATCH …/photos · canPerm Update ticket e
 ```
 
 | Criterion | Result |
 |-----------|--------|
-| `Field` is a `div.fld` (not `<label>`) | Pass |
-| Removing first photo does not wipe remaining thumbs | Pass |
-| Ticket Update drops Hand over + Next visit planned | Pass |
-| Ticket Update / Detail Add Update: Photos before work-done text | Pass |
-| Ticket Close uploads pending photos on confirm | Pass |
+| Desktop collapsed rail: icons centered in 64px column; shell/`--rail` sync | Pass |
+| Topbar stays aligned with shell when rail open/collapsed; close (X) held through collapse animation | Pass |
+| Mobile drawer (≤820) unchanged | Pass |
+| TicketList server `page`/`limit`; options 10 / 25 / 50 / 100; default 25 | Pass |
+| Limit change / tab / Apply / Reset → page 1; Prev/Next; no full-dataset client slice | Pass |
+| `Field` is a `div.fld` (not `<label>`); first photo × does not wipe other thumbs | Pass |
+| Ticket Update drops Hand over + Next visit planned; Photos before work-done text | Pass |
+| PhotoPicker works in Add Update modal (folder + camera); no visible native file control | Pass |
+| Detail Add Update: update API first, then uploads, then attach photos; trail reloads | Pass |
+| Add Update button gated on `Update ticket` edit (`e`) | Pass |
+
+### Phase 22 — Responsive skeleton loaders
+
+```text
+Skeleton / SkeletonTiles / SkeletonTable → TicketList, TicketDetail, Dashboard, Users, Auth boot
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Shared Skeleton primitives + CSS shimmer (reduced-motion off) | Pass |
+| TicketList: tiles + table skeleton while loading | Pass |
+| TicketDetail: record/facts/panels skeleton while loading | Pass |
+| Dashboard: fleet + grid panels skeleton while loading | Pass |
+| Users: tiles + table skeleton while loading | Pass |
+| Auth boot: minimal skeleton (not fake dashboard) | Pass |
+| Empty/error paths unchanged; no new libraries | Pass |
+| Users create/edit/password/approve: button busy labels (no double-submit) | Pass |
+

@@ -383,32 +383,58 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
-## Phase 21: Field label fix + Ticket Update trim
+## Phase 21: Sidebar alignment, TicketList pagination & Add Update fixes
 
-**Objective:** Fix photo-disappear when removing the first thumb; trim Ticket Update fields; keep Photos before work-done text.
+**Objective:** Align collapsed desktop rail with shell/topbar; wire All tickets server pagination; harden PhotoPicker in modals; wire Detail Add Update to live `POST /updates` (update → upload → attach photos). Includes the Field/`div.fld` photo-× fix and Ticket Update field trim.
+
+**Status:** Complete (git: `Phase 21: Sidebar alignment and TicketList pagination & Add Update Ticket fixes`)
+
+**Tasks:**
+
+1. Collapsed `.rail` icon column + brand height = `--topbar-h`; keep `--rail` / `html.rail-narrow` sync; keep topbar close (X) through collapse animation.
+2. `TablePagination` + `constants/pagination.js` (limits 10/25/50/100, default 25).
+3. TicketList: `page`/`limit` → `listTickets`; reset page on tab / Apply / Reset / limit.
+4. `Field` → `<div class="fld">` (not `<label>`); PhotoPicker revoke-only-removed URL; Ticket Update drop Hand over / Next visit; Photos before work-done text.
+5. PhotoPicker: persistent hidden folder input; source menu + camera portaled to `document.body`; Modal `elevated` for nested camera; Add photo leftmost when empty.
+6. Detail Add Update: `addTicketUpdate` (photos `[]`) → `uploadImages` → `attachTicketUpdatePhotos`; gate with `canPerm(…, 'Update ticket', 'e')`; reload trail on success.
+7. Raise Cancel / list Raise preserve `state.from` tab return where applicable.
+8. Docs finalize for this phase (skip brand-icon asset swaps in phase notes).
+
+**Out of scope:** Brand-mark / favicon icon swap; Users/Devices pagination; URL `page`/`limit`; Raise/Update/Close create POST (still toast except Detail Add Update); new libraries.
+
+**Verification:** Collapse/expand + mobile drawer; TicketList pager; first photo × does not wipe thumbs; Add Update modal folder/camera; network order updates → uploads → photos PATCH; lint/build.
+
+**Completion:** PR.md Phase 21 criteria pass.
+
+---
+
+## Phase 22: Responsive skeleton loaders
+
+**Objective:** Replace plain `Loading…` on live-data screens with layout-matching responsive skeletons (no new libraries).
 
 **Status:** Complete
 
 **Tasks:**
 
-1. `Field` → `<div class="fld">` (not `<label>`) so label activation cannot target the first photo ×.
-2. PhotoPicker: `preventDefault` on `.photos`; revoke only the removed object URL.
-3. Modal `closeOnEscape` / `closeDisabled` for crop review / exporting.
-4. Ticket Update: drop Hand over / Next visit planned; Photos before Work done.
-5. Docs finalize (MEMORY/PR/ARCHITECTURE/RULES/DESIGN).
+1. Shared `Skeleton` / `SkeletonText` / `SkeletonTable` / `SkeletonTiles` + CSS shimmer (reduced-motion safe).
+2. TicketList + TicketDetail loading skeletons.
+3. Dashboard + Users loading skeletons.
+4. Auth boot (`RequireAuth` / `GuestOnly` / `HomeRedirect`) minimal skeleton.
+5. Docs finalize.
+6. Follow-up: Users create / edit / password / approve button busy states (disabled + busy label; Cancel/close gated).
 
-**Out of scope:** Ticket API POST; redesign of PhotoPicker tile; reworking Phase 20 camera attachment.
+**Out of scope:** Mock-only Raise/Update/Close forms; new npm deps; redesign of loaded content.
 
-**Verification:** Click first photo × → only that thumb removes; remaining previews stay; Update form fields match product; docs list the label rule.
+**Verification:** Lint on touched files + production build; each live page shows skeleton then content; empty/error unchanged; reduced-motion disables shimmer; Users mutations show busy button labels.
 
-**Completion:** PR.md Phase 21 criteria pass.
+**Completion:** PR.md Phase 22 criteria pass.
 
 ---
 
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21
+Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21 ──► Phase 22
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

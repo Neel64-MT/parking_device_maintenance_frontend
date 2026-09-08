@@ -19,6 +19,7 @@ import { JumpLinks } from '../components/ui/JumpLinks'
 import { Modal } from '../components/ui/Modal'
 import { PasswordInput } from '../components/ui/PasswordInput'
 import { Pill } from '../components/ui/Pill'
+import { SkeletonTable, SkeletonTiles } from '../components/ui/Skeleton'
 import { Tabs } from '../components/ui/Tabs'
 import { Tile } from '../components/ui/Tile'
 
@@ -72,6 +73,11 @@ export default function Users() {
   const [pwId, setPwId] = useState(null)
   const [pwNew, setPwNew] = useState('')
   const [pwConfirm, setPwConfirm] = useState('')
+
+  const [creating, setCreating] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [savingPassword, setSavingPassword] = useState(false)
+  const [approvingId, setApprovingId] = useState(null)
 
   const [roleName, setRoleName] = useState('')
   const [copyFrom, setCopyFrom] = useState('Start with nothing')
@@ -151,11 +157,12 @@ export default function Users() {
 
   async function saveUser(e) {
     e.preventDefault()
-    if (!canCreate) return
+    if (!canCreate || creating) return
     if (!fullName.trim() || !mobile.trim() || !password || !roleId) {
       toast('Name, mobile, password and role are required.')
       return
     }
+    setCreating(true)
     try {
       await createUser({
         fullName: fullName.trim(),
@@ -175,17 +182,22 @@ export default function Users() {
       await refreshUsers()
     } catch (err) {
       toast(err instanceof ApiRequestError ? err.message : 'Could not create user.')
+    } finally {
+      setCreating(false)
     }
   }
 
   async function approveUser(id) {
-    if (!canEdit) return
+    if (!canEdit || approvingId) return
+    setApprovingId(id)
     try {
       await updateUser(id, { status: 'Active' })
       toast('User approved.')
       await refreshUsers()
     } catch (err) {
       toast(err instanceof ApiRequestError ? err.message : 'Could not approve user.')
+    } finally {
+      setApprovingId(null)
     }
   }
 
@@ -201,12 +213,13 @@ export default function Users() {
 
   async function saveEdit(e) {
     e.preventDefault()
-    if (!canEdit || !editId) return
+    if (!canEdit || !editId || savingEdit) return
     const mobileValue = editMobile.trim()
     if (mobileValue.length < 10) {
       toast('Mobile number must be at least 10 digits.')
       return
     }
+    setSavingEdit(true)
     try {
       await updateUser(editId, {
         fullName: editName.trim(),
@@ -220,12 +233,14 @@ export default function Users() {
       await refreshUsers()
     } catch (err) {
       toast(err instanceof ApiRequestError ? err.message : 'Could not update user.')
+    } finally {
+      setSavingEdit(false)
     }
   }
 
   async function savePassword(e) {
     e.preventDefault()
-    if (!canEdit || !pwId) return
+    if (!canEdit || !pwId || savingPassword) return
     if (pwNew.length < 8) {
       toast('Password must be at least 8 characters.')
       return
@@ -234,6 +249,7 @@ export default function Users() {
       toast('Passwords do not match.')
       return
     }
+    setSavingPassword(true)
     try {
       await updateUser(pwId, { password: pwNew })
       toast('Password updated.')
@@ -242,6 +258,8 @@ export default function Users() {
       setPwConfirm('')
     } catch (err) {
       toast(err instanceof ApiRequestError ? err.message : 'Could not change password.')
+    } finally {
+      setSavingPassword(false)
     }
   }
 
@@ -278,11 +296,18 @@ export default function Users() {
           ]}
         />
 
-        <div className="tiles five">
-          {tiles.map((t) => (
-            <Tile key={t.label} value={t.value} label={t.label} />
-          ))}
-        </div>
+        {loading ? (
+          <div aria-busy="true" aria-live="polite">
+            <span className="sr-only">Loading users</span>
+            <SkeletonTiles count={4} />
+          </div>
+        ) : (
+          <div className="tiles five">
+            {tiles.map((t) => (
+              <Tile key={t.label} value={t.value} label={t.label} />
+            ))}
+          </div>
+        )}
 
         <div className={`collapse-filter${filtersOpen ? ' open' : ''}`}>
           <button
@@ -434,12 +459,13 @@ export default function Users() {
                     </Field>
                   </div>
                   <div className="row" style={{ marginTop: 12 }}>
-                    <Button type="submit" size="sm" variant="primary">
-                      Save user
+                    <Button type="submit" size="sm" variant="primary" disabled={creating}>
+                      {creating ? 'Creating…' : 'Save user'}
                     </Button>
                     <Button
                       type="button"
                       size="sm"
+                      disabled={creating}
                       onClick={() => {
                         setUserFormOpen(false)
                         setFullName('')
@@ -461,7 +487,6 @@ export default function Users() {
                   <span>{loadError}</span>
                 </div>
               ) : null}
-              {loading ? <p className="muted" style={{ padding: 16 }}>Loading users…</p> : null}
               <div className="table-wrap">
                 <table>
                   <thead>
@@ -477,6 +502,7 @@ export default function Users() {
                     </tr>
                   </thead>
                   <tbody>
+                    {loading ? <SkeletonTable rows={6} cols={8} /> : null}
                     {!loading && !rows.length ? (
                       <tr>
                         <td colSpan={8}>
@@ -484,7 +510,8 @@ export default function Users() {
                         </td>
                       </tr>
                     ) : null}
-                    {rows.map((row) => (
+                    {!loading
+                      ? rows.map((row) => (
                       <tr key={row.id}>
                         <td>
                           {row.name}
@@ -508,8 +535,13 @@ export default function Users() {
                         <td className="act">
                           {canEdit && row.status === 'Pending' ? (
                             <>
-                              <Button size="sm" variant="primary" onClick={() => approveUser(row.id)}>
-                                Approve
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                disabled={!!approvingId}
+                                onClick={() => approveUser(row.id)}
+                              >
+                                {approvingId === row.id ? 'Approving…' : 'Approve'}
                               </Button>{' '}
                             </>
                           ) : null}
@@ -535,7 +567,8 @@ export default function Users() {
                           )}
                         </td>
                       </tr>
-                    ))}
+                    ))
+                      : null}
                   </tbody>
                 </table>
               </div>
@@ -725,7 +758,11 @@ export default function Users() {
         wide
         title="Edit user"
         subtitle="Update name, contact, role or status"
-        onClose={() => setEditId(null)}
+        closeDisabled={savingEdit}
+        onClose={() => {
+          if (savingEdit) return
+          setEditId(null)
+        }}
       >
         <form onSubmit={saveEdit}>
           <div className="form-grid">
@@ -774,10 +811,10 @@ export default function Users() {
             </Field>
           </div>
           <div className="modal-actions">
-            <Button type="submit" variant="primary">
-              Save changes
+            <Button type="submit" variant="primary" disabled={savingEdit}>
+              {savingEdit ? 'Saving…' : 'Save changes'}
             </Button>
-            <Button type="button" onClick={() => setEditId(null)}>
+            <Button type="button" disabled={savingEdit} onClick={() => setEditId(null)}>
               Cancel
             </Button>
           </div>
@@ -788,7 +825,9 @@ export default function Users() {
         open={!!pwId}
         title="Update password"
         subtitle="Set a new password for this user"
+        closeDisabled={savingPassword}
         onClose={() => {
+          if (savingPassword) return
           setPwId(null)
           setPwNew('')
           setPwConfirm('')
@@ -812,11 +851,12 @@ export default function Users() {
             />
           </Field>
           <div className="modal-actions">
-            <Button type="submit" variant="primary">
-              Update password
+            <Button type="submit" variant="primary" disabled={savingPassword}>
+              {savingPassword ? 'Updating…' : 'Update password'}
             </Button>
             <Button
               type="button"
+              disabled={savingPassword}
               onClick={() => {
                 setPwId(null)
                 setPwNew('')

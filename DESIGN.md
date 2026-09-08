@@ -66,7 +66,7 @@ Import: `https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&d
 
 | Token | Value |
 |-------|-------|
-| `--rail-expanded` | `248px` |
+| `--rail-expanded` | `280px` |
 | `--rail-collapsed` | `64px` (desktop icon-rail) |
 | `--rail` | `var(--rail-expanded)`; `html.rail-narrow` → collapsed; `0` on ≤820 with drawer |
 | `--r` | `8px` panel radius |
@@ -144,7 +144,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 
 | Item | Value |
 |------|-------|
-| Expanded width | `--rail-expanded: 248px` |
+| Expanded width | `--rail-expanded: 280px`; brand height = `--topbar-h` |
 | Collapsed width | `--rail-collapsed: 64px` |
 | Width transition | ~0.38s cubic-bezier on `.rail` width + `.shell` margin/width |
 | Label hide | `.nav-label` / `.brand-text` / `.rail-foot` opacity + overflow (no hard unmount) |
@@ -244,10 +244,30 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Upload timing | Parent `uploadImages` on form submit — not per-file on add |
 | CSS | `.photo-source-menu`, `.camera-capture-*`, `.camera-flip-*`, `.camera-crop-*` in `index.css` |
 
-## Phase 21 — Field label + Ticket Update trim
+## Phase 21 — Sidebar alignment, pagination, PhotoPicker/modal, live Add Update
 
 | Item | Pattern |
 |------|---------|
 | Field wrapper | `div.fld` (not `<label>`) — avoids label-activating first photo × |
-| Photo remove | `preventDefault` on `.photos`; revoke only the removed object URL |
+| Photo remove | Revoke only the removed object URL |
 | Ticket Update | No Hand over / Next visit planned; Photos before Work done / Work done today |
+| Collapsed rail | Brand glyph + nav icons centered in `--rail-collapsed` (64px); brand height = `--topbar-h` |
+| Expanded rail | `--rail-expanded: 280px`; single-line title |
+| Shell / topbar | Topbar inside `.shell`; width follows `--rail`; menu X held through collapse animation |
+| TicketList pager | `.table-pagination`: Rows per page + range; Prev/Next with `<` / `>` |
+| Limit options | 10 / 25 / 50 / 100 (default 25) |
+| PhotoPicker in modal | Source menu + camera portaled to `body`; hidden folder input; Add photo leftmost when empty |
+| Add Update save | `POST /updates` → `uploadImages` → `PATCH …/photos`; button needs Update-ticket `e` |
+
+## Phase 22 — Responsive skeleton loaders
+
+| Item | Pattern |
+|------|---------|
+| Primitive | `.sk` block with shimmer; tokens `--line` / `--hover` / `--panel` |
+| Reduced motion | `animation: none` under `prefers-reduced-motion: reduce` |
+| TicketList | `SkeletonTiles` (4) + `SkeletonTable` in panel body |
+| TicketDetail | Record + facts + `grid-2` panel skeletons |
+| Dashboard | Fleet strip + `grid-2` panel skeletons (filters stay visible) |
+| Users | Tiles + table skeleton |
+| Auth boot | Minimal brand-width bars in `.auth-boot` |
+

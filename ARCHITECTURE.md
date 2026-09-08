@@ -49,15 +49,16 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **React (Phase 10–11):** Login with email or mobile + password against `../backend`. JWT Bearer token.
 - **Signup approval:** `POST /api/auth/signup` creates `status=Pending` (default role Site attendant). **Admin or Project Manager** (Users `e`) reviews on Users, may PATCH details/role, then `PATCH { status: 'Active' }`. Login rejects Pending with `PENDING_APPROVAL`.
 - **Ticket visibility (backend):** Admin / Project manager keep city-wide access. Everyone else: SQL `(assignee_id = me OR raised_by_user_id = me)` via `lib/ticket-access.ts` on list/export/detail. **Ticket list/export do not AND `assigned_roads`** — that hid tickets a Site attendant raised on other roads. Detail: raiser/assignee pass before road check. Assign uses road scope only (so Control room can assign). Dashboard open-ticket queries use the same visibility fragment.
-- **Ticket UI (Phase 16):** TicketList, Dashboard, and TicketDetail call live APIs and render whatever the backend returns. Frontend does not filter tickets for security. Raise/Update/Close/WorkReport ticket POST remains mock; photo files upload on submit via `uploadImages`.
+- **Ticket UI (Phase 16):** TicketList, Dashboard, and TicketDetail call live APIs and render whatever the backend returns. Frontend does not filter tickets for security. Raise/Update/Close ticket POST remains mock; photo files upload on submit via `uploadImages`. Detail Add Update is live (Phase 21): `addTicketUpdate` → optional `uploadImages` → `attachTicketUpdatePhotos`.
 - **QR scan (Phase 17):** `QrScannerModal` opens the device camera for **Site attendant** and **Technician** only. Scans resolve via mock `resolveScan` until QR payload is finalized. Site attendant Raise shows device info (incl. lat/lng) and blocks a second open ticket (`status ≠ Closed`). Technician Update opens the camera then keeps the existing mock inspection UI.
 - **Home + Dashboard (Phase 18):** `homePathForUser` / `isDashboardRole` — only **Admin** and **Project manager** land on `/dashboard` after login (and see Dashboard in the sidebar). Other roles → `/tickets`. `HomeRedirect` for `/` and unknown routes; Dashboard page redirects others away.
 - **Ticket status (Phase 18):** Product statuses no longer include **New**; create/list display **Open**. FE `normalizeTicketStatus` + BE `displayStatus`; migration `007_ticket_status_open.sql` rewrites stored rows when run.
 - **Ticket list columns (Phase 18):** **Raised by** (`raisedBy` from API) immediately before **Assigned to**. Open tab label (route/query tab id remains `new`).
 - **Ticket list / detail UX (Phase 19):** Open tab hides **Updates**; Closed shows **Days After Close** (`daysAfterClose`) instead of Days open; Assigned keeps Updates + Days open. TicketDetail Add Update uses `Modal`; work history oldest→newest; trail `photos` → View Image → `ImagePreviewModal` gallery. List→detail passes `state.from = /tickets?tab=…`; Back to tickets / crumb use `backToTickets` so the active tab is restored.
 - **Ticket list tabs & tiles (Phase 19 follow-up, backend `tickets.ts`):** `tabForStatus` — Closed → `cls`; no `assignee_id` → `new` (Open tab); else → `asg`. Tile **Open, not attended** = count of tab `new` (matches Open badge). `listStatus` (list/tiles only, no DB write): assignee + stored Open/New → display/count as **Under repair** so Under repair (+ Waiting for spare) aligns with Assigned; **Open over 3 days** = non-closed with daysOpen > 3.
-- **Photo attachments (Phase 20 — Image attachment in ticket):** Shared `PhotoPicker` — Choose from folder or Capture from camera (`CameraCaptureModal` via `getUserMedia`). Live preview: front/rear via overlay **flip icon** (`.camera-flip-btn`, camera + circular arrows SVG); bottom actions **Cancel** + **Take photo**. After capture: crop/review (drag box / corner handles) → **Upload** (confirm cropped JPEG `File`) or **Recapture**. Crop image is **full width** of the modal (`.camera-crop-image { width: 100% }`); stage background transparent — no black letterbox side bars. Both sources validate (`image/*`, ≤8 MB), keep local `File` + object-URL thumbs (max **5**). **`uploadImages` / `uploadImage` run on form submit** (Raise, Ticket Update, Ticket Close, Detail Add Update) — not when each photo is added. Ticket create/update/close POST remains toast until wired. Do not use `QrScannerModal` for photos.
-- **Field / PhotoPicker regression (Phase 21):** `Field` must be `<div class="fld">`, never `<label>` — a wrapping label activates the first nested control, so the first photo’s × looked like “remove all.” PhotoPicker also `preventDefault` on `.photos` clicks and revokes only the removed object URL (not remaining thumbs).
+- **Photo attachments (Phase 20 — Image attachment in ticket):** Shared `PhotoPicker` — Choose from folder or Capture from camera (`CameraCaptureModal` via `getUserMedia`). Live preview: front/rear via overlay **flip icon** (`.camera-flip-btn`, camera + circular arrows SVG); bottom actions **Cancel** + **Take photo**. After capture: crop/review (drag box / corner handles) → **Upload** (confirm cropped JPEG `File`) or **Recapture**. Crop image is **full width** of the modal (`.camera-crop-image { width: 100% }`); stage background transparent — no black letterbox side bars. Both sources validate (`image/*`, ≤8 MB), keep local `File` + object-URL thumbs (max **5**). **`uploadImages` / `uploadImage` run on form submit** (Raise, Ticket Update, Ticket Close, Detail Add Update) — not when each photo is added. Ticket create/update/close POST remains toast until wired (Detail Add Update wired in Phase 21). Do not use `QrScannerModal` for photos.
+- **Phase 21 — Sidebar, pagination, PhotoPicker/modal, live Add Update:** Collapsed desktop rail centered on 64px column; `TablePagination` + `listTickets({ page, limit })` (10/25/50/100, default 25). `Field` is `div.fld`. PhotoPicker: persistent hidden file input; folder menu + camera portaled to `document.body`; Modal `elevated` for camera over Add Update. Detail Add Update: `POST /api/tickets/:id/updates` (photos `[]`) → `uploadImages` → `PATCH …/updates/:eventId/photos`; button requires `Update ticket` `e`. Backend allows Admin/PM, holder, unassigned claim, or raiser for updates (close still holder-only).
+- **Phase 22 — Responsive skeleton loaders:** Shared `Skeleton` primitives replace plain `Loading…` on TicketList, TicketDetail, Dashboard, Users, and Auth boot. CSS shimmer uses existing tokens; `prefers-reduced-motion` disables animation. No new libraries.
 - **Forgot/reset:** Existing backend `POST /api/auth/forgot-password` + `reset-password` (SHA-256 token, 1h TTL, bcrypt). FE: `/forgot-password`, `/reset-password`.
 - **Admin change password:** Reuse `PATCH /api/users/:id` with `password` (requires Users edit). Increments `password_version` (invalidates JWTs).
 - **Self-service Settings (Phase 13):**
@@ -95,10 +96,12 @@ frontend/
     │   ├── api.js
     │   ├── auth.js             # login, me, updateProfile, changePassword, logout, …
     │   ├── users.js            # Users admin + canPerm + homePathForUser / isDashboardRole
-    │   ├── tickets.js          # list/get + New→Open normalize
+    │   ├── tickets.js          # list/get + page/limit + addTicketUpdate + attachTicketUpdatePhotos
     │   ├── dashboard.js
     │   ├── devices.js          # resolveScan mock (+ scan helpers)
     │   └── uploads.js          # validateImageFile + uploadImage / uploadImages (submit-time)
+    ├── constants/
+    │   └── pagination.js       # PAGE_SIZE_OPTIONS 10/25/50/100 + DEFAULT_PAGE_SIZE
     ├── data/                   # ISSUE_MASTER, tickets, devices, roads, dashboard, scanDevice, …
     ├── layouts/
     │   ├── AppLayout.jsx       # railOpen (mobile) + railCollapsed (desktop) + shell
@@ -106,7 +109,7 @@ frontend/
     ├── components/
     │   ├── layout/             # Sidebar (filterMenuByView + Dashboard role gate), Topbar
     │   ├── icons/              # NavIcons (incl. logout)
-    │   └── ui/                 # Button, Panel, Field (div.fld), PhotoPicker, CameraCaptureModal, Modal, QrScannerModal, …
+    │   └── ui/                 # Button, Panel, Field (div.fld), PhotoPicker, CameraCaptureModal, TablePagination, Skeleton, Modal, …
     ├── pages/
     │   ├── auth/               # Login (homePathForUser), Signup, Forgot, Reset
     │   ├── Dashboard.jsx       # Admin/PM only; fleet + why-down + road-wise
@@ -238,5 +241,5 @@ TicketList (tab = new | asg | cls)
 TicketDetail
   → backToTickets = ticketsListReturnPath(state.from)  // else /tickets
   → crumb + “Back to tickets” → backToTickets
-  → Add Update → Modal (toast); work history ASC; View Image → ImagePreviewModal
+  → Add Update → Modal → POST updates → uploads → PATCH photos; work history ASC; View Image → ImagePreviewModal
 ```

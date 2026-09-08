@@ -5,6 +5,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { ApiRequestError, clearToken, getToken } from '../services/api'
 import * as authApi from '../services/auth'
 import { homePathForUser } from '../services/users'
+import { AuthBootSkeleton } from '../components/ui/Skeleton'
 
 const AuthContext = createContext(null)
 
@@ -112,11 +113,7 @@ export function RequireAuth({ children }) {
   const location = useLocation()
 
   if (loading) {
-    return (
-      <div className="auth-boot" role="status">
-        Loading…
-      </div>
-    )
+    return <AuthBootSkeleton />
   }
 
   if (!user) {
@@ -131,11 +128,7 @@ export function GuestOnly({ children }) {
   const { user, loading } = useAuth()
 
   if (loading) {
-    return (
-      <div className="auth-boot" role="status">
-        Loading…
-      </div>
-    )
+    return <AuthBootSkeleton />
   }
 
   if (user) {
@@ -150,11 +143,7 @@ export function HomeRedirect() {
   const { user, loading } = useAuth()
 
   if (loading) {
-    return (
-      <div className="auth-boot" role="status">
-        Loading…
-      </div>
-    )
+    return <AuthBootSkeleton />
   }
 
   return <Navigate to={homePathForUser(user)} replace />

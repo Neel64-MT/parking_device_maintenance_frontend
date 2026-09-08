@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
 import { toast } from '../../context/ToastContext'
+import { DEFAULT_PAGE_SIZE } from '../../constants/pagination'
 import { ISSUE_MASTER } from '../../data/issueMaster'
 import { ROAD_OPTIONS } from '../../data/slots'
 import { TICKET_TAB_META } from '../../data/tickets'
@@ -14,6 +15,8 @@ import { Field, FilterBar } from '../../components/ui/FilterBar'
 import { JumpLinks } from '../../components/ui/JumpLinks'
 import { Panel } from '../../components/ui/Panel'
 import { Pill } from '../../components/ui/Pill'
+import { SkeletonTable, SkeletonTiles } from '../../components/ui/Skeleton'
+import { TablePagination } from '../../components/ui/TablePagination'
 import { Tabs } from '../../components/ui/Tabs'
 import { Tile } from '../../components/ui/Tile'
 
@@ -62,6 +65,15 @@ export default function TicketList() {
     q: '',
   }))
 
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: DEFAULT_PAGE_SIZE,
+    total: 0,
+    totalPages: 1,
+  })
+
   const [rows, setRows] = useState([])
   const [tiles, setTiles] = useState([])
   const [tabCounts, setTabCounts] = useState({ new: 0, asg: 0, cls: 0 })
@@ -80,6 +92,12 @@ export default function TicketList() {
           setLoadError('You do not have permission to view tickets.')
           setRows([])
           setTiles([])
+          setPagination({
+            page: 1,
+            limit,
+            total: 0,
+            totalPages: 1,
+          })
         }
         return
       }
@@ -95,13 +113,21 @@ export default function TicketList() {
           status: statusForTab(tab, applied.status),
           category: applied.category,
           assignee: canFilterAssignee ? applied.assignee : FILTER_DEFAULTS.assignee,
-          page: 1,
-          limit: 100,
+          page,
+          limit,
         })
         if (cancelled) return
         setRows(result.rows)
         setTiles(result.tiles)
         setTabCounts(result.tabCounts)
+        setPagination(
+          result.pagination || {
+            page,
+            limit,
+            total: result.rows.length,
+            totalPages: 1,
+          },
+        )
       } catch (err) {
         if (!cancelled) {
           setLoadError(err instanceof ApiRequestError ? err.message : 'Could not load tickets.')
@@ -117,7 +143,7 @@ export default function TicketList() {
     return () => {
       cancelled = true
     }
-  }, [canView, canFilterAssignee, tab, applied])
+  }, [canView, canFilterAssignee, tab, applied, page, limit])
 
   function handleTab(id) {
     const nextTab = parseTab(id)
@@ -132,12 +158,14 @@ export default function TicketList() {
     setQuery('')
     const nextStatus = statusForTab(nextTab, status)
     setStatus(nextStatus)
+    setPage(1)
     setApplied((prev) => ({ ...prev, q: '', status: nextStatus }))
   }
 
   function applyFilters() {
     const nextStatus = statusForTab(tab, status)
     setStatus(nextStatus)
+    setPage(1)
     setApplied({
       road,
       status: nextStatus,
@@ -153,6 +181,7 @@ export default function TicketList() {
     setCategory(FILTER_DEFAULTS.category)
     setAssignee(FILTER_DEFAULTS.assignee)
     setQuery('')
+    setPage(1)
     setApplied({
       road: FILTER_DEFAULTS.road,
       status: FILTER_DEFAULTS.status,
@@ -160,6 +189,11 @@ export default function TicketList() {
       assignee: FILTER_DEFAULTS.assignee,
       q: '',
     })
+  }
+
+  function handleLimitChange(nextLimit) {
+    setLimit(nextLimit)
+    setPage(1)
   }
 
   const openCount = (tabCounts.new || 0) + (tabCounts.asg || 0)
@@ -192,19 +226,26 @@ export default function TicketList() {
           </div>
         ) : null}
 
-        <div className="tiles five">
-          {(tiles.length
-            ? tiles
-            : [
-                { value: '—', label: 'Open, not attended', tone: 'bad' },
-                { value: '—', label: 'Under repair', tone: 'warn' },
-                { value: '—', label: 'Waiting for spare', tone: 'warn' },
-                { value: '—', label: 'Open over 3 days', tone: 'bad' },
-              ]
-          ).map((t) => (
-            <Tile key={t.label} value={t.value} label={t.label} tone={t.tone} />
-          ))}
-        </div>
+        {loading ? (
+          <div aria-busy="true" aria-live="polite">
+            <span className="sr-only">Loading tickets</span>
+            <SkeletonTiles count={4} />
+          </div>
+        ) : (
+          <div className="tiles five">
+            {(tiles.length
+              ? tiles
+              : [
+                  { value: '—', label: 'Open, not attended', tone: 'bad' },
+                  { value: '—', label: 'Under repair', tone: 'warn' },
+                  { value: '—', label: 'Waiting for spare', tone: 'warn' },
+                  { value: '—', label: 'Open over 3 days', tone: 'bad' },
+                ]
+            ).map((t) => (
+              <Tile key={t.label} value={t.value} label={t.label} tone={t.tone} />
+            ))}
+          </div>
+        )}
 
         <FilterBar
           actions={
@@ -278,7 +319,7 @@ export default function TicketList() {
                 placeholder="Ticket, device or slot"
                 aria-label="Search tickets"
               />
-              <Link className="btn btn-primary" to="/tickets/raise">
+              <Link className="btn btn-primary" to="/tickets/raise" state={ticketLinkState}>
                 Raise ticket
               </Link>
             </>
@@ -305,13 +346,7 @@ export default function TicketList() {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={colCount}>
-                      <span className="muted">Loading tickets…</span>
-                    </td>
-                  </tr>
-                ) : null}
+                {loading ? <SkeletonTable rows={6} cols={colCount} /> : null}
                 {!loading && !rows.length ? (
                   <tr>
                     <td colSpan={colCount}>
@@ -398,6 +433,15 @@ export default function TicketList() {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            page={pagination.page || page}
+            limit={limit}
+            total={pagination.total || 0}
+            totalPages={pagination.totalPages || 1}
+            disabled={loading}
+            onPageChange={setPage}
+            onLimitChange={handleLimitChange}
+          />
         </Panel>
       </main>
     </>

@@ -128,6 +128,13 @@ Inspect existing code
 - Collapsed tooltips: native `title` / `aria-label` — no tooltip library.
 - Extend `NavIcons.jsx` for new glyphs; do not add lucide/heroicons.
 - Collapsed group click: expand the rail, then open the group (no flyout menus).
+- Collapsed column: keep glyph/nav icons centered; never invent a second left offset for the topbar.
+
+## Ticket list pagination skills (Phase 21+)
+
+- Pass `page` + `limit` to `listTickets`; read `pagination` from the envelope.
+- Use shared `TablePagination` with limits `[10, 25, 50, 100]`; default `25`.
+- On tab / Apply / Reset / limit change → `page = 1` then refetch.
 
 ## Ticket access skills (Phase 15+)
 
@@ -165,6 +172,13 @@ Inspect existing code
 - Folder = native file input; camera = `CameraCaptureModal` (`getUserMedia` + facingMode flip → JPEG `File`); both call `uploadImage` then update thumbs/`onChange(urls)`.
 - Client-validate `image/*` and 8 MB before upload; toast via existing `toast`.
 - Do not use `html5-qrcode` for ticket photos.
+
+## Loading skeletons (Phase 22+)
+
+- Use shared `Skeleton` / `SkeletonTiles` / `SkeletonTable` for live fetches; do not invent per-page one-off loaders.
+- Keep filters/JumpLinks visible where the plan says so; replace only the data region.
+- Honor `prefers-reduced-motion` via CSS (no shimmer).
+- Live create/update buttons: disable + busy label (`Saving…` / `Creating…`) while the request runs; gate Cancel/modal close the same way (Users create/edit/password/approve).
 
 ## Definition of done (per page)
 

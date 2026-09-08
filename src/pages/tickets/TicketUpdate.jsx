@@ -120,6 +120,7 @@ export default function TicketUpdate() {
             ? `Update saved. Ticket stays open (${photoUrls.length} photo${photoUrls.length > 1 ? 's' : ''} ready).`
             : 'Update saved. Ticket stays open.',
         )
+        navigate(backTo)
       }
     } catch (err) {
       toast(err instanceof ApiRequestError ? err.message : 'Could not upload images.')

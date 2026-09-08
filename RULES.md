@@ -38,6 +38,14 @@ Reuse NavIcons — do not add an icon library.
 Prefer local useState in AppLayout for rail width; no Redux/Zustand/Context for collapse; no localStorage unless product asks.
 Keep collapse animations lightweight (CSS width + label opacity).
 Do not redesign unrelated shell/page UI when touching the sidebar.
+Collapsed icon-rail: center brand glyph and nav icons in the 64px column; drive offsets only via `--rail` / `.shell` — no magic topbar left margins.
+While the desktop rail is collapsing, keep the topbar menu as close (X) until the width animation finishes (do not flip to hamburger mid-transition).
+Ticket list pagination (Phase 21+)
+All tickets must use server page/limit from GET /api/tickets (do not fetch all rows and slice in React).
+Limit options are exactly 10, 25, 50, 100; default 25 unless product asks otherwise.
+Reset page to 1 when tab, Apply filters, Reset filters, or limit changes.
+Reuse TablePagination; keep pagination in component state (do not put page/limit in the URL unless product asks).
+Preserve tiles/tabCounts from the same list envelope.
 Settings rules (Phase 13+)
 Settings is self-service only: name, email, mobile, and password for the signed-in user.
 Do not put admin Users/role management on Settings — that stays on Users.
@@ -60,17 +68,20 @@ Frontend ticket rendering (Phase 16+)
 TicketList / Dashboard / TicketDetail must consume scoped APIs; never download all tickets and filter in React for authorization.
 Reuse canPerm and Users loading/empty/error patterns; do not add a second role store.
 Preserve existing layout; only bind live data.
-Leave Raise/Update/Close/WorkReport ticket POST mock until those APIs are wired (photo files may still upload on submit via uploadImages; Work report backend is not ownership-scoped yet).
+Leave Raise/Update/Close create POST and WorkReport mock until those APIs are wired (photo files may still upload on submit via uploadImages; Detail Add Update is live as of Phase 21; Work report backend is not ownership-scoped yet).
 Ticket list / detail UI (Phase 19+)
 Open tab (new) must not show the Updates column; Assigned keeps it.
 Closed tab (cls) shows Days After Close, not Days open.
 Open tab (new) = unassigned non-closed only; Assigned (asg) = has assignee; Closed unchanged — enforce in backend tabForStatus (not React row filters).
 Tile Open, not attended must match Open tab; assigned rows still stored as Open/New must listStatus as Under repair for pills and Under repair tile (DB unchanged).
-Add Update must reuse the existing form fields and toast submit; present it in Modal only.
+Add Update must reuse the existing form fields; present it in Modal only.
+Add Update submit (Phase 21+): POST /api/tickets/:id/updates first (photos may be empty), then uploadImages, then PATCH …/updates/:eventId/photos. Do not upload photos before the update is accepted. Toast success only when all required steps succeed; reload work history from GET ticket.
+Show Add Update only when canPerm(user, 'Update ticket', 'e'). Backend remains the authority (Admin/PM, holder, unassigned claim, or raiser).
 Work history displays oldest → newest (new entries at the bottom); keep the trail always visible.
 Show View Image only when event photos is non-empty; gallery reuses Modal (main + thumbnails).
 List → detail must pass state.from = /tickets?tab=…; Back to tickets / crumb must use that path so the active tab is preserved (do not hard-code /tickets when from is present).
-Do not add image/modal libraries; do not invent duplicate optimistic trail rows while update POST is unwired.
+Raise ticket Cancel / All tickets / crumb must use the same state.from tab return when opened from All tickets (JumpLinks already passes from; list Raise button must pass it too).
+Do not add image/modal libraries; do not invent duplicate optimistic trail rows.
 Home & Dashboard access (Phase 18+)
 Only Admin and Project manager may open Dashboard (isDashboardRole / homePathForUser).
 After login (and GuestOnly / / / catch-all), non–ops-lead roles go to /tickets.
@@ -93,9 +104,11 @@ Flip front/rear with the overlay icon on the live preview (`.camera-flip-btn`), 
 After Take photo: crop/review → Upload (confirm File into picker) or Recapture. Crop preview must be full modal width (`.camera-crop-image` width 100%); do not reintroduce a dark letterbox stage behind portrait shots.
 Default max is 5 photos; toast when over limit; hide Add when at limit.
 Keep the compact photo tile (do not full-bleed Add photo).
-Field / label (Phase 21+)
+Field / PhotoPicker / modal (Phase 21+)
 Field must render div.fld, never label.fld. A wrapping label activates the first nested button/input and makes the first photo × remove (or look like it removes) other thumbs.
-PhotoPicker: preventDefault on .photos clicks; on remove, revoke only that item’s object URL (do not rebuild/revoke remaining URLs).
+PhotoPicker: on remove, revoke only that item’s object URL (do not rebuild/revoke remaining URLs).
+Keep a persistent hidden file input for folder picks (do not mount the native file control inside a portaled menu that unmounts mid-pick). Never show the browser “Choose files” chrome in the Photos row — Add photo tile is leftmost when empty.
+Inside Modals, portal the photo source menu and CameraCaptureModal to document.body; use Modal elevated so camera stacks above Add Update. Escape closes only the topmost dialog.
 Ticket Update (Phase 21+): no Hand over / Next visit planned fields; Photos before Work done / Work done today.
 Landing chrome rules
 Prefer page-body toolbars (.page-toolbar, JumpLinks actions, panel-head actions, collapsible filters) over sticky topbar action slots for filters and primary CTAs.
@@ -108,6 +121,11 @@ Reported by is the signed-in user (read-only). Assignment stays with Admin / con
 Keep PhotoPicker as the original compact dashed tile — do not stretch Add photo full-width without product ask.
 Field action rows (.sticky-bar) must stay in document flow (position: static). Do not reintroduce viewport-fixed footers without product ask.
 Constrain action buttons with .sticky-bar-inner to the mobile form width (580px). Keep the bar background transparent (no full-bleed white strip).
+Loading skeletons (Phase 22+)
+Live-data screens (TicketList, TicketDetail, Dashboard, Users, Auth boot) must show layout-matching skeletons while fetching — not a lone “Loading…” line.
+Reuse Skeleton / SkeletonTiles / SkeletonTable; keep empty and error paths unchanged.
+Shimmer CSS must respect prefers-reduced-motion (animation: none).
+Do not add skeleton libraries.
 What to avoid
 No redesign, modernization, or “AI default” aesthetic.
 No purple gradients, cream+serif trends, or unrelated design systems.

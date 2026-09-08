@@ -7,6 +7,7 @@ import { getDashboard } from '../services/dashboard'
 import { canPerm, homePathForUser, isDashboardRole } from '../services/users'
 import { JumpLinks } from '../components/ui/JumpLinks'
 import { Panel } from '../components/ui/Panel'
+import { DashboardSkeleton } from '../components/ui/Skeleton'
 import { Tooltip } from '../components/ui/Tooltip'
 import { DASHBOARD_ROADS } from '../data/dashboard'
 
@@ -148,11 +149,10 @@ export default function Dashboard() {
           </div>
         ) : null}
 
-        {loading && !fleet ? (
-          <p className="muted">Loading dashboard…</p>
-        ) : null}
+        {loading && !fleet ? <DashboardSkeleton /> : null}
 
         {fleet ? (
+          <>
           <section className="fleet">
             <div className="fleet-head">
               <div className="total">{fleet.total}</div>
@@ -187,7 +187,6 @@ export default function Dashboard() {
               })}
             </div>
           </section>
-        ) : null}
 
         <div className="grid-2">
           <Panel
@@ -270,6 +269,8 @@ export default function Dashboard() {
             </div>
           </Panel>
         </div>
+          </>
+        ) : null}
       </main>
     </>
   )
