@@ -54,6 +54,10 @@ export default function ForgotPassword() {
 
   return (
     <Panel title="Forgot password" subtitle="Enter the email registered on your account">
+      <p className="muted" style={{ marginBottom: 14, fontSize: 12, lineHeight: 1.4 }}>
+        This flow is for <b>Admin</b> and <b>Project Manager</b> only. Other roles should ask an
+        admin or change their password from Settings after signing in.
+      </p>
       {error ? (
         <div className="hint-strip auth-error" role="alert">
           <span>{error}</span>

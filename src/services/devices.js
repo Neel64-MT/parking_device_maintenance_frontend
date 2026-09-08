@@ -1,3 +1,5 @@
+import { api, apiEnvelope } from './api'
+import { clampPageSize, DEFAULT_PAGE_SIZE } from '../constants/pagination'
 import {
   SCAN_DEVICE_FREE,
   SCAN_DEVICE_OPEN,
@@ -58,4 +60,43 @@ export async function resolveScan(raw) {
 
 export function canScanWithCamera(user) {
   return user?.role === 'Site attendant' || user?.role === 'Technician'
+}
+
+/**
+ * List devices. Backend applies road scope + ticket visibility on open-ticket overlays.
+ * Returns { rows, tiles, pagination } from the envelope (tiles beside `data`).
+ */
+export async function listDevices({
+  q = '',
+  road = '',
+  status = '',
+  repeats = '',
+  page = 1,
+  limit = DEFAULT_PAGE_SIZE,
+} = {}) {
+  const safeLimit = clampPageSize(limit)
+  const safePage = Math.max(1, Number(page) || 1)
+  const params = new URLSearchParams()
+  if (q.trim()) params.set('q', q.trim())
+  if (road) params.set('road', road)
+  if (status) params.set('status', status)
+  if (repeats) params.set('repeats', repeats)
+  params.set('page', String(safePage))
+  params.set('limit', String(safeLimit))
+  const envelope = await apiEnvelope(`/api/devices?${params}`)
+  return {
+    rows: envelope.data || [],
+    tiles: envelope.tiles || [],
+    pagination: envelope.pagination || {
+      page: safePage,
+      limit: safeLimit,
+      total: 0,
+      totalPages: 1,
+    },
+  }
+}
+
+/** Device history detail (GET /api/devices/:id). */
+export async function getDevice(deviceId) {
+  return api(`/api/devices/${encodeURIComponent(deviceId)}`)
 }

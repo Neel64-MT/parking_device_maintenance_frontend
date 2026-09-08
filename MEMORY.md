@@ -109,9 +109,22 @@
 - `mapWorkHistory` passes `actor` / `parts` / `cost` / `nextVisit` for View Update
 - Lint on touched files + production build pass
 
+### Phase 25 — Forgot password role gate + 404 (complete)
+
+- Backend: Admin/PM only for forgot + reset; other Active roles `403 FORGOT_PASSWORD_ROLE_DENIED`; unknown stays generic 200
+- ForgotPassword: Admin/PM note; surfaces API error; Login link unchanged
+- `NotFound` + `GearLoader` (theme tokens, no black panel, no styled-components); top-level `*` catch-all
+- Docs updated; lint/build + backend smoke for forgot cases
+
+### Device list live API
+
+- `listDevices` in `services/devices.js` → `GET /api/devices` (`apiEnvelope` for tiles + pagination)
+- DeviceList: live tiles/rows, Apply/Reset filters, server page/limit, skeletons; crumb from `pagination.total`
+- Ticket action opens existing open ticket when present, else Raise
+
 ## Currently working on
 
-- **Phase:** Phase 24 complete — idle / next product request
+- **Phase:** Device list live API — complete
 - **Task:** —
 - **File:** —
 
@@ -147,6 +160,9 @@
 31. Phase 22 follow-up — Users live mutations use button busy text (not skeletons); match Settings/Detail Add Update pattern.
 32. Phase 23 — Live parts from `GET /api/parts`; labour-only `cost` + UUID `parts`; Parts page under Masters. Masters child UI labels **Issue** / **Road** / **Parts** (group **Masters**). Permission keys stay `Issue master` / `Road master`. Parts nav icon = hex nut (not Settings gear).
 33. Phase 24 — Image transforms are CSS-only on the viewed image (do not rewrite files). Reset zoom/rotation/pan on thumbnail change via click handler (not an effect). When zoomed, pointer-move and drag pan explore the image (single-pane magnifier-style scroll). View Update is on every trail item and must never embed the gallery; View Image stays the only photo path.
+34. Phase 25 — Forgot/email reset is Admin/PM only (backend authoritative). Explicit `FORGOT_PASSWORD_ROLE_DENIED` for other Active roles; unknown emails stay generic. 404 uses top-level catch-all + themed `GearLoader` (no styled-components / no black panel). Settings change-password remains available to signed-in users of any role.
+35. Ticket list ≤760px: `.tabs-row` stacks Open/Assigned/Closed as equal-width full-width tabs above search/Raise (flex row + overflow was hiding the tab strip). Filterbar stacks at the same breakpoint. ≥761 keeps the desktop one-row tabs+actions layout.
+36. Table pagination is Card Minimal right-aligned (Page X of Y + N per page left; Prev/Next right), one row at all widths including ≤560 (compact gaps; Prev short label; select stays content-sized).
 ## Important decisions (detail)
 
 1–11. Prior phases (filters UI-only, static detail samples, responsive, Phase 10 JWT).
