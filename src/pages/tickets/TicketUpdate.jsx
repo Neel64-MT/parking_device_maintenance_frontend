@@ -2,9 +2,8 @@ import { useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
-import { toast } from '../../context/ToastContext'
+import { toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { ROAD_OPTIONS, SLOTS } from '../../data/slots'
-import { ApiRequestError } from '../../services/api'
 import { canScanWithCamera } from '../../services/devices'
 import { uploadImages } from '../../services/uploads'
 import { Button } from '../../components/ui/Button'
@@ -115,7 +114,7 @@ export default function TicketUpdate() {
       // photoUrls ready for update/close API when wired
       if (fixed) navigate('/tickets/close', { state: { from: backTo } })
       else {
-        toast(
+        toastApiSuccess(
           photoUrls.length
             ? `Update saved. Ticket stays open (${photoUrls.length} photo${photoUrls.length > 1 ? 's' : ''} ready).`
             : 'Update saved. Ticket stays open.',
@@ -123,7 +122,7 @@ export default function TicketUpdate() {
         navigate(backTo)
       }
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Could not upload images.')
+      toastApiError(err, 'Could not upload images.')
     } finally {
       setSubmitting(false)
     }

@@ -257,7 +257,7 @@ export default function TicketList() {
               <Button variant="dark" onClick={applyFilters}>
                 Apply
               </Button>
-              <Button variant="dark" onClick={() => toast('Design preview — export would run here.')}>
+              <Button variant="dark" onClick={() => toast('Design preview — export would run here.', 'info')}>
                 Export
               </Button>
             </>

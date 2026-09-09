@@ -57,7 +57,9 @@ export default function DeviceDetail() {
               <Pill tone={DEVICE_HEADER.statusTone}>{DEVICE_HEADER.status}</Pill>
             </div>
             <div className="push">
-              <Button onClick={() => toast('QR label sent to printer.')}>Print QR label</Button>
+              <Button onClick={() => toast('QR label sent to printer.', 'success')}>
+                Print QR label
+              </Button>
               <Link className="btn" to="/devices/add">
                 Edit device
               </Link>

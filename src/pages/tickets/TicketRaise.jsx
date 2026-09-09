@@ -2,10 +2,9 @@ import { useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
-import { toast } from '../../context/ToastContext'
+import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { scanDeviceFacts } from '../../data/scanDevice'
 import { ROAD_OPTIONS, SLOTS } from '../../data/slots'
-import { ApiRequestError } from '../../services/api'
 import { canScanWithCamera, resolveScan } from '../../services/devices'
 import { uploadImages } from '../../services/uploads'
 import { Button } from '../../components/ui/Button'
@@ -87,7 +86,7 @@ export default function TicketRaise() {
   async function applyResolved(raw, opts = {}) {
     const scan = await resolveScan(raw)
     if (!scan) {
-      toast('Could not resolve that device code.')
+      toast('Could not resolve that device code.', 'error')
       return
     }
     if (opts.road) setRoad(opts.road)
@@ -113,11 +112,11 @@ export default function TicketRaise() {
 
   async function tryRaise() {
     if (!device) {
-      toast('Scan or select a device first.')
+      toast('Scan or select a device first.', 'error')
       return
     }
     if (blocked) {
-      toast('This device already has an open ticket. Update that ticket instead.')
+      toast('This device already has an open ticket. Update that ticket instead.', 'warning')
       return
     }
     setSubmitting(true)
@@ -128,13 +127,13 @@ export default function TicketRaise() {
         photoUrls = uploaded.map((u) => u.url)
       }
       // photoUrls ready for create-ticket API when wired
-      toast(
+      toastApiSuccess(
         photoUrls.length
           ? `Design preview — ticket would be created here (${photoUrls.length} photo${photoUrls.length > 1 ? 's' : ''} ready).`
           : 'Design preview — ticket would be created here.',
       )
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Could not upload images.')
+      toastApiError(err, 'Could not upload images.')
     } finally {
       setSubmitting(false)
     }

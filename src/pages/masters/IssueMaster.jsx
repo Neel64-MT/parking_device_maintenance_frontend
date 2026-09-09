@@ -42,14 +42,14 @@ export default function IssueMaster() {
 
   function saveCategory(e) {
     e.preventDefault()
-    toast('Design preview — category would be saved here.')
+    toast('Design preview — category would be saved here.', 'success')
     setCatOpen(false)
     setCatName('')
   }
 
   function saveSub(e) {
     e.preventDefault()
-    toast('Design preview — sub-category would be saved here.')
+    toast('Design preview — sub-category would be saved here.', 'success')
     setSubOpen(false)
     setSubName('')
     setSeverity('Critical')
@@ -236,7 +236,7 @@ export default function IssueMaster() {
                             <Pill tone="ok">Active</Pill>
                           </td>
                           <td className="act">
-                            <Button size="sm" onClick={() => toast('Edit form opens here.')}>
+                            <Button size="sm" onClick={() => toast('Edit form opens here.', 'info')}>
                               Edit
                             </Button>{' '}
                             <Button
@@ -247,6 +247,7 @@ export default function IssueMaster() {
                                   n
                                     ? `Used on ${n} tickets — can only be made inactive.`
                                     : 'Not used yet — safe to remove.',
+                                  n ? 'warning' : 'info',
                                 )
                               }
                             >

@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { PageMeta } from '../context/PageMetaContext'
-import { toast } from '../context/ToastContext'
-import { ApiRequestError } from '../services/api'
+import { toast, toastApiError, toastApiSuccess } from '../context/ToastContext'
 import { Button } from '../components/ui/Button'
 import { Field } from '../components/ui/FilterBar'
 import { Panel } from '../components/ui/Panel'
@@ -21,15 +20,15 @@ function ProfileForm({ user, updateProfile }) {
     const mobileValue = mobile.trim()
 
     if (fullName.length < 2) {
-      toast('Enter your full name.')
+      toast('Enter your full name.', 'error')
       return
     }
     if (!emailValue) {
-      toast('Enter your email.')
+      toast('Enter your email.', 'error')
       return
     }
     if (mobileValue.length < 10) {
-      toast('Mobile number must be at least 10 digits.')
+      toast('Mobile number must be at least 10 digits.', 'error')
       return
     }
 
@@ -40,9 +39,9 @@ function ProfileForm({ user, updateProfile }) {
         email: emailValue,
         mobile: mobileValue,
       })
-      toast('Profile updated.')
+      toastApiSuccess('Profile updated.')
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Could not update profile.')
+      toastApiError(err, 'Could not update profile.')
     } finally {
       setSavingProfile(false)
     }
@@ -102,27 +101,27 @@ function PasswordForm({ changePassword }) {
   async function savePassword(e) {
     e.preventDefault()
     if (!currentPassword) {
-      toast('Enter your current password.')
+      toast('Enter your current password.', 'error')
       return
     }
     if (newPassword.length < 8) {
-      toast('New password must be at least 8 characters.')
+      toast('New password must be at least 8 characters.', 'error')
       return
     }
     if (newPassword !== confirmPassword) {
-      toast('New passwords do not match.')
+      toast('New passwords do not match.', 'error')
       return
     }
 
     setSavingPassword(true)
     try {
       await changePassword({ currentPassword, newPassword })
-      toast('Password updated.')
+      toastApiSuccess('Password updated.')
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Could not update password.')
+      toastApiError(err, 'Could not update password.')
     } finally {
       setSavingPassword(false)
     }

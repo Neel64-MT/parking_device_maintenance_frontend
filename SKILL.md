@@ -264,11 +264,12 @@ Person-centric daily work report, not a ticket dump.
 
 ### Devices — list
 
-- Road + slot on every row
-- Current open ticket / current issue inline
-- Tickets in last 6 months — flag at 3 or more (replace-vs-repair)
-- Row opens history; open-ticket ref opens that ticket; Ticket action
-  raises or continues the existing ticket
+- Columns: **Slot Id**, **Slot Label**, **Slot Identifier**, **QR Number**, **Parking Location**
+  (Phase 26 Device Sync table; QR Number links to device history)
+- **Sync Devices** action (Device list create permission) starts backend sync; UI stays non-blocking
+- Tiles + road/status/repeat filters + server pagination remain
+- Current open ticket / tickets-in-6-months overlays still available from API for other flows;
+  not shown as list columns in this phase
 
 ### Devices — history (the main screen)
 

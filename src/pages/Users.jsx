@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { PageMeta } from '../context/PageMetaContext'
-import { toast } from '../context/ToastContext'
+import { toast, toastApiError, toastApiSuccess } from '../context/ToastContext'
 import { ApiRequestError } from '../services/api'
 import { canPerm, createUser, homePathForUser, listRoles, listUsers, updateUser } from '../services/users'
 import {
@@ -160,7 +160,7 @@ export default function Users() {
     e.preventDefault()
     if (!canCreate || creating) return
     if (!fullName.trim() || !mobile.trim() || !password || !roleId) {
-      toast('Name, mobile, password and role are required.')
+      toast('Name, mobile, password and role are required.', 'error')
       return
     }
     setCreating(true)
@@ -174,7 +174,7 @@ export default function Users() {
         roadIds: [],
         status: 'Active',
       })
-      toast('User created.')
+      toastApiSuccess('User created.')
       setUserFormOpen(false)
       setFullName('')
       setMobile('')
@@ -182,7 +182,7 @@ export default function Users() {
       setPassword('')
       await refreshUsers()
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Could not create user.')
+      toastApiError(err, 'Could not create user.')
     } finally {
       setCreating(false)
     }
@@ -193,10 +193,10 @@ export default function Users() {
     setApprovingId(id)
     try {
       await updateUser(id, { status: 'Active' })
-      toast('User approved.')
+      toastApiSuccess('User approved.')
       await refreshUsers()
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Could not approve user.')
+      toastApiError(err, 'Could not approve user.')
     } finally {
       setApprovingId(null)
     }
@@ -217,7 +217,7 @@ export default function Users() {
     if (!canEdit || !editId || savingEdit) return
     const mobileValue = editMobile.trim()
     if (mobileValue.length < 10) {
-      toast('Mobile number must be at least 10 digits.')
+      toast('Mobile number must be at least 10 digits.', 'error')
       return
     }
     setSavingEdit(true)
@@ -229,11 +229,11 @@ export default function Users() {
         roleId: editRoleId || undefined,
         status: editStatus,
       })
-      toast('User updated.')
+      toastApiSuccess('User updated.')
       setEditId(null)
       await refreshUsers()
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Could not update user.')
+      toastApiError(err, 'Could not update user.')
     } finally {
       setSavingEdit(false)
     }
@@ -243,22 +243,22 @@ export default function Users() {
     e.preventDefault()
     if (!canEdit || !pwId || savingPassword) return
     if (pwNew.length < 8) {
-      toast('Password must be at least 8 characters.')
+      toast('Password must be at least 8 characters.', 'error')
       return
     }
     if (pwNew !== pwConfirm) {
-      toast('Passwords do not match.')
+      toast('Passwords do not match.', 'error')
       return
     }
     setSavingPassword(true)
     try {
       await updateUser(pwId, { password: pwNew })
-      toast('Password updated.')
+      toastApiSuccess('Password updated.')
       setPwId(null)
       setPwNew('')
       setPwConfirm('')
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Could not change password.')
+      toastApiError(err, 'Could not change password.')
     } finally {
       setSavingPassword(false)
     }
@@ -266,7 +266,7 @@ export default function Users() {
 
   function createRole(e) {
     e.preventDefault()
-    toast('Design preview — role would be created here.')
+    toast('Design preview — role would be created here.', 'success')
     setRoleFormOpen(false)
     setRoleName('')
     setCopyFrom('Start with nothing')
@@ -702,7 +702,7 @@ export default function Users() {
                   <p>Tick what this role is allowed to do</p>
                 </div>
                 <div className="actions">
-                  <Button size="sm" variant="primary" onClick={() => toast('Permissions saved.')}>
+                  <Button size="sm" variant="primary" onClick={() => toast('Permissions saved.', 'success')}>
                     Save changes
                   </Button>
                 </div>

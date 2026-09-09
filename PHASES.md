@@ -499,10 +499,32 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 26: Device Sync frontend
+
+**Objective:** Wire Device list Sync Devices to backend Device Sync; show five slot/QR/location columns; keep pagination and non-blocking UI.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Backend `GET /api/devices` list row mapping: `slotId`, `slotLabel`, `slotIdentifier`, `qrNumber`, `parkingLocation` (keep legacy keys).
+2. `services/devices.js`: `startDeviceSync`, `getDeviceSync`, `getLatestDeviceSync`.
+3. DeviceList: Sync Devices button (Device list `c`), poll run status, toasts, resume `/latest`, `reloadToken` refresh.
+4. Replace Device table with five columns; QR Number links to history; preserve filters/tiles/pagination.
+5. Docs: PR, ARCHITECTURE, RULES, DESIGN, MEMORY, PHASES, SKILL(S); lint/build.
+
+**Out of scope:** Calling SmartPark from the browser; Device Detail/Scan/Add rewrites; new npm deps; inventing a status API beyond backend contract.
+
+**Verification:** Admin/PM see Sync; Technician does not; Syncing... disables button; complete refreshes list; 409 toasts; five columns; pagination 10/25/50/100; lint + build.
+
+**Completion:** PR.md Phase 26 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21 ──► Phase 22 ──► Phase 23 ──► Phase 24 ──► Phase 25
+Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21 ──► Phase 22 ──► Phase 23 ──► Phase 24 ──► Phase 25 ──► Phase 26
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

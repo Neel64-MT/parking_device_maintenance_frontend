@@ -122,9 +122,19 @@
 - DeviceList: live tiles/rows, Apply/Reset filters, server page/limit, skeletons; crumb from `pagination.total`
 - Ticket action opens existing open ticket when present, else Raise
 
+### Phase 26 — Device Sync frontend (complete)
+
+- Analyzed DeviceList + `services/devices.js` + backend `POST/GET /api/device-sync`
+- Sync Devices button (inline sync SVG) in JumpLinks; gated on Device list `c`
+- `startDeviceSync` / `getDeviceSync` / `getLatestDeviceSync`; poll every 2s; non-blocking UI
+- On complete: toast + `reloadToken` refetch (keeps page/filters); resume in-progress via `/latest`
+- Table columns: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location
+- Backend list maps new fields (keeps legacy `id`/`qr`/`road`/`slot`)
+- Lint on touched files + production build pass
+
 ## Currently working on
 
-- **Phase:** Device list live API — complete
+- **Phase:** 26 — Device Sync frontend — complete
 - **Task:** —
 - **File:** —
 
@@ -136,7 +146,7 @@
 - Roles tab on Users still mostly preview matrix
 - Real Settings preferences beyond profile/password
 - Backend Work report ownership scoping (if product requires)
-- Run migration `007_ticket_status_open.sql` / `009_parts_amount.sql` on environments that need them
+- Run migration `007_ticket_status_open.sql` / `009_parts_amount.sql` / `010_device_sync.sql` on environments that need them
 - Finish / verify remaining Phase 23 Parts criteria if still Pending in PR.md
 
 ## Important decisions
@@ -163,6 +173,7 @@
 34. Phase 25 — Forgot/email reset is Admin/PM only (backend authoritative). Explicit `FORGOT_PASSWORD_ROLE_DENIED` for other Active roles; unknown emails stay generic. 404 uses top-level catch-all + themed `GearLoader` (no styled-components / no black panel). Settings change-password remains available to signed-in users of any role.
 35. Ticket list ≤760px: `.tabs-row` stacks Open/Assigned/Closed as equal-width full-width tabs above search/Raise (flex row + overflow was hiding the tab strip). Filterbar stacks at the same breakpoint. ≥761 keeps the desktop one-row tabs+actions layout.
 36. Table pagination is Card Minimal right-aligned (Page X of Y + N per page left; Prev/Next right), one row at all widths including ≤560 (compact gaps; Prev short label; select stays content-sized).
+37. Phase 26 — Device Sync button in JumpLinks (dark, left of Add); poll backend run status; Device list shows five sync columns only; QR Number links to history; Slot Identifier may be `—` until SmartPark provides it.
 ## Important decisions (detail)
 
 1–11. Prior phases (filters UI-only, static detail samples, responsive, Phase 10 JWT).
@@ -200,8 +211,9 @@
 | Roles tab | Permission matrix save still toast/preview |
 | Forgot SMTP | Dev logs reset URL when SMTP unset |
 | Status migration | Environments that never ran `007` may still store `New` (API/FE normalize display) |
-| Backend restart | Restart backend after Phase 17 scan shape, Phase 18 visibility, Phase 19 `tabForStatus` / `listStatus` / `daysAfterClose`, and Phase 21 update/photos attach routes |
+| Backend restart | Restart backend after Phase 17 scan shape, Phase 18 visibility, Phase 19 `tabForStatus` / `listStatus` / `daysAfterClose`, Phase 21 update/photos attach routes, and Phase 26 list field mapping / device-sync |
+| Slot Identifier | Often null until SmartPark QR sample includes `slot_identifier` |
 
 ## Handoff notes
 
-Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: Site attendant / Technician; mock scan defaults to open TK-1042; use PD-0501 or FREE for a free device. Live screens show skeleton loaders while fetching (Phase 22). Masters submenu labels are Issue / Road / Parts; Parts icon is interlocking gears. **Next phase: 23.**
+Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` / `010_device_sync.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH / Phase 26 device list field mapping. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: Site attendant / Technician; mock scan defaults to open TK-1042; use PD-0501 or FREE for a free device. Live screens show skeleton loaders while fetching (Phase 22). Masters submenu labels are Issue / Road / Parts; Parts icon is interlocking gears. Device list: Sync Devices (Admin/PM with Device list `c`) → `POST /api/device-sync`; table shows Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location. **Next phase: after 26.**

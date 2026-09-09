@@ -42,14 +42,14 @@ export default function DeviceAdd() {
   function handleSubmit(e, mode) {
     e.preventDefault()
     if (mode === 'print') {
-      toast('Design preview — device saved and QR label would print.')
+      toast('Design preview — device saved and QR label would print.', 'success')
       return
     }
     if (mode === 'another') {
-      toast('Design preview — device saved. Form ready for another.')
+      toast('Design preview — device saved. Form ready for another.', 'success')
       return
     }
-    toast('Design preview — device saved.')
+    toast('Design preview — device saved.', 'success')
   }
 
   return (

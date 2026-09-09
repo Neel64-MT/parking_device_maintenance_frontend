@@ -73,7 +73,7 @@ export default function WorkReport() {
         <div className="page-toolbar push-end">
           <Views views={VIEW_OPTIONS} value={view} onChange={setView} />
           <div className="page-toolbar-end">
-            <Button variant="dark" onClick={() => toast('Design preview — export would run here.')}>
+            <Button variant="dark" onClick={() => toast('Design preview — export would run here.', 'info')}>
               Export
             </Button>
           </div>
