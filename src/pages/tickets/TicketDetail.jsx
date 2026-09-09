@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
-import { toast } from '../../context/ToastContext'
+import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { TEAM } from '../../data/team'
 import { ApiRequestError } from '../../services/api'
 import { listParts, sumSelectedPartsAmount } from '../../services/parts'
@@ -383,11 +383,11 @@ export default function TicketDetail() {
     e.preventDefault()
     if (!ticketId) return
     if (!canAddUpdate) {
-      toast('You do not have permission to add ticket updates.')
+      toast('You do not have permission to add ticket updates.', 'error')
       return
     }
     if (pickVisitedBy && !updVisitedBy.trim()) {
-      toast('Select who visited.')
+      toast('Select who visited.', 'error')
       return
     }
     setUpdSubmitting(true)
@@ -423,12 +423,12 @@ export default function TicketDetail() {
       setUpdOpen(false)
       const visitCost = saved?.cost != null ? Number(saved.cost) : null
       if (visitCost != null && !Number.isNaN(visitCost)) {
-        toast(`Update saved. Visit cost ₹${visitCost.toLocaleString('en-IN')}.`)
+        toastApiSuccess(`Update saved. Visit cost ₹${visitCost.toLocaleString('en-IN')}.`)
       } else {
-        toast('Update saved.')
+        toastApiSuccess('Update saved.')
       }
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Could not save update.')
+      toastApiError(err, 'Could not save update.')
     } finally {
       setUpdSubmitting(false)
     }
@@ -437,7 +437,7 @@ export default function TicketDetail() {
   function submitAssign(e) {
     e.preventDefault()
     setAssignOpen(false)
-    toast('Design preview — this form is not connected yet.')
+    toast('Design preview — this form is not connected yet.', 'info')
   }
 
   const reportedLabel = classification?.reported

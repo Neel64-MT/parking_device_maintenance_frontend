@@ -1,4 +1,4 @@
-import { api, apiEnvelope } from './api'
+import { api, apiEnvelope, ApiRequestError } from './api'
 import { clampPageSize, DEFAULT_PAGE_SIZE } from '../constants/pagination'
 import {
   SCAN_DEVICE_FREE,
@@ -99,4 +99,34 @@ export async function listDevices({
 /** Device history detail (GET /api/devices/:id). */
 export async function getDevice(deviceId) {
   return api(`/api/devices/${encodeURIComponent(deviceId)}`)
+}
+
+/**
+ * Start async Device Sync (POST /api/device-sync).
+ * Returns { run, message } — run has id/status; work continues on the backend.
+ */
+export async function startDeviceSync() {
+  const envelope = await apiEnvelope('/api/device-sync', { method: 'POST', body: {} })
+  return {
+    run: envelope.data,
+    message: envelope.message || 'Device sync started successfully.',
+  }
+}
+
+/** Poll a sync run by id (GET /api/device-sync/:id). */
+export async function getDeviceSync(id) {
+  return api(`/api/device-sync/${encodeURIComponent(id)}`)
+}
+
+/**
+ * Latest sync run (GET /api/device-sync/latest).
+ * Returns null when no runs exist (404).
+ */
+export async function getLatestDeviceSync() {
+  try {
+    return await api('/api/device-sync/latest')
+  } catch (err) {
+    if (err instanceof ApiRequestError && err.status === 404) return null
+    throw err
+  }
 }

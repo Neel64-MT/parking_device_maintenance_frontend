@@ -72,7 +72,7 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 5. Close ticket — mobile-first: final issue, resolution, cost, photos (upload on confirm), confirm
 6. Ticket detail — record header, work history timeline, classification, assignment trail; Add Update modal with PhotoPicker
 7. Work report — Day/Week/Month/Range, team strip, per-person panels
-8. Device list — tiles, filters, table with history/ticket actions
+8. Device list — tiles, filters, table (Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location); Sync Devices (Phase 26)
 9. Device history — record, life stats, split ticket/resolution table, parts, timeline
 10. Add device — identity, location, installation form
 11. Scan QR — scan simulate + manual find + result/not-found
@@ -428,5 +428,27 @@ Unknown routes → NotFound + GearLoader (themed, no black panel)
 | Unknown route shows 404 page with gear animation | Pass |
 | GearLoader uses theme tokens; no black background; no styled-components | Pass |
 | Lint/build on touched files | Pass |
+
+### Phase 26 — Device Sync frontend
+
+```text
+Device list → Sync Devices → POST /api/device-sync (202 started)
+  → poll GET /api/device-sync/:id → completed | failed → refresh list
+Table columns → Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Sync Devices button with sync icon on Device list | Pass |
+| Button calls our backend `POST /api/device-sync` (not SmartPark) | Pass |
+| Non-blocking UI; button shows Syncing... and stays disabled while run is `started` | Pass |
+| Poll `GET /api/device-sync/:id`; toast on start / complete / fail | Pass |
+| Resume in-progress sync via `GET /api/device-sync/latest` on mount | Pass |
+| Duplicate click / `409 SYNC_IN_PROGRESS` handled | Pass |
+| Device table shows only the five sync columns | Pass |
+| List API maps `slotId` / `slotLabel` / `slotIdentifier` / `qrNumber` / `parkingLocation` | Pass |
+| Pagination 10/25/50/100 preserved; refresh keeps current page/filters | Pass |
+| Gated on Device list `c` (Admin/PM); no new npm deps | Pass |
+| Lint on touched files + production build | Pass |
 
 

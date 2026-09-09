@@ -188,6 +188,15 @@ Inspect existing code
 - `PartChips` selects by UUID; submit `parts: id[]` and labour-only `cost`.
 - Display backend `cost` / `partsCost` after save; never send a client-calculated visit total as authoritative.
 
+## Device Sync skills (Phase 26+)
+
+- Call our backend only: `POST /api/device-sync`, poll `GET /api/device-sync/:id` (resume via `/latest`).
+- Never call SmartPark / `device-binding` from the browser.
+- Gate Sync Devices on `canPerm(user, 'Device list', 'c')`; disable button while `started`.
+- Keep UI non-blocking; reuse `toast`, `Button`, `listDevices` reload via token — no React Query.
+- Device list columns: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location; null → `—`.
+- After `completed`, refetch current page/filters; do not reset pagination state.
+
 ## Definition of done (per page)
 
 - Matches original layout and key measurements

@@ -313,4 +313,17 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Motion | Clockwise / counter-clockwise; paused under `prefers-reduced-motion` |
 | CTA | Primary button → `homePathForUser` or `/login` |
 
+## Phase 26 — Device Sync
+
+| Item | Pattern |
+|------|---------|
+| Sync button | JumpLinks `actions`, left of Add device; `btn-dark` + inline sync SVG; label **Sync Devices** |
+| Syncing | Same button disabled; label **Syncing...**; rest of page usable |
+| Visibility | `canPerm(user, 'Device list', 'c')` only |
+| Toast | Start / complete / fail via existing `toast()`; no stats dump |
+| Table columns | Slot Id, Slot Label, Slot Identifier, QR Number (`.code` → history), Parking Location |
+| Empty cell | `—` for null identifier / missing values |
+| Skeleton | `SkeletonTable` 5 cols |
+| Responsive | Existing `.jump-actions` wrap; `.table-wrap` horizontal scroll — no new breakpoints |
+
 

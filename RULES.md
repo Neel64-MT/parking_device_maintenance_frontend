@@ -210,6 +210,16 @@ Do not add `styled-components` for the 404 gear animation — use `GearLoader` +
 Unknown routes must render `NotFound` (not silent `HomeRedirect` to home).
 Do not allow unauthorized role changes or self-approval.
 Password version / denylist must remain authoritative after password changes.
+Device Sync (Phase 26+)
+Frontend must call our backend `POST /api/device-sync` / status GETs — never the external SmartPark Device Sync URL from the browser.
+Sync UI must stay non-blocking (disable Sync button only; no full-page blocker).
+Prevent accidental duplicate sync requests while submitting or while status is `started`; respect backend `409 SYNC_IN_PROGRESS`.
+Gate Sync on Device list `c`; preserve backend authorization.
+Reuse existing `api` / `toast` / `Button` / `TablePagination` — no new libraries or React Query.
+Preserve device list pagination, search, filters, and current page on post-sync refresh.
+Device list table columns for this phase: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location only.
+Do not invent client-only sync locking as a replacement for backend single-flight.
+Do not modify unrelated Device Detail / Scan / Add flows when wiring sync.
 READ-ONLY SOURCE TREE
 
 The following original source tree is READ-ONLY:

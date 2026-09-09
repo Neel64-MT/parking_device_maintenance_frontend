@@ -104,7 +104,7 @@ export function PhotoPicker({
 
   function openFolderPicker() {
     if (itemsRef.current.length >= max) {
-      toast(`You can attach up to ${max} photos.`)
+      toast(`You can attach up to ${max} photos.`, 'warning')
       closeMenu()
       return
     }
@@ -126,13 +126,13 @@ export function PhotoPicker({
 
   function openCamera() {
     if (itemsRef.current.length >= max) {
-      toast(`You can attach up to ${max} photos.`)
+      toast(`You can attach up to ${max} photos.`, 'warning')
       closeMenu()
       return
     }
     closeMenu()
     if (!navigator.mediaDevices?.getUserMedia) {
-      toast('Camera is not available on this device. Choose from folder instead.')
+      toast('Camera is not available on this device. Choose from folder instead.', 'warning')
       return
     }
     setCameraOpen(true)
@@ -156,12 +156,12 @@ export function PhotoPicker({
 
     const remaining = max - itemsRef.current.length
     if (remaining <= 0) {
-      toast(`You can attach up to ${max} photos.`)
+      toast(`You can attach up to ${max} photos.`, 'warning')
       return
     }
 
     if (files.length > remaining) {
-      toast(`You can attach up to ${max} photos. Extra files were skipped.`)
+      toast(`You can attach up to ${max} photos. Extra files were skipped.`, 'warning')
     }
 
     const toProcess = files.slice(0, remaining)
@@ -171,7 +171,7 @@ export function PhotoPicker({
       for (const file of toProcess) {
         const invalid = validateImageFile(file)
         if (invalid) {
-          toast(invalid)
+          toast(invalid, 'error')
           continue
         }
         added.push({

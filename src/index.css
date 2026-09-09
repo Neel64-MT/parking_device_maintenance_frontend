@@ -1327,7 +1327,7 @@ td.act {
   min-width: 0;
 }
 
-.jump a {
+.jump-links a {
   padding: 6px 12px;
   border: 1px solid var(--line);
   border-radius: 20px;
@@ -1340,7 +1340,7 @@ td.act {
   max-width: 100%;
 }
 
-.jump a:hover {
+.jump-links a:hover {
   border-color: var(--teal);
   color: var(--teal-dk);
 }
@@ -1459,7 +1459,7 @@ td.act {
     gap: 6px;
   }
 
-  .jump a {
+  .jump-links a {
     font-size: 12px;
     padding: 6px 10px;
   }
@@ -2173,9 +2173,11 @@ td a:not(.btn):not(.code):hover {
   z-index: 60;
   background: var(--navy);
   color: #fff;
+  border: 1px solid transparent;
   padding: 11px 16px;
   border-radius: var(--r-sm);
   font-size: 13px;
+  font-weight: 500;
   box-shadow: 0 6px 20px rgba(15, 36, 56, 0.28);
   opacity: 0;
   transform: translate(-50%, -8px);
@@ -2190,6 +2192,34 @@ td a:not(.btn):not(.code):hover {
 .toast.show {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+.toast-success {
+  background: var(--surface);
+  color: var(--navy);
+  border-color: var(--line);
+  box-shadow: 0 6px 20px rgba(15, 36, 56, 0.14);
+}
+
+.toast-error {
+  background: var(--bad-bg);
+  color: var(--bad);
+  border-color: var(--bad);
+  box-shadow: 0 6px 20px rgba(182, 47, 38, 0.18);
+}
+
+.toast-warning {
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-color: var(--warn);
+  box-shadow: 0 6px 20px rgba(176, 113, 10, 0.18);
+}
+
+.toast-info {
+  background: var(--info-bg);
+  color: var(--info);
+  border-color: var(--info);
+  box-shadow: 0 6px 20px rgba(30, 66, 96, 0.18);
 }
 
 /* ---------- Fleet strip (original §§10) ---------- */

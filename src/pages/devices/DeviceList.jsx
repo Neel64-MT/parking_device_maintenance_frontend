@@ -1,18 +1,22 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
 import { toast } from '../../context/ToastContext'
 import { DEFAULT_PAGE_SIZE } from '../../constants/pagination'
-import { ROAD_OPTIONS } from '../../data/slots'
 import { ApiRequestError } from '../../services/api'
-import { listDevices } from '../../services/devices'
+import {
+  getDeviceSync,
+  getLatestDeviceSync,
+  listDevices,
+  startDeviceSync,
+} from '../../services/devices'
+import { listRoadLookups } from '../../services/roads'
 import { canPerm } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field, FilterBar } from '../../components/ui/FilterBar'
 import { JumpLinks } from '../../components/ui/JumpLinks'
 import { Panel } from '../../components/ui/Panel'
-import { Pill } from '../../components/ui/Pill'
 import { SkeletonTable, SkeletonTiles } from '../../components/ui/Skeleton'
 import { TablePagination } from '../../components/ui/TablePagination'
 import { Tile } from '../../components/ui/Tile'
@@ -23,6 +27,8 @@ const FILTER_DEFAULTS = {
   repeats: 'All devices',
 }
 
+const SYNC_POLL_MS = 2000
+
 function PlusIcon() {
   return (
     <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -31,13 +37,20 @@ function PlusIcon() {
   )
 }
 
-/** Format API date (ISO / YYYY-MM-DD) for the Installed column. */
-function formatInstalled(value) {
+function SyncIcon() {
+  return (
+    <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M21 12a9 9 0 0 0-15.5-6.4" />
+      <path d="M3 4v5h5" />
+      <path d="M3 12a9 9 0 0 0 15.5 6.4" />
+      <path d="M21 20v-5h-5" />
+    </svg>
+  )
+}
+
+function displayOrDash(value) {
   if (value == null || value === '') return '—'
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return String(value)
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  return `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`
+  return String(value)
 }
 
 function tileHref(label) {
@@ -49,6 +62,7 @@ function tileHref(label) {
 export default function DeviceList() {
   const { user } = useAuth()
   const canView = canPerm(user, 'Device list', 'v')
+  const canSync = canPerm(user, 'Device list', 'c')
   const canAdd = canPerm(user, 'Add device', 'c')
   const canScan = canPerm(user, 'Scan QR', 'v')
 
@@ -74,8 +88,14 @@ export default function DeviceList() {
 
   const [rows, setRows] = useState([])
   const [tiles, setTiles] = useState([])
+  const [roadOptions, setRoadOptions] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [reloadToken, setReloadToken] = useState(0)
+
+  const [syncing, setSyncing] = useState(false)
+  const [syncRunId, setSyncRunId] = useState(null)
+  const syncHandledRef = useRef(null)
 
   useEffect(() => {
     let cancelled = false
@@ -87,6 +107,7 @@ export default function DeviceList() {
           setLoadError('You do not have permission to view devices.')
           setRows([])
           setTiles([])
+          setRoadOptions([])
           setPagination({ page: 1, limit, total: 0, totalPages: 1 })
         }
         return
@@ -118,13 +139,124 @@ export default function DeviceList() {
       } finally {
         if (!cancelled) setLoading(false)
       }
+
+      try {
+        const roads = await listRoadLookups()
+        if (!cancelled) {
+          setRoadOptions(roads.map((r) => r.name).filter(Boolean))
+        }
+      } catch {
+        /* keep prior road options — device list still usable */
+      }
     }
 
     run()
     return () => {
       cancelled = true
     }
-  }, [canView, applied, page, limit])
+  }, [canView, applied, page, limit, reloadToken])
+
+  const finishSync = useCallback((run) => {
+    if (!run?.id || syncHandledRef.current === run.id) return
+    syncHandledRef.current = run.id
+    setSyncing(false)
+    setSyncRunId(null)
+    if (run.status === 'completed') {
+      toast('Device sync completed.', 'success')
+      setReloadToken((n) => n + 1)
+    } else if (run.status === 'failed') {
+      toast(run.errorMessage || 'Device sync failed.', 'error')
+    }
+  }, [])
+
+  // Resume in-progress sync on mount when the user can start sync.
+  useEffect(() => {
+    if (!canSync) return
+    let cancelled = false
+
+    async function checkLatest() {
+      try {
+        const latest = await getLatestDeviceSync()
+        if (cancelled || !latest) return
+        if (latest.status === 'started') {
+          setSyncing(true)
+          setSyncRunId(latest.id)
+        }
+      } catch {
+        /* ignore — list still works */
+      }
+    }
+
+    checkLatest()
+    return () => {
+      cancelled = true
+    }
+  }, [canSync])
+
+  // Poll while a sync run is in progress.
+  useEffect(() => {
+    if (!syncing || !syncRunId) return
+    let cancelled = false
+
+    async function poll() {
+      try {
+        const run = await getDeviceSync(syncRunId)
+        if (cancelled) return
+        if (run.status === 'started') return
+        finishSync(run)
+      } catch (err) {
+        if (cancelled) return
+        setSyncing(false)
+        setSyncRunId(null)
+        toast(
+          err instanceof ApiRequestError ? err.message : 'Could not check sync status.',
+          'error',
+        )
+      }
+    }
+
+    poll()
+    const timer = setInterval(poll, SYNC_POLL_MS)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [syncing, syncRunId, finishSync])
+
+  async function handleSync() {
+    if (syncing) return
+    setSyncing(true)
+    syncHandledRef.current = null
+    try {
+      const { run, message } = await startDeviceSync()
+      toast(message || 'Device sync started successfully.', 'success')
+      if (run?.status === 'started' && run.id) {
+        setSyncRunId(run.id)
+        return
+      }
+      if (run?.status === 'completed' || run?.status === 'failed') {
+        finishSync(run)
+        return
+      }
+      setSyncing(false)
+    } catch (err) {
+      if (err instanceof ApiRequestError && err.code === 'SYNC_IN_PROGRESS') {
+        const runId = err.details?.runId
+        toast(err.message, 'warning')
+        if (runId) {
+          setSyncRunId(runId)
+          return
+        }
+        setSyncing(false)
+        return
+      }
+      setSyncing(false)
+      toast(
+        err instanceof ApiRequestError ? err.message : 'Could not start device sync.',
+        'error',
+      )
+    }
+  }
 
   const crumb = useMemo(() => {
     const total = pagination.total || 0
@@ -172,6 +304,24 @@ export default function DeviceList() {
       ? `Showing ${showingFrom}–${showingTo} of ${pagination.total.toLocaleString('en-IN')}`
       : 'No devices match these filters'
 
+  const jumpActions =
+    canSync || canAdd ? (
+      <>
+        {canSync ? (
+          <Button variant="dark" onClick={handleSync} disabled={syncing} aria-busy={syncing}>
+            <SyncIcon />
+            {syncing ? 'Syncing...' : 'Sync Devices'}
+          </Button>
+        ) : null}
+        {canAdd ? (
+          <Link className="btn btn-primary" to="/devices/add">
+            <PlusIcon />
+            Add device
+          </Link>
+        ) : null}
+      </>
+    ) : null
+
   return (
     <>
       <PageMeta pageId="device-list" title="Device list" crumb={crumb} />
@@ -184,14 +334,7 @@ export default function DeviceList() {
             { to: '/masters/roads', label: 'Road' },
             { to: '/tickets', label: 'All tickets' },
           ]}
-          actions={
-            canAdd ? (
-              <Link className="btn btn-primary" to="/devices/add">
-                <PlusIcon />
-                Add device
-              </Link>
-            ) : null
-          }
+          actions={jumpActions}
         />
 
         {loadError ? (
@@ -231,7 +374,7 @@ export default function DeviceList() {
               </Button>
               <Button
                 variant="dark"
-                onClick={() => toast('Design preview — export would run here.')}
+                onClick={() => toast('Design preview — export would run here.', 'info')}
                 disabled={loading}
               >
                 Export
@@ -250,7 +393,7 @@ export default function DeviceList() {
                   applyFilters()
                 }
               }}
-              placeholder="Device ID, QR code or slot"
+              placeholder="Slot Id, QR, slot or location"
               aria-label="Search devices"
               disabled={loading && !rows.length}
             />
@@ -258,7 +401,7 @@ export default function DeviceList() {
           <Field label="Road">
             <select value={road} onChange={(e) => setRoad(e.target.value)}>
               <option>All roads</option>
-              {ROAD_OPTIONS.map((r) => (
+              {roadOptions.map((r) => (
                 <option key={r}>{r}</option>
               ))}
             </select>
@@ -291,78 +434,43 @@ export default function DeviceList() {
             <table>
               <thead>
                 <tr>
-                  <th>Device ID</th>
-                  <th>QR code</th>
-                  <th>Road / slot</th>
-                  <th>Installed</th>
-                  <th>Status</th>
-                  <th>Current issue</th>
-                  <th className="num">
-                    Tickets
-                    <br />
-                    <span className="muted">6 months</span>
-                  </th>
-                  <th className="act">Action</th>
+                  <th>Slot Id</th>
+                  <th>Slot Label</th>
+                  <th>Slot Identifier</th>
+                  <th>QR Number</th>
+                  <th>Parking Location</th>
                 </tr>
               </thead>
               <tbody>
-                {loading ? <SkeletonTable rows={6} cols={8} /> : null}
+                {loading ? <SkeletonTable rows={6} cols={5} /> : null}
                 {!loading && !rows.length ? (
                   <tr>
-                    <td colSpan={8}>
+                    <td colSpan={5}>
                       <span className="muted">No devices found.</span>
                     </td>
                   </tr>
                 ) : null}
                 {!loading
-                  ? rows.map((row) => (
-                      <tr key={row.id}>
-                        <td>
-                          <Link className="code" to={`/devices/${row.id}`}>
-                            {row.id}
-                          </Link>
-                        </td>
-                        <td>{row.qr}</td>
-                        <td>
-                          {row.road}
-                          <div className="muted">{row.slot}</div>
-                        </td>
-                        <td>{formatInstalled(row.installed)}</td>
-                        <td>
-                          <Pill tone={row.statusTone}>{row.status}</Pill>
-                        </td>
-                        <td>
-                          {row.issue ? (
-                            <>
-                              {row.issue}
-                              <div className="muted">
-                                {row.ticketId ? (
-                                  <Link to={`/tickets/${row.ticketId}`}>{row.ticketId}</Link>
-                                ) : null}
-                                {row.ticketId && row.ticketNote ? ' · ' : null}
-                                {row.ticketNote || null}
-                              </div>
-                            </>
-                          ) : (
-                            <span className="muted">—</span>
-                          )}
-                        </td>
-                        <td className={`num${row.ticketsBad ? ' strong-bad' : ''}`}>
-                          {row.tickets6m}
-                        </td>
-                        <td className="act">
-                          <Link className="btn btn-sm" to={`/devices/${row.id}`}>
-                            History
-                          </Link>{' '}
-                          <Link
-                            className="btn btn-sm"
-                            to={row.ticketId ? `/tickets/${row.ticketId}` : '/tickets/raise'}
-                          >
-                            Ticket
-                          </Link>
-                        </td>
-                      </tr>
-                    ))
+                  ? rows.map((row) => {
+                      const qr = row.qrNumber || row.qr
+                      return (
+                        <tr key={row.id}>
+                          <td>{displayOrDash(row.slotId)}</td>
+                          <td>{displayOrDash(row.slotLabel)}</td>
+                          <td>{displayOrDash(row.slotIdentifier)}</td>
+                          <td>
+                            {qr ? (
+                              <Link className="code" to={`/devices/${row.id}`}>
+                                {qr}
+                              </Link>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                          <td>{displayOrDash(row.parkingLocation || row.road)}</td>
+                        </tr>
+                      )
+                    })
                   : null}
               </tbody>
             </table>

@@ -47,10 +47,10 @@ export default function RoadAdd() {
   function handleSubmit(e, mode) {
     e.preventDefault()
     if (mode === 'another') {
-      toast('Design preview — road saved. Form ready for another.')
+      toast('Design preview — road saved. Form ready for another.', 'success')
       return
     }
-    toast('Design preview — road saved.')
+    toast('Design preview — road saved.', 'success')
   }
 
   return (

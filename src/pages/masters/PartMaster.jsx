@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
-import { toast } from '../../context/ToastContext'
+import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { ApiRequestError } from '../../services/api'
 import { createPart, listParts, updatePart } from '../../services/parts'
 import { canPerm, homePathForUser } from '../../services/users'
@@ -91,23 +91,23 @@ export default function PartMaster() {
     const trimmed = name.trim()
     const amt = Number(amount)
     if (!trimmed) {
-      toast('Part name is required.')
+      toast('Part name is required.', 'error')
       return
     }
     if (Number.isNaN(amt) || amt < 0) {
-      toast('Amount must be zero or more.')
+      toast('Amount must be zero or more.', 'error')
       return
     }
     setCreating(true)
     try {
       await createPart({ name: trimmed, amount: amt })
-      toast('Part created.')
+      toastApiSuccess('Part created.')
       setFormOpen(false)
       setName('')
       setAmount('')
       await refresh()
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Could not create part.')
+      toastApiError(err, 'Could not create part.')
     } finally {
       setCreating(false)
     }
@@ -125,21 +125,21 @@ export default function PartMaster() {
     const trimmed = editName.trim()
     const amt = Number(editAmount)
     if (!trimmed) {
-      toast('Part name is required.')
+      toast('Part name is required.', 'error')
       return
     }
     if (Number.isNaN(amt) || amt < 0) {
-      toast('Amount must be zero or more.')
+      toast('Amount must be zero or more.', 'error')
       return
     }
     setSavingEdit(true)
     try {
       await updatePart(editId, { name: trimmed, amount: amt })
-      toast('Part updated.')
+      toastApiSuccess('Part updated.')
       setEditId(null)
       await refresh()
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Could not update part.')
+      toastApiError(err, 'Could not update part.')
     } finally {
       setSavingEdit(false)
     }
@@ -150,10 +150,10 @@ export default function PartMaster() {
     setDeactivatingId(id)
     try {
       await updatePart(id, { active: false })
-      toast('Part made inactive.')
+      toastApiSuccess('Part made inactive.')
       await refresh()
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Could not deactivate part.')
+      toastApiError(err, 'Could not deactivate part.')
     } finally {
       setDeactivatingId(null)
     }

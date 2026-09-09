@@ -46,7 +46,7 @@ export default function ScanQr() {
     if (!v) {
       setState('idle')
       setScan(null)
-      toast('Enter a device ID, QR code or slot number.')
+      toast('Enter a device ID, QR code or slot number.', 'error')
       return
     }
     const result = await resolveScan(v)

@@ -75,7 +75,7 @@ export function UiKitDemoPage() {
           actions={
             <>
               <Button onClick={() => setQuery('')}>Reset</Button>
-              <Button variant="dark" onClick={() => toast('Export is preview-only.')}>
+              <Button variant="dark" onClick={() => toast('Export is preview-only.', 'info')}>
                 Export
               </Button>
             </>

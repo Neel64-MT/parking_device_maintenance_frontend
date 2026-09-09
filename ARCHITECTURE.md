@@ -62,6 +62,7 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **Phase 23 — Parts & visit cost (in progress):** `GET /api/parts` (session-cached) feeds `PartChips` (UUID multi-select, name + amount). Add Update / Ticket Update send `parts: UUID[]` and labour-only `cost`; backend returns `cost` / `partsCost` / `labourCost` / part snapshots. No client authoritative part totals. Parts CRUD page under Masters → Parts (`/masters/parts`); nav labels Issue / Road / Parts (group title remains Masters); Parts sidebar icon is interlocking gears (not bolt / not Settings gear). Permission `screen` keys stay `Issue master` / `Road master` for API gating.
 - **Phase 24 — Image viewer zoom/rotate + Trail View Update:** `ImagePreviewModal` keeps gallery; Zoom in / Zoom out / Rotate are CSS `transform` only (min zoom 1, max 3, +90°). When zoomed, **move or drag** over the stage to pan/explore (magnifier-style scroll; clamped translate). Thumbnail change resets transform + pan. Trail: **View Update** on every work-history row (Modal with mapped fields only — no image); **View Image** stays separate when photos exist. No extra GET; no new image libraries.
 - **Phase 25 — Forgot password role gate + 404:** `POST /forgot-password` and `POST /reset-password` allow only **Admin** / **Project manager**. Other Active roles → `403` / `FORGOT_PASSWORD_ROLE_DENIED` (explicit message). Unknown / Pending / Inactive → generic 200 (no email). FE Forgot page notes Admin/PM-only and shows API errors. Unknown routes → `NotFound` + `GearLoader` (CSS gears, theme tokens, no black panel, no styled-components). Catch-all is a top-level `*` (not silent `HomeRedirect`).
+- **Phase 26 — Device Sync frontend:** Device list JumpLinks action **Sync Devices** (`canPerm` Device list `c`) → `POST /api/device-sync` → toast + button **Syncing...** (disabled). Poll `GET /api/device-sync/:id` every 2s until `completed` / `failed`; on complete bump `reloadToken` to refetch `GET /api/devices` with current page/filters (no page reset). Mount resumes via `GET /api/device-sync/latest` if status is `started`. Never call SmartPark from the browser. Device table columns: Slot Id, Slot Label, Slot Identifier, QR Number (link to history), Parking Location. List row also keeps legacy `id`/`qr`/`road`/`slot` for other consumers.
 - **Forgot/reset:** Backend token email flow (SHA-256, 1h TTL); FE `/forgot-password`, `/reset-password`. Role gate as Phase 25.
 - **Admin change password:** Reuse `PATCH /api/users/:id` with `password` (requires Users edit). Increments `password_version` (invalidates JWTs).
 - **Self-service Settings (Phase 13):**
@@ -101,7 +102,7 @@ frontend/
     │   ├── users.js            # Users admin + canPerm + homePathForUser / isDashboardRole
     │   ├── tickets.js          # list/get + page/limit + addTicketUpdate + attachTicketUpdatePhotos
     │   ├── dashboard.js
-    │   ├── devices.js          # resolveScan mock (+ scan helpers)
+    │   ├── devices.js          # listDevices + device-sync start/poll + resolveScan mock
     │   └── uploads.js          # validateImageFile + uploadImage / uploadImages (submit-time)
     ├── constants/
     │   └── pagination.js       # PAGE_SIZE_OPTIONS 10/25/50/100 + DEFAULT_PAGE_SIZE
@@ -248,3 +249,17 @@ TicketDetail
   → View Update → Modal (details only, no photos) from trail data
   → View Image → ImagePreviewModal (zoom in / zoom out / rotate / pan when zoomed)
 ```
+
+### Device Sync (Phase 26)
+
+```text
+DeviceList (canPerm Device list c)
+  → Sync Devices → POST /api/device-sync
+  → 202 { id, status: started } → toast; button Syncing... (disabled)
+  → poll GET /api/device-sync/:id every 2s
+  → completed → toast + reloadToken → GET /api/devices (same page/filters)
+  → failed → toast errorMessage; button re-enabled
+```
+
+Mount: if latest run is `started`, resume poll. Do not call SmartPark from the browser.
+Table columns: Slot Id · Slot Label · Slot Identifier · QR Number · Parking Location.

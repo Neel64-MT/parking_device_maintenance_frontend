@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
-import { toast } from '../../context/ToastContext'
-import { ApiRequestError } from '../../services/api'
+import { toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { uploadImages } from '../../services/uploads'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
@@ -51,13 +50,13 @@ export default function TicketClose() {
         photoUrls = uploaded.map((u) => u.url)
       }
       // photoUrls ready for close-ticket API when wired
-      toast(
+      toastApiSuccess(
         photoUrls.length
           ? `Design preview — ticket would be closed here (${photoUrls.length} photo${photoUrls.length > 1 ? 's' : ''} ready).`
           : 'Design preview — ticket would be closed here.',
       )
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.message : 'Could not upload images.')
+      toastApiError(err, 'Could not upload images.')
     } finally {
       setSubmitting(false)
     }
