@@ -132,9 +132,17 @@
 - Backend list maps new fields (keeps legacy `id`/`qr`/`road`/`slot`)
 - Lint on touched files + production build pass
 
+### Ticket Slot Id + live Device history (complete)
+
+- TicketList / TicketDetail: **Device** label → **Slot Id** (API `deviceId` already prefers slot_id)
+- Links stay `/devices/{deviceId}`; Work report day column header → Slot Id
+- DeviceDetail: live `getDevice(useParams().deviceId)`; same layout; refetch when route id changes
+- `DeviceDetailSkeleton` added; mock `DEVICE_*` no longer used on history page
+- DeviceAdd/Edit: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location; edit via `?id=` prefill from `getDevice`
+
 ## Currently working on
 
-- **Phase:** 26 — Device Sync frontend — complete
+- **Phase:** Ticket Slot Id + live Device history — complete
 - **Task:** —
 - **File:** —
 
@@ -174,6 +182,7 @@
 35. Ticket list ≤760px: `.tabs-row` stacks Open/Assigned/Closed as equal-width full-width tabs above search/Raise (flex row + overflow was hiding the tab strip). Filterbar stacks at the same breakpoint. ≥761 keeps the desktop one-row tabs+actions layout.
 36. Table pagination is Card Minimal right-aligned (Page X of Y + N per page left; Prev/Next right), one row at all widths including ≤560 (compact gaps; Prev short label; select stays content-sized).
 37. Phase 26 — Device Sync button in JumpLinks (dark, left of Add); poll backend run status; Device list shows five sync columns only; QR Number links to history; Slot Identifier may be `—` until SmartPark provides it.
+38. Ticket list/detail show **Slot Id** (not Device ID); Device history loads live by route param (slot id or PD-xxxx); same page layout, data changes with id.
 ## Important decisions (detail)
 
 1–11. Prior phases (filters UI-only, static detail samples, responsive, Phase 10 JWT).

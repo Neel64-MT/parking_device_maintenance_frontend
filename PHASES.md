@@ -521,10 +521,33 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 26b: Ticket Slot Id + live Device history
+
+**Objective:** Show Slot Id on tickets instead of Device ID; wire Device history to live API so the same layout shows data for the route id.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. TicketList: column **Slot Id**; search placeholder mentions slot id.
+2. TicketDetail: identity subline **Slot Id**; previous-tickets subtitle uses Slot Id.
+3. DeviceDetail: `useParams` + `getDevice`; skeleton/error; map API header/tiles/tickets/parts/failRanks.
+4. Work report day table header Device → Slot Id (mock data unchanged).
+5. DeviceAdd/Edit: Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location; Edit from history uses `?id=` + `getDevice` prefill.
+6. Docs note in MEMORY/PHASES; lint touched files.
+
+**Out of scope:** Raise/Update/Close DeviceCard rewrite; backend contract changes (already returns Slot Id as `deviceId`).
+
+**Verification:** List/detail Slot Id links open `/devices/{id}`; changing URL id refetches history; legacy PD-xxxx still works when no slot_id.
+
+**Completion:** Ticket Slot Id + live Device history signed off in MEMORY.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 19 ──► Phase 20 ──► Phase 21 ──► Phase 22 ──► Phase 23 ──► Phase 24 ──► Phase 25 ──► Phase 26
+Phase 0 ──► … ──► Phase 25 ──► Phase 26 ──► Phase 26b
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

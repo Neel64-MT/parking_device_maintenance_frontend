@@ -477,7 +477,7 @@ export default function TicketDetail() {
                 <div>
                   <h3>{header.id}</h3>
                   <div className="sub">
-                    Device{' '}
+                    Slot Id{' '}
                     <Link className="code" to={`/devices/${header.deviceId}`}>
                       {header.deviceId}
                     </Link>{' '}
@@ -683,7 +683,7 @@ export default function TicketDetail() {
                     <div>
                       <h3>This device before today</h3>
                       <p>
-                        {header.deviceId}, {header.road}, Slot {header.slot}
+                        Slot Id {header.deviceId}, {header.road}, Slot {header.slot}
                       </p>
                     </div>
                     <Link className="link" to={`/devices/${header.deviceId}`}>
@@ -704,7 +704,7 @@ export default function TicketDetail() {
                           {!devicePreviousTickets.length ? (
                             <tr>
                               <td colSpan={3}>
-                                <span className="muted">No earlier tickets on this device.</span>
+                                <span className="muted">No earlier tickets on this slot.</span>
                               </td>
                             </tr>
                           ) : null}

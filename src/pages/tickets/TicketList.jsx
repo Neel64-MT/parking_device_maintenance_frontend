@@ -156,11 +156,10 @@ export default function TicketList() {
       },
       { replace: true },
     )
-    setQuery('')
     const nextStatus = statusForTab(nextTab, status)
     setStatus(nextStatus)
     setPage(1)
-    setApplied((prev) => ({ ...prev, q: '', status: nextStatus }))
+    setApplied((prev) => ({ ...prev, status: nextStatus }))
   }
 
   function applyFilters() {
@@ -319,7 +318,7 @@ export default function TicketList() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') applyFilters()
                 }}
-                placeholder="Ticket, device or slot"
+                placeholder="Ticket, slot id or road"
                 aria-label="Search tickets"
               />
               <Link className="btn btn-primary" to="/tickets/raise" state={ticketLinkState}>
@@ -335,7 +334,7 @@ export default function TicketList() {
               <thead>
                 <tr>
                   <th>Ticket</th>
-                  <th>Device</th>
+                  <th>Slot Id</th>
                   <th>Road / slot</th>
                   <th>Issue reported</th>
                   <th>Issue found</th>

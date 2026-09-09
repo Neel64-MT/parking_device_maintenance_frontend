@@ -451,4 +451,19 @@ Table columns → Slot Id, Slot Label, Slot Identifier, QR Number, Parking Locat
 | Gated on Device list `c` (Admin/PM); no new npm deps | Pass |
 | Lint on touched files + production build | Pass |
 
+### Phase 26b — Ticket Slot Id + live Device history
+
+```text
+Ticket list/detail → Slot Id (API deviceId) → /devices/{id}
+Device history → GET /api/devices/:id → same layout, data by route id
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Ticket list column labeled Slot Id | Pass |
+| Ticket detail shows Slot Id link (not Device PD label) | Pass |
+| Device history loads live for route param; changes with id | Pass |
+| Legacy PD-xxxx / missing slot_id still resolvable via API | Pass |
+| Lint on touched files | Pass |
+
 

@@ -326,4 +326,14 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Skeleton | `SkeletonTable` 5 cols |
 | Responsive | Existing `.jump-actions` wrap; `.table-wrap` horizontal scroll — no new breakpoints |
 
+## Phase 26b — Ticket Slot Id + live Device history
+
+| Item | Pattern |
+|------|---------|
+| Ticket list column | **Slot Id** (was Device); link `/devices/{deviceId}` |
+| Ticket detail subline | `Slot Id {id}` + road + Slot label |
+| Device history | Live `getDevice(routeId)`; header title = Slot Id / fallback; skeleton while loading |
+| Work report (day) | Column header **Slot Id** |
+| Add / Edit device | Form fields: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location; Edit via `/devices/add?id=` |
+
 
