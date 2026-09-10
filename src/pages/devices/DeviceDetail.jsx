@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
-import { toast } from '../../context/ToastContext'
 import { ApiRequestError } from '../../services/api'
 import { getDevice } from '../../services/devices'
-import { Button } from '../../components/ui/Button'
 import { Panel } from '../../components/ui/Panel'
 import { Pill } from '../../components/ui/Pill'
 import { DeviceDetailSkeleton } from '../../components/ui/Skeleton'
@@ -99,6 +97,30 @@ export default function DeviceDetail() {
   const partSummary = data?.partSummary || []
   const failRanks = data?.failRanks || []
 
+  /** Facts plus MAC address from slotIdentifier (SmartPark mac_address). */
+  const detailFacts = useMemo(() => {
+    if (!header) return []
+    const base = Array.isArray(header.facts) ? [...header.facts] : []
+    const hasMac = base.some((f) => /^(mac address|slot identifier)$/i.test(String(f.label || '').trim()))
+    if (hasMac) {
+      return base.map((f) =>
+        /^slot identifier$/i.test(String(f.label || '').trim())
+          ? { ...f, label: 'MAC address' }
+          : f,
+      )
+    }
+    const mac = {
+      label: 'MAC address',
+      value: header.slotIdentifier != null && header.slotIdentifier !== '' ? header.slotIdentifier : '—',
+    }
+    const afterSlot = base.findIndex((f) => /^slot (id|number)$/i.test(String(f.label || '').trim()))
+    if (afterSlot >= 0) {
+      base.splice(afterSlot + 1, 0, mac)
+      return base
+    }
+    return [...base, mac]
+  }, [header])
+
   const totalDaysDown = useMemo(() => {
     const tile = lifeTiles.find((t) => /days down/i.test(t.label || ''))
     return tile?.value || '—'
@@ -119,19 +141,23 @@ export default function DeviceDetail() {
     )
   }, [header])
 
-  const actions = useMemo(
-    () => (
+  const actions = useMemo(() => {
+    const qr = header?.qrNumber || header?.qr || ''
+    const raiseState =
+      deviceId != null && deviceId !== ''
+        ? { from: `/devices/${deviceId}`, qr }
+        : undefined
+    return (
       <>
         <Link className="btn" to="/devices">
           Back to list
         </Link>
-        <Link className="btn btn-primary" to="/tickets/raise">
+        <Link className="btn btn-primary" to="/tickets/raise" state={raiseState}>
           Raise ticket
         </Link>
       </>
-    ),
-    [],
-  )
+    )
+  }, [deviceId, header])
 
   return (
     <>
@@ -167,12 +193,10 @@ export default function DeviceDetail() {
                   <Pill tone={header.statusTone}>{header.status}</Pill>
                 </div>
                 <div className="push">
-                  <Button onClick={() => toast('QR label sent to printer.', 'success')}>
-                    Print QR label
-                  </Button>
                   <Link
                     className="btn"
                     to={`/devices/add?id=${encodeURIComponent(deviceId || header.id)}`}
+                    replace
                   >
                     Edit device
                   </Link>
@@ -180,7 +204,7 @@ export default function DeviceDetail() {
               </div>
 
               <div className="facts">
-                {(header.facts || []).map((f) => (
+                {detailFacts.map((f) => (
                   <div key={f.label}>
                     <small>{f.label}</small>
                     <span>{factDisplayValue(f)}</span>

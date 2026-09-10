@@ -37,9 +37,16 @@ function PlusIcon() {
   )
 }
 
-function SyncIcon() {
+function SyncIcon({ spinning = false }) {
   return (
-    <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      className={`ico${spinning ? ' ico-spin' : ''}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
       <path d="M21 12a9 9 0 0 0-15.5-6.4" />
       <path d="M3 4v5h5" />
       <path d="M3 12a9 9 0 0 0 15.5 6.4" />
@@ -58,6 +65,17 @@ function statusFromTileLabel(label) {
   if (label === 'Total devices') return 'All'
   if (label === 'Working' || label === 'Under repair' || label === 'Not working') return label
   return null
+}
+
+/** Complete-toast from backend run.stats (devicesCreated / devicesUpdated / devicesSkipped only). */
+function syncCompletedMessage(stats) {
+  if (!stats || typeof stats !== 'object') return 'Device sync completed.'
+  const parts = []
+  if (typeof stats.devicesCreated === 'number') parts.push(`Created: ${stats.devicesCreated}`)
+  if (typeof stats.devicesUpdated === 'number') parts.push(`Updated: ${stats.devicesUpdated}`)
+  if (typeof stats.devicesSkipped === 'number') parts.push(`Skipped: ${stats.devicesSkipped}`)
+  if (!parts.length) return 'Device sync completed.'
+  return `Device sync completed. ${parts.join(' · ')}`
 }
 
 export default function DeviceList() {
@@ -163,7 +181,7 @@ export default function DeviceList() {
     setSyncing(false)
     setSyncRunId(null)
     if (run.status === 'completed') {
-      toast('Device sync completed.', 'success')
+      toast(syncCompletedMessage(run.stats), 'success')
       setReloadToken((n) => n + 1)
     } else if (run.status === 'failed') {
       toast(run.errorMessage || 'Device sync failed.', 'error')
@@ -320,7 +338,7 @@ export default function DeviceList() {
       <>
         {canSync ? (
           <Button variant="dark" onClick={handleSync} disabled={syncing} aria-busy={syncing}>
-            <SyncIcon />
+            <SyncIcon spinning={syncing} />
             {syncing ? 'Syncing...' : 'Sync Devices'}
           </Button>
         ) : null}
@@ -480,12 +498,20 @@ export default function DeviceList() {
                       const qr = row.qrNumber || row.qr
                       return (
                         <tr key={row.id}>
-                          <td>{displayOrDash(row.slotId)}</td>
+                          <td>
+                            {row.slotId ? (
+                              <Link className="code" to={`/devices/${encodeURIComponent(row.id)}`}>
+                                {row.slotId}
+                              </Link>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
                           <td>{displayOrDash(row.slotLabel)}</td>
                           <td>{displayOrDash(row.slotIdentifier)}</td>
                           <td>
                             {qr ? (
-                              <Link className="code" to={`/devices/${row.id}`}>
+                              <Link className="code" to={`/devices/${encodeURIComponent(row.id)}`}>
                                 {qr}
                               </Link>
                             ) : (

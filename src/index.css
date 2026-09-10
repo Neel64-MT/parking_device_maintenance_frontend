@@ -714,6 +714,22 @@ html.rail-opening .nav-group>button::after {
   height: 15px;
 }
 
+@keyframes ico-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ico-spin {
+  animation: ico-spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ico-spin {
+    animation: none;
+  }
+}
+
 /* ---------- Form controls (original §§5) ---------- */
 select,
 input[type='text'],

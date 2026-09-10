@@ -34,12 +34,17 @@ function applyScanToDevice(scan) {
   }
 }
 
-/** Prefer returning to All tickets with the same tab query when navigated from the list. */
-function ticketsListReturnPath(from) {
+/** Return path for Cancel / crumb: tickets list (with tab) or device detail. */
+function raiseReturnPath(from) {
   if (typeof from !== 'string') return '/tickets'
   const [pathname, query = ''] = from.split('?')
-  if (pathname !== '/tickets') return '/tickets'
-  return query ? `/tickets?${query}` : '/tickets'
+  if (pathname === '/tickets') return query ? `/tickets?${query}` : '/tickets'
+  if (/^\/devices\/[^/]+$/.test(pathname)) return pathname
+  return '/tickets'
+}
+
+function isDeviceReturnPath(path) {
+  return typeof path === 'string' && /^\/devices\/[^/]+$/.test(path.split('?')[0])
 }
 
 export default function TicketRaise() {
@@ -48,8 +53,12 @@ export default function TicketRaise() {
   const navigate = useNavigate()
   const canScan = canScanWithCamera(user)
   const resolveGen = useRef(0)
+  const prefillDone = useRef(false)
 
-  const [qrInput, setQrInput] = useState('')
+  const [qrInput, setQrInput] = useState(() => {
+    const qr = location.state?.qr
+    return typeof qr === 'string' ? qr : ''
+  })
   const [device, setDevice] = useState(null)
   const [category, setCategory] = useState('')
   const [subCategory, setSubCategory] = useState('')
@@ -64,25 +73,26 @@ export default function TicketRaise() {
   const reportedBy = user?.name || ''
   const fromHere = `${location.pathname}${location.search}`
   const blocked = Boolean(device?.dup)
-  const backToTickets = ticketsListReturnPath(location.state?.from)
+  const backTo = raiseReturnPath(location.state?.from)
+  const fromDevice = isDeviceReturnPath(backTo)
   const busy = resolving || submitting
 
   const crumb = useMemo(
     () => (
       <>
-        <Link to={backToTickets}>Tickets</Link> › New ticket
+        <Link to={backTo}>{fromDevice ? 'Device' : 'Tickets'}</Link> › New ticket
       </>
     ),
-    [backToTickets],
+    [backTo, fromDevice],
   )
 
   const actions = useMemo(
     () => (
-      <Link className="btn" to={backToTickets}>
-        All tickets
+      <Link className="btn" to={backTo}>
+        {fromDevice ? 'Back' : 'All tickets'}
       </Link>
     ),
-    [backToTickets],
+    [backTo, fromDevice],
   )
 
   useEffect(() => {
@@ -139,6 +149,20 @@ export default function TicketRaise() {
     }
   }
 
+  // Prefill QR from Device Detail (or other entry) and resolve once.
+  useEffect(() => {
+    if (prefillDone.current) return
+    const qr = location.state?.qr
+    if (typeof qr !== 'string' || !qr.trim()) return
+    prefillDone.current = true
+    const code = qr.trim()
+    const t = window.setTimeout(() => {
+      void applyResolved(code)
+    }, 0)
+    return () => window.clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once for entry state.qr
+  }, [])
+
   function findByQr() {
     const code = qrInput.trim()
     if (!code) {
@@ -190,7 +214,7 @@ export default function TicketRaise() {
       if (created?.id) {
         navigate(openTicketPath(created.id), { state: { from: fromHere } })
       } else {
-        navigate(backToTickets)
+        navigate(fromDevice ? '/tickets' : backTo)
       }
     } catch (err) {
       if (err instanceof ApiRequestError && err.code === 'OPEN_TICKET_EXISTS') {
@@ -383,7 +407,7 @@ export default function TicketRaise() {
 
         <div className="sticky-bar">
           <div className="sticky-bar-inner">
-            <Link className="btn" to={backToTickets}>
+            <Link className="btn" to={backTo}>
               Cancel
             </Link>
             <Button

@@ -325,7 +325,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Sync button | JumpLinks `actions`, left of Add device; `btn-dark` + inline sync SVG; label **Sync Devices** |
 | Syncing | Same button disabled; label **Syncing...**; rest of page usable |
 | Visibility | `canPerm(user, 'Device list', 'c')` only |
-| Toast | Start / complete / fail via existing `toast()`; no stats dump |
+| Toast | Start / complete / fail via existing `toast()`; on complete show `Created` / `Updated` / `Skipped` from `run.stats` (`devicesCreated` / `devicesUpdated` / `devicesSkipped`) when present |
 | Table columns | Slot Id, Slot Label, Slot Identifier, QR Number (`.code` → history), Parking Location |
 | Empty cell | `—` for null identifier / missing values |
 | Skeleton | `SkeletonTable` 5 cols |

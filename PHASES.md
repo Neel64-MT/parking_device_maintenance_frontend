@@ -604,6 +604,22 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Device Sync result stats (frontend)
+
+**Objective:** Surface backend sync `stats` on Device list complete toast; keep async non-blocking sync and list refresh; document backend as source of truth for skip/MAC upsert.
+
+**Steps:**
+1. DeviceList `finishSync`: toast Created/Updated/Skipped from `devicesCreated` / `devicesUpdated` / `devicesSkipped` when numeric.
+2. Docs (PR/ARCHITECTURE/RULES/DESIGN/MEMORY/PHASES/SKILLS) + lint/build.
+
+**Out of scope:** Browser-side dataset processing; FE skip rules; backend MAC-required skip (separate backend work).
+
+**Verification:** Complete toast shows counts when API returns them; list refresh preserves filters; tickets unchanged.
+
+**Completion:** Signed off in MEMORY.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
