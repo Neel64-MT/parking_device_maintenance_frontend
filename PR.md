@@ -443,6 +443,8 @@ Table columns → Slot Id, Slot Label, Slot Identifier, QR Number, Parking Locat
 | Button calls our backend `POST /api/device-sync` (not SmartPark) | Pass |
 | Non-blocking UI; button shows Syncing... and stays disabled while run is `started` | Pass |
 | Poll `GET /api/device-sync/:id`; toast on start / complete / fail | Pass |
+| Complete toast may include Created / Updated / Skipped from `run.stats` | Pass |
+| Backend is source of truth for skip/upsert; FE does not invent devices | Pass |
 | Resume in-progress sync via `GET /api/device-sync/latest` on mount | Pass |
 | Duplicate click / `409 SYNC_IN_PROGRESS` handled | Pass |
 | Device table shows only the five sync columns | Pass |
@@ -507,5 +509,14 @@ QR / typed code → GET /api/devices/scan?q=
 | Total devices → status `All` (no status filter) | Pass |
 | Status select + Apply / Reset unchanged | Pass |
 | Do not navigate Under repair / Not working to `/tickets` | Pass |
+| Lint + production build | Pass |
+
+### Device Sync result stats (frontend)
+
+| Criterion | Result |
+|-----------|--------|
+| Complete toast shows Created / Updated / Skipped from `devicesCreated` / `devicesUpdated` / `devicesSkipped` when present | Pass |
+| Incomplete/skip/MAC upsert rules stay on backend; FE refreshes list only | Pass |
+| Non-blocking sync, 409 handling, page/filters preserved | Pass |
 | Lint + production build | Pass |
 

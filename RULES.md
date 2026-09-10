@@ -217,11 +217,14 @@ Do not allow unauthorized role changes or self-approval.
 Password version / denylist must remain authoritative after password changes.
 Device Sync (Phase 26+)
 Frontend must call our backend `POST /api/device-sync` / status GETs — never the external SmartPark Device Sync URL from the browser.
-Sync UI must stay non-blocking (disable Sync button only; no full-page blocker).
+Sync UI must stay non-blocking (disable Sync button only; no full-page blocker). Do not process the external sync dataset on the browser main thread.
 Prevent accidental duplicate sync requests while submitting or while status is `started`; respect backend `409 SYNC_IN_PROGRESS`.
 Gate Sync on Device list `c`; preserve backend authorization.
-Reuse existing `api` / `toast` / `Button` / `TablePagination` — no new libraries or React Query.
+Reuse existing `api` / `toast` / `Button` / `TablePagination` / device-sync helpers — no new libraries or React Query.
+Backend is the source of truth for sync validation (incomplete slot/MAC skips) and Slot-ID + MAC upserts. Do not invent incomplete devices or duplicate rows in frontend state.
+On sync complete, toast only returned device stats keys (`devicesCreated` / `devicesUpdated` / `devicesSkipped`) when numeric; do not invent skip-reason lists or other fields.
 Preserve device list pagination, search, filters, and current page on post-sync refresh.
+Existing devices must retain ticket Raise / Update / Detail flows after sync.
 Device list table columns for this phase: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location only.
 Device list status tiles (Working / Under repair / Not working / Total) must apply the existing `status` filter via `listDevices` and stay on `/devices`. Do not link Under repair / Not working to `/tickets`.
 Do not invent client-only sync locking as a replacement for backend single-flight.

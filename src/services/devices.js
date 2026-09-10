@@ -95,8 +95,24 @@ export async function getDevice(deviceId) {
 }
 
 /**
+ * Update device (PATCH /api/devices/:id). Slot Id is not accepted by the API.
+ * Body fields match createSchema.partial() — send only changed keys.
+ */
+export async function updateDevice(deviceId, body) {
+  const envelope = await apiEnvelope(`/api/devices/${encodeURIComponent(deviceId)}`, {
+    method: 'PATCH',
+    body,
+  })
+  return {
+    data: envelope.data,
+    message: envelope.message || 'Device updated',
+  }
+}
+
+/**
  * Start async Device Sync (POST /api/device-sync).
  * Returns { run, message } — run has id/status; work continues on the backend.
+ * Completed runs may include stats (devicesCreated / devicesUpdated / devicesSkipped).
  */
 export async function startDeviceSync() {
   const envelope = await apiEnvelope('/api/device-sync', { method: 'POST', body: {} })
@@ -106,7 +122,7 @@ export async function startDeviceSync() {
   }
 }
 
-/** Poll a sync run by id (GET /api/device-sync/:id). */
+/** Poll a sync run by id (GET /api/device-sync/:id). Completed runs may include stats. */
 export async function getDeviceSync(id) {
   return api(`/api/device-sync/${encodeURIComponent(id)}`)
 }
