@@ -74,7 +74,7 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
   - `POST /api/auth/change-password` — `currentPassword` + `newPassword`; denies old JWT, reissues token so session continues.
 - **Logout:** Topbar logout icon → confirmation modal → `POST /api/auth/logout` + clear local token → `/login`.
 - **Existing users:** Migration adds `Pending` to status CHECK; seeded Active users unchanged.
-- **Menu gating:** Sidebar `filterMenuByView` + `canPerm` (`v`); Dashboard also requires Admin/PM; Settings always visible. Backend remains authoritative for data.
+- **Menu gating:** Sidebar `filterMenuByView` + `canPerm` (`v`); Dashboard also requires Admin/PM; Settings always visible. Site attendant / Technician: All tickets promoted to a top-level link (no Tickets submenu) when Work report is not visible. Backend remains authoritative for data.
 
 ---
 

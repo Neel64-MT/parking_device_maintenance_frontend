@@ -88,6 +88,7 @@ Home & Dashboard access (Phase 18+)
 Only Admin and Project manager may open Dashboard (isDashboardRole / homePathForUser).
 After login (and GuestOnly / / / catch-all), non–ops-lead roles go to /tickets.
 Hide Dashboard in the sidebar for other roles even if permissions still list Dashboard v.
+For Site attendant and Technician, show All tickets as a top-level sidebar item (not under a Tickets submenu) when it is the only visible Tickets child.
 Unauthorized Users redirect uses homePathForUser, not a hard-coded /dashboard.
 Ticket status & list columns (Phase 18+)
 Do not show ticket status New; use Open (normalize legacy API/DB values).

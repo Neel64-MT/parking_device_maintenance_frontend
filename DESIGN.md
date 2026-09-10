@@ -214,6 +214,8 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 |------|---------|
 | Post-login home | Admin / Project manager → Dashboard; others → All tickets |
 | Dashboard nav | Hidden for non–Admin/PM (even if Dashboard permission `v` exists) |
+| All tickets nav | Site attendant / Technician: top-level **All tickets**; other roles: Tickets → All tickets / Work report |
+| All tickets icon | Shared `ticket-list`: ticket stub with list lines (same for all roles; distinct from Tickets parent stub and Work report clipboard) |
 | Ticket tabs | Labels **Open** / Assigned / Closed (tab id `new` unchanged) |
 | Status pill | Never show **New**; show **Open** (same tone as before) |
 | Table columns | … Issue found → **Raised by** → Assigned to → Updates … |

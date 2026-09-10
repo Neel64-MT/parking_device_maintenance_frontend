@@ -58,11 +58,11 @@ const PATHS = {
     </>
   ),
 
-  /* Sub-menu: all tickets — bullet list (distinct from ticket stub) */
+  /* All tickets — ticket stub with list lines (distinct from parent ticket + report) */
   'ticket-list': (
     <>
-      <path d="M8 6h12M8 12h12M8 18h12" />
-      <path d="M4 6h.01M4 12h.01M4 18h.01" />
+      <path d="M5.5 4.5h13A1.5 1.5 0 0 1 20 6v2.6a2 2 0 0 0 0 4V16a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16v-3.4a2 2 0 0 0 0-4V6A1.5 1.5 0 0 1 5.5 4.5z" />
+      <path d="M8.5 8h5.5M8.5 11.5h7M8.5 15h4" />
     </>
   ),
 

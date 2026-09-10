@@ -108,10 +108,14 @@ export function isMenuItemOn(item, pageId) {
   return !!(item.match && item.match.includes(pageId))
 }
 
+/** Roles that see All tickets as a top-level link (no Tickets submenu). */
+const FLAT_ALL_TICKETS_ROLES = ['Site attendant', 'Technician']
+
 /**
  * Drop menu leaves (and empty parent groups) the user cannot view.
  * `canView(screen)` should return true when permission flag `v` is set.
  * Optional `role` applies `hideForRoles` on items (e.g. Parts vs Site attendant).
+ * Site attendant / Technician: promote lone All tickets leaf out of Tickets group.
  */
 export function filterMenuByView(menu, canView, role) {
   function allow(item) {
@@ -125,6 +129,16 @@ export function filterMenuByView(menu, canView, role) {
       if (item.children) {
         const children = item.children.filter(allow)
         if (!children.length) return null
+        if (
+          role &&
+          FLAT_ALL_TICKETS_ROLES.includes(role) &&
+          item.label === 'Tickets' &&
+          children.length === 1 &&
+          children[0].id === 'ticket-list'
+        ) {
+          const leaf = children[0]
+          return { ...leaf, icon: leaf.icon || item.icon }
+        }
         return { ...item, children }
       }
       if (!allow(item)) return null
