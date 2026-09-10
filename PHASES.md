@@ -587,6 +587,23 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Device list status tiles → filter
+
+**Objective:** Status summary tiles on Device list apply the existing backend `status` filter instead of navigating Under repair / Not working to `/tickets`.
+
+**Steps:**
+1. DeviceList: remove `tileHref` / tile `<Link>`s; add `selectStatus` (draft + applied.status, page=1).
+2. Total devices → `All`; Working / Under repair / Not working → same label strings as filter select.
+3. Docs + lint/build.
+
+**Out of scope:** Ticket/Dashboard tiles; page-size changes; URL searchParams for filters.
+
+**Verification:** Tile click filters table; URL stays `/devices`; Apply/Reset still work.
+
+**Completion:** Signed off in MEMORY.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text

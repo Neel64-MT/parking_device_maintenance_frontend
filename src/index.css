@@ -1510,9 +1510,24 @@ td a:not(.btn):not(.code):hover {
   text-decoration: none;
   color: inherit;
   display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
 }
 
-.tile-link:hover .tile {
+.tile-link:disabled {
+  cursor: wait;
+  opacity: 0.85;
+}
+
+.tile-link:hover .tile,
+.tile-link[aria-pressed='true'] .tile,
+.tile.tile-selected {
   border-color: var(--teal);
   box-shadow: 0 0 0 1px var(--teal);
 }

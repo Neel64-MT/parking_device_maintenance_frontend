@@ -214,6 +214,8 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 |------|---------|
 | Post-login home | Admin / Project manager → Dashboard; others → All tickets |
 | Dashboard nav | Hidden for non–Admin/PM (even if Dashboard permission `v` exists) |
+| All tickets nav | Site attendant / Technician: top-level **All tickets**; other roles: Tickets → All tickets / Work report |
+| All tickets icon | Shared `ticket-list`: ticket stub with list lines (same for all roles; distinct from Tickets parent stub and Work report clipboard) |
 | Ticket tabs | Labels **Open** / Assigned / Closed (tab id `new` unchanged) |
 | Status pill | Never show **New**; show **Open** (same tone as before) |
 | Table columns | … Issue found → **Raised by** → Assigned to → Updates … |
@@ -328,6 +330,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Empty cell | `—` for null identifier / missing values |
 | Skeleton | `SkeletonTable` 5 cols |
 | Responsive | Existing `.jump-actions` wrap; `.table-wrap` horizontal scroll — no new breakpoints |
+| Status tiles | Buttons (`.tile-link`); click → `selectStatus` (Working / Under repair / Not working / All for Total); `aria-pressed` + `.tile-selected` when matches `applied.status`; stay on `/devices` |
 
 ## Phase 26b — Ticket Slot Id + live Device history
 

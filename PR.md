@@ -72,7 +72,7 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 5. Close ticket — mobile-first: final issue, resolution, cost, photos (upload on confirm), confirm
 6. Ticket detail — record header, work history timeline, classification, assignment trail; Add Update modal with PhotoPicker
 7. Work report — Day/Week/Month/Range, team strip, per-person panels
-8. Device list — tiles, filters, table (Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location); Sync Devices (Phase 26)
+8. Device list — tiles (click → `status` filter on same page), filters, table (Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location); Sync Devices (Phase 26)
 9. Device history — record, life stats, split ticket/resolution table, parts, timeline
 10. Add device — identity, location, installation form
 11. Scan QR — live camera / manual find + result / miss / error; branch raise vs update
@@ -100,7 +100,7 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 - Part chips from `PART_MASTER`
 - Duplicate open-ticket warning on raise (demo for PD-0428)
 - Reclassification amber strip on update/detail
-- Device status shown as Working / Under repair / Not working (derived concept in product; preview shows static pills)
+- Device status shown as Working / Under repair / Not working (derived); Device list status tiles apply `GET /api/devices?status=` and stay on `/devices` (not navigate to tickets)
 - Cost only where original shows it (visit/close, device history totals, work report footers — not dashboard fleet as primary cost UI)
 - Forms do not post; toast “Design preview — this form is not connected yet.”
 - Table client-side search
@@ -499,4 +499,13 @@ QR / typed code → GET /api/devices/scan?q=
 | Miss / API error EmptyState | Pass |
 | Lint + production build | Pass |
 
+### Device list status tiles → filter
+
+| Criterion | Result |
+|-----------|--------|
+| Working / Under repair / Not working tiles set `applied.status` + page 1; URL stays `/devices` | Pass |
+| Total devices → status `All` (no status filter) | Pass |
+| Status select + Apply / Reset unchanged | Pass |
+| Do not navigate Under repair / Not working to `/tickets` | Pass |
+| Lint + production build | Pass |
 

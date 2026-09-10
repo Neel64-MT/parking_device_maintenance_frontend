@@ -88,6 +88,7 @@ Home & Dashboard access (Phase 18+)
 Only Admin and Project manager may open Dashboard (isDashboardRole / homePathForUser).
 After login (and GuestOnly / / / catch-all), non–ops-lead roles go to /tickets.
 Hide Dashboard in the sidebar for other roles even if permissions still list Dashboard v.
+For Site attendant and Technician, show All tickets as a top-level sidebar item (not under a Tickets submenu) when it is the only visible Tickets child.
 Unauthorized Users redirect uses homePathForUser, not a hard-coded /dashboard.
 Ticket status & list columns (Phase 18+)
 Do not show ticket status New; use Open (normalize legacy API/DB values).
@@ -222,6 +223,7 @@ Gate Sync on Device list `c`; preserve backend authorization.
 Reuse existing `api` / `toast` / `Button` / `TablePagination` — no new libraries or React Query.
 Preserve device list pagination, search, filters, and current page on post-sync refresh.
 Device list table columns for this phase: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location only.
+Device list status tiles (Working / Under repair / Not working / Total) must apply the existing `status` filter via `listDevices` and stay on `/devices`. Do not link Under repair / Not working to `/tickets`.
 Do not invent client-only sync locking as a replacement for backend single-flight.
 Do not modify unrelated Device Detail / Scan / Add flows when wiring sync.
 READ-ONLY SOURCE TREE
