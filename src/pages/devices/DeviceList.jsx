@@ -53,9 +53,10 @@ function displayOrDash(value) {
   return String(value)
 }
 
-function tileHref(label) {
-  if (label === 'Working') return '/devices'
-  if (label === 'Under repair' || label === 'Not working') return '/tickets'
+/** Map status-tile labels to filter values sent to GET /api/devices?status= */
+function statusFromTileLabel(label) {
+  if (label === 'Total devices') return 'All'
+  if (label === 'Working' || label === 'Under repair' || label === 'Not working') return label
   return null
 }
 
@@ -289,6 +290,16 @@ export default function DeviceList() {
     })
   }
 
+  /** Status tile click: apply backend status filter; stay on Device list (never /tickets). */
+  function selectStatus(nextStatus) {
+    setStatus(nextStatus)
+    setPage(1)
+    setApplied((prev) => ({
+      ...prev,
+      status: nextStatus,
+    }))
+  }
+
   function handleLimitChange(next) {
     setLimit(next)
     setPage(1)
@@ -351,13 +362,27 @@ export default function DeviceList() {
         ) : (
           <div className="tiles">
             {tiles.map((t) => {
-              const href = tileHref(t.label)
-              return href ? (
-                <Link key={t.label} className="tile-link" to={href}>
-                  <Tile value={t.value} label={t.label} tone={t.tone} />
-                </Link>
-              ) : (
-                <Tile key={t.label} value={t.value} label={t.label} tone={t.tone} />
+              const filterStatus = statusFromTileLabel(t.label)
+              if (!filterStatus) {
+                return <Tile key={t.label} value={t.value} label={t.label} tone={t.tone} />
+              }
+              const selected = applied.status === filterStatus
+              return (
+                <button
+                  key={t.label}
+                  type="button"
+                  className="tile-link"
+                  onClick={() => selectStatus(filterStatus)}
+                  aria-pressed={selected}
+                  disabled={loading}
+                >
+                  <Tile
+                    value={t.value}
+                    label={t.label}
+                    tone={t.tone}
+                    className={selected ? 'tile-selected' : ''}
+                  />
+                </button>
               )
             })}
           </div>

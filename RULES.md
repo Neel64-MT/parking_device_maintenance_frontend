@@ -222,6 +222,7 @@ Gate Sync on Device list `c`; preserve backend authorization.
 Reuse existing `api` / `toast` / `Button` / `TablePagination` — no new libraries or React Query.
 Preserve device list pagination, search, filters, and current page on post-sync refresh.
 Device list table columns for this phase: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location only.
+Device list status tiles (Working / Under repair / Not working / Total) must apply the existing `status` filter via `listDevices` and stay on `/devices`. Do not link Under repair / Not working to `/tickets`.
 Do not invent client-only sync locking as a replacement for backend single-flight.
 Do not modify unrelated Device Detail / Scan / Add flows when wiring sync.
 READ-ONLY SOURCE TREE

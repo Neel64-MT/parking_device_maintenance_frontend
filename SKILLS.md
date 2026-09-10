@@ -198,6 +198,7 @@ Inspect existing code
 - Keep UI non-blocking; reuse `toast`, `Button`, `listDevices` reload via token — no React Query.
 - Device list columns: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location; null → `—`.
 - After `completed`, refetch current page/filters; do not reset pagination state.
+- Device list status tiles filter via `listDevices({ status })` on the same page; do not route Under repair / Not working to `/tickets`.
 
 ## Definition of done (per page)
 
