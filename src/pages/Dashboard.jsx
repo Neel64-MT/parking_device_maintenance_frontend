@@ -4,7 +4,7 @@ import { PageMeta } from '../context/PageMetaContext'
 import { useAuth } from '../context/AuthContext'
 import { ApiRequestError } from '../services/api'
 import { getDashboard } from '../services/dashboard'
-import { canPerm, homePathForUser, isDashboardRole } from '../services/users'
+import { canPerm, homePathForUser, isDashboardRole, isFieldTicketUpdater } from '../services/users'
 import { JumpLinks } from '../components/ui/JumpLinks'
 import { Panel } from '../components/ui/Panel'
 import { DashboardSkeleton } from '../components/ui/Skeleton'
@@ -50,6 +50,7 @@ function DashboardFilters({ road, from, to, onRoad, onFrom, onTo }) {
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const showUpdateTicketLink = isFieldTicketUpdater(user)
   const allowed = isDashboardRole(user)
   const canView = canPerm(user, 'Dashboard', 'v') && allowed
 
@@ -127,7 +128,9 @@ export default function Dashboard() {
           links={[
             { to: '/tickets', label: 'All tickets' },
             { to: '/tickets/raise', label: 'Raise a ticket' },
-            { to: '/tickets/update', label: 'Update a ticket' },
+            ...(showUpdateTicketLink
+              ? [{ to: '/tickets/update', label: 'Update a ticket' }]
+              : []),
             { to: '/devices', label: 'Devices' },
           ]}
         />

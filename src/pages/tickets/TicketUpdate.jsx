@@ -1,17 +1,14 @@
-import { useMemo, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useMemo, useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
-import { toastApiError, toastApiSuccess } from '../../context/ToastContext'
-import { ROAD_OPTIONS, SLOTS } from '../../data/slots'
-import { canScanWithCamera } from '../../services/devices'
-import { uploadImages } from '../../services/uploads'
+import { toast, toastApiError } from '../../context/ToastContext'
+import { scanDeviceFacts } from '../../data/scanDevice'
+import { canScanWithCamera, resolveScan } from '../../services/devices'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
+import { EmptyState } from '../../components/ui/EmptyState'
 import { Field } from '../../components/ui/FilterBar'
-import { IssueSelects } from '../../components/ui/IssueSelects'
-import { PartChips } from '../../components/ui/PartChips'
-import { PhotoPicker } from '../../components/ui/PhotoPicker'
 import { QrScannerModal } from '../../components/ui/QrScannerModal'
 
 function ScanIcon() {
@@ -23,27 +20,27 @@ function ScanIcon() {
   )
 }
 
+function applyScanToDevice(scan) {
+  return {
+    id: scan.deviceId,
+    location: `${scan.parkingLocation || scan.locationSite} · Slot ${scan.slotLabel || scan.slot}`,
+    scan,
+  }
+}
+
 export default function TicketUpdate() {
   const { user } = useAuth()
   const canScan = canScanWithCamera(user)
-  const navigate = useNavigate()
   const location = useLocation()
-  const [road, setRoad] = useState('')
-  const [slot, setSlot] = useState('')
-  const [loaded, setLoaded] = useState(false)
-  const [category, setCategory] = useState('')
-  const [subCategory, setSubCategory] = useState('')
-  const [fixed, setFixed] = useState(null)
-  const [scannerOpen, setScannerOpen] = useState(false)
-  const [photosFixed, setPhotosFixed] = useState([])
-  const [photosOpen, setPhotosOpen] = useState([])
-  const [submitting, setSubmitting] = useState(false)
+  const resolveGen = useRef(0)
 
-  const slotOptions = road ? SLOTS[road] || [] : []
-  const reclassed =
-    loaded &&
-    Boolean(category && subCategory) &&
-    !(category === 'Electrical' && subCategory === 'Controller board failure')
+  const [qrInput, setQrInput] = useState('')
+  const [device, setDevice] = useState(null)
+  const [lookupState, setLookupState] = useState('idle') // idle | hit | miss | error
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [resolving, setResolving] = useState(false)
+
+  const fromHere = `${location.pathname}${location.search}`
 
   const backTo =
     typeof location.state?.from === 'string' &&
@@ -55,78 +52,70 @@ export default function TicketUpdate() {
   const crumb = useMemo(
     () => (
       <>
-        <Link to="/tickets">Tickets</Link> › <Link to="/tickets/TK-1042">TK-1042</Link> › Site visit
+        <Link to={backTo}>Tickets</Link> › Update ticket
       </>
     ),
-    [],
+    [backTo],
   )
 
   const actions = useMemo(
     () => (
       <Link className="btn" to={backTo}>
-        My tickets
+        All tickets
       </Link>
     ),
     [backTo],
   )
 
-  function fillSlots(nextRoad) {
-    setRoad(nextRoad)
-    setSlot('')
+  function clearResult() {
+    setDevice(null)
+    setLookupState('idle')
   }
 
-  function loadTicket() {
-    setLoaded(true)
-    setCategory('Electrical')
-    setSubCategory('Controller board failure')
-  }
-
-  function onQrScan() {
-    // Any QR → existing mock inspection flow (do not rewrite panels).
-    loadTicket()
-  }
-
-  function cancel() {
-    if (
-      typeof location.state?.from === 'string' &&
-      location.state.from.startsWith('/') &&
-      !location.state.from.startsWith('/tickets/update')
-    ) {
-      navigate(location.state.from)
-      return
-    }
-    if (location.key !== 'default') {
-      navigate(-1)
-      return
-    }
-    navigate('/tickets')
-  }
-
-  async function save() {
-    const pending = fixed ? photosFixed : photosOpen
-    setSubmitting(true)
+  async function applyResolved(raw) {
+    const gen = ++resolveGen.current
+    clearResult()
+    setResolving(true)
     try {
-      let photoUrls = []
-      if (pending.length) {
-        const uploaded = await uploadImages(pending)
-        photoUrls = uploaded.map((u) => u.url)
+      const scan = await resolveScan(raw)
+      if (gen !== resolveGen.current) return
+      if (!scan) {
+        setLookupState('miss')
+        toast('No device matches that code.', 'error')
+        return
       }
-      // photoUrls ready for update/close API when wired
-      if (fixed) navigate('/tickets/close', { state: { from: backTo } })
-      else {
-        toastApiSuccess(
-          photoUrls.length
-            ? `Update saved. Ticket stays open (${photoUrls.length} photo${photoUrls.length > 1 ? 's' : ''} ready).`
-            : 'Update saved. Ticket stays open.',
-        )
-        navigate(backTo)
-      }
+      setQrInput(scan.qrNumber || scan.qr || String(raw || '').trim())
+      setDevice(applyScanToDevice(scan))
+      setLookupState('hit')
     } catch (err) {
-      toastApiError(err, 'Could not upload images.')
+      if (gen !== resolveGen.current) return
+      clearResult()
+      setLookupState('error')
+      toastApiError(err, 'Could not look up that device.')
     } finally {
-      setSubmitting(false)
+      if (gen === resolveGen.current) setResolving(false)
     }
   }
+
+  function findByQr() {
+    const code = qrInput.trim()
+    if (!code) {
+      toast('Enter a QR number.', 'error')
+      return
+    }
+    applyResolved(code)
+  }
+
+  function onQrScan(text) {
+    applyResolved(text)
+  }
+
+  function openTicketPath(ticketId) {
+    return `/tickets/${encodeURIComponent(ticketId)}`
+  }
+
+  const openTicketId = device?.scan?.openTicketId
+  const busy = resolving
 
   return (
     <>
@@ -139,252 +128,170 @@ export default function TicketUpdate() {
               <div className="step-n">1</div>
               <div>
                 <h3>Which device</h3>
-                <p>Scan the sticker in front of you, or pick road and slot</p>
+                <p>Scan the sticker or type the QR number</p>
               </div>
             </div>
           </div>
           <div className="panel-body">
             {canScan ? (
-              <button type="button" className="scan-btn" onClick={() => setScannerOpen(true)}>
+              <button
+                type="button"
+                className="scan-btn"
+                onClick={() => setScannerOpen(true)}
+                disabled={busy}
+              >
                 <ScanIcon />
                 Scan QR on the machine
               </button>
-            ) : (
-              <button type="button" className="scan-btn" onClick={loadTicket}>
-                <ScanIcon />
-                Load open ticket (preview)
-              </button>
-            )}
+            ) : null}
 
-            <div className="or">or select manually</div>
+            <div className="or">or type the QR number</div>
 
-            <Field label="Road">
-              <select value={road} onChange={(e) => fillSlots(e.target.value)}>
-                <option value="">Select road</option>
-                {ROAD_OPTIONS.map((r) => (
-                  <option key={r}>{r}</option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Slot number" style={{ marginBottom: 0 }}>
-              <select
-                value={slot}
-                onChange={(e) => {
-                  setSlot(e.target.value)
-                  loadTicket()
+            <Field label="QR Number">
+              <input
+                type="text"
+                value={qrInput}
+                onChange={(e) => setQrInput(e.target.value)}
+                placeholder="e.g. AMCC2346"
+                disabled={busy}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    findByQr()
+                  }
                 }}
-                disabled={!road}
-              >
-                <option value="">{road ? 'Select slot' : 'Select a road first'}</option>
-                {slotOptions.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
+              />
             </Field>
+            <div style={{ marginBottom: 0 }}>
+              <Button variant="dark" onClick={findByQr} disabled={busy}>
+                {resolving ? 'Fetching device…' : 'Find device'}
+              </Button>
+            </div>
+
+            {resolving ? (
+              <p className="muted" style={{ marginTop: 12 }}>
+                Fetching device…
+              </p>
+            ) : null}
           </div>
         </section>
 
-        {loaded ? (
-          <div>
-            <section className="panel">
-              <div className="panel-head">
-                <div>
-                  <h3>Open ticket on this device</h3>
-                  <p>TK-1042 · raised 8 days ago</p>
-                </div>
-                <Link className="link" to="/tickets/TK-1042">
-                  Full history
-                </Link>
-              </div>
-              <div className="panel-body">
-                <DeviceCard
-                  id="PD-0428"
-                  location="Science City · Slot S2-114"
-                  facts={[
-                    { label: 'Reported as', value: 'Controller board failure' },
-                    { label: 'Reported by', value: 'Site attendant' },
-                    { label: 'Visits so far', value: '3' },
-                  ]}
-                />
-                <p className="muted" style={{ marginTop: 12 }}>
-                  Last update on 30 Aug: waiting for the motor assembly, dispatch expected 02 Sep.
+        {lookupState === 'hit' && device?.scan && !resolving ? (
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <h3>{openTicketId ? 'Open ticket on this device' : 'Device found'}</h3>
+                <p>
+                  {openTicketId
+                    ? `${openTicketId}${device.scan.openTicketAge ? ` · raised ${device.scan.openTicketAge} ago` : ''}`
+                    : 'There is no open ticket to update on this machine'}
                 </p>
               </div>
-            </section>
-
-            <section className="panel">
-              <div className="panel-head">
-                <div className="step-head">
-                  <div className="step-n">2</div>
+              {openTicketId ? (
+                <Link className="link" to={openTicketPath(openTicketId)} state={{ from: fromHere }}>
+                  Full history
+                </Link>
+              ) : null}
+            </div>
+            <div className="panel-body">
+              <DeviceCard
+                id={device.id}
+                location={device.location}
+                facts={scanDeviceFacts(device.scan)}
+              />
+              {openTicketId ? (
+                <div className="reclass" style={{ display: '', marginTop: 12 }}>
                   <div>
-                    <h3>What did you find</h3>
-                    <p>Change the category if the real fault is different</p>
-                  </div>
-                </div>
-              </div>
-              <div className="panel-body">
-                <IssueSelects
-                  category={category}
-                  subCategory={subCategory}
-                  onCategoryChange={setCategory}
-                  onSubCategoryChange={setSubCategory}
-                />
-                {reclassed ? (
-                  <div className="reclass" style={{ margin: '14px 0 0' }}>
-                    <div>
-                      Changing from <b>Electrical › Controller board failure</b>
-                      <span className="arrow">→</span>
-                      <b>
-                        {category} › {subCategory || '—'}
-                      </b>
-                      . The original report is kept on the ticket.
+                    <b>Update this ticket instead of raising another.</b>{' '}
+                    {device.scan.openTicketIssue
+                      ? `Current issue: ${device.scan.openTicketIssue}.`
+                      : ''}
+                    <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Link
+                        className="btn btn-sm btn-primary"
+                        to={openTicketPath(openTicketId)}
+                        state={{ from: fromHere }}
+                      >
+                        Update existing ticket
+                      </Link>
+                      <Link
+                        className="btn btn-sm"
+                        to={openTicketPath(openTicketId)}
+                        state={{ from: fromHere }}
+                      >
+                        Open {openTicketId}
+                      </Link>
                     </div>
                   </div>
-                ) : null}
-              </div>
-            </section>
-
-            <section className="panel">
-              <div className="panel-head">
-                <div className="step-head">
-                  <div className="step-n">3</div>
+                </div>
+              ) : (
+                <div className="reclass" style={{ display: '', marginTop: 12 }}>
                   <div>
-                    <h3>Did you fix it today</h3>
-                    <p>Log the visit either way</p>
-                  </div>
-                </div>
-              </div>
-              <div className="panel-body">
-                <div className="seg">
-                  <button
-                    type="button"
-                    className={fixed ? 'on-ok' : undefined}
-                    onClick={() => setFixed(true)}
-                  >
-                    Yes, fixed
-                  </button>
-                  <button
-                    type="button"
-                    className={fixed === false ? 'on-bad' : undefined}
-                    onClick={() => setFixed(false)}
-                  >
-                    No, still open
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            {fixed ? (
-              <section className="panel">
-                <div className="panel-head">
-                  <div className="step-head">
-                    <div className="step-n">4</div>
-                    <div>
-                      <h3>What you did</h3>
-                      <p>This becomes the resolution on the ticket</p>
+                    <b>No open ticket on this device.</b> Raise a new ticket if the machine needs
+                    attention.
+                    <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Link
+                        className="btn btn-sm btn-primary"
+                        to="/tickets/raise"
+                        state={{ from: fromHere }}
+                      >
+                        Raise a ticket
+                      </Link>
                     </div>
                   </div>
                 </div>
-                <div className="panel-body">
-                  <Field
-                    label="Parts changed"
-                    hint="Tap every part you replaced. Leave blank if nothing was changed."
-                  >
-                    <PartChips />
-                  </Field>
-                  <Field
-                    label="Cost of this visit"
-                    hint="Parts plus labour spent today. Added to the ticket total."
-                  >
-                    <input type="number" placeholder="0" />
-                  </Field>
-                  <Field label="Photos after repair">
-                    <PhotoPicker
-                      hint="Photograph the repaired device before you leave."
-                      onChange={setPhotosFixed}
-                      disabled={submitting}
-                    />
-                  </Field>
-                  <Field label="Work done" style={{ marginBottom: 0 }}>
-                    <textarea placeholder="e.g. Replaced motor and gearbox assembly, reset travel limits, tested 5 open-close cycles." />
-                  </Field>
-                </div>
-              </section>
-            ) : null}
+              )}
+            </div>
+          </section>
+        ) : null}
 
-            {fixed === false ? (
-              <section className="panel">
-                <div className="panel-head">
-                  <div className="step-head">
-                    <div className="step-n">4</div>
-                    <div>
-                      <h3>What you did today</h3>
-                      <p>The ticket stays open and this is added to its history</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="panel-body">
-                  <Field label="Why it is not fixed">
-                    <select defaultValue="Spare not available">
-                      <option>Spare not available</option>
-                      <option>Spare ordered, waiting for delivery</option>
-                      <option>Needs civil work at the slot</option>
-                      <option>Needs traffic police or AMC support</option>
-                      <option>Needs more diagnosis</option>
-                      <option>No access — vehicle parked on the slot</option>
-                      <option>Rain, work stopped</option>
-                    </select>
-                  </Field>
-                  <Field
-                    label="Parts changed today"
-                    hint="A part can be changed even when the fault is not fully resolved."
-                  >
-                    <PartChips />
-                  </Field>
-                  <Field label="Cost of this visit">
-                    <input type="number" placeholder="0" />
-                  </Field>
-                  <Field label="Photos">
-                    <PhotoPicker
-                      hint="Photograph what you found, even if nothing was fixed."
-                      onChange={setPhotosOpen}
-                      disabled={submitting}
-                    />
-                  </Field>
-                  <Field label="Work done today" style={{ marginBottom: 0 }}>
-                    <textarea placeholder="e.g. Opened the housing, confirmed the gearbox is seized. Cannot repair on site. Slot barricaded." />
-                  </Field>
-                </div>
-                <div className="foot-note">
-                  A visit that fixes nothing is still worth recording. Three such visits is what
-                  shows you a spares problem rather than a technician problem.
-                </div>
-              </section>
-            ) : null}
-          </div>
+        {lookupState === 'miss' && !resolving ? (
+          <section className="panel">
+            <EmptyState
+              title="No device matches that code"
+              action={
+                canScan ? (
+                  <Button variant="dark" onClick={() => setScannerOpen(true)}>
+                    Scan again
+                  </Button>
+                ) : (
+                  <Link className="btn" to="/devices">
+                    Search device list
+                  </Link>
+                )
+              }
+            >
+              Check the sticker or QR number. The code must exist in the device list.
+            </EmptyState>
+          </section>
+        ) : null}
+
+        {lookupState === 'error' && !resolving ? (
+          <section className="panel">
+            <EmptyState
+              title="Could not check this device"
+              action={
+                <Button
+                  variant="dark"
+                  onClick={() => {
+                    if (qrInput.trim()) findByQr()
+                    else if (canScan) setScannerOpen(true)
+                  }}
+                >
+                  Try again
+                </Button>
+              }
+            >
+              Ticket status could not be determined. Fix the connection and retry before updating.
+            </EmptyState>
+          </section>
         ) : null}
 
         <div className="sticky-bar">
           <div className="sticky-bar-inner">
-            <Button type="button" onClick={cancel}>
+            <Link className="btn" to={backTo}>
               Cancel
-            </Button>
-            {loaded ? (
-              <Button
-                variant={fixed === false ? 'dark' : 'primary'}
-                onClick={save}
-                disabled={submitting}
-              >
-                {submitting
-                  ? 'Uploading…'
-                  : fixed === true
-                    ? 'Fix done, close ticket'
-                    : fixed === false
-                      ? 'Save update, keep open'
-                      : 'Save update'}
-              </Button>
-            ) : null}
+            </Link>
           </div>
         </div>
       </main>

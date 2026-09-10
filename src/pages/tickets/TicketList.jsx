@@ -9,7 +9,7 @@ import { ROAD_OPTIONS } from '../../data/slots'
 import { TICKET_TAB_META } from '../../data/tickets'
 import { ApiRequestError } from '../../services/api'
 import { listTickets } from '../../services/tickets'
-import { canPerm } from '../../services/users'
+import { canPerm, isFieldTicketUpdater } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field, FilterBar } from '../../components/ui/FilterBar'
 import { JumpLinks } from '../../components/ui/JumpLinks'
@@ -48,6 +48,7 @@ export default function TicketList() {
   const canView = canPerm(user, 'All tickets', 'v')
   const canAssign = canPerm(user, 'All tickets', 'a')
   const canViewWorkReport = canPerm(user, 'Work report', 'v')
+  const showUpdateTicketLink = isFieldTicketUpdater(user)
   const canFilterAssignee =
     user?.role === 'Admin' || user?.role === 'Project manager'
   const [searchParams, setSearchParams] = useSearchParams()
@@ -156,11 +157,10 @@ export default function TicketList() {
       },
       { replace: true },
     )
-    setQuery('')
     const nextStatus = statusForTab(nextTab, status)
     setStatus(nextStatus)
     setPage(1)
-    setApplied((prev) => ({ ...prev, q: '', status: nextStatus }))
+    setApplied((prev) => ({ ...prev, status: nextStatus }))
   }
 
   function applyFilters() {
@@ -215,7 +215,9 @@ export default function TicketList() {
         <JumpLinks
           links={[
             { to: '/tickets/raise', label: 'Raise a ticket' },
-            { to: '/tickets/update', label: 'Update a ticket' },
+            ...(showUpdateTicketLink
+              ? [{ to: '/tickets/update', label: 'Update a ticket' }]
+              : []),
             ...(canViewWorkReport
               ? [{ to: '/tickets/report', label: 'Work report' }]
               : []),
@@ -319,7 +321,7 @@ export default function TicketList() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') applyFilters()
                 }}
-                placeholder="Ticket, device or slot"
+                placeholder="Ticket, slot id or road"
                 aria-label="Search tickets"
               />
               <Link className="btn btn-primary" to="/tickets/raise" state={ticketLinkState}>
@@ -335,7 +337,7 @@ export default function TicketList() {
               <thead>
                 <tr>
                   <th>Ticket</th>
-                  <th>Device</th>
+                  <th>Slot Id</th>
                   <th>Road / slot</th>
                   <th>Issue reported</th>
                   <th>Issue found</th>

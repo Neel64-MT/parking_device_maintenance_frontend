@@ -150,13 +150,15 @@ Inspect existing code
 - Ticket list envelope includes `tiles` / `tabCounts` beside `data` — use `apiEnvelope` (or equivalent), not `api()` alone.
 - Never treat client-side row filtering as authorization.
 
-## QR scan skills (Phase 17+)
+## QR scan skills (Phase 17+ / 27+)
 
 - Use `QrScannerModal` + `html5-qrcode`; stop the camera on close.
-- Gate camera with `user.role === 'Site attendant' || user.role === 'Technician'`.
-- Resolve scans through `services/devices.resolveScan` (mock now; later `GET /api/devices/scan`).
-- Site attendant Raise: map full scan fields; block create when `openTicketId` is set.
-- Technician Update: on scan success call existing `loadTicket()` only.
+- Gate camera with `canScanWithCamera(user)` — any signed-in user.
+- Resolve scans through `services/devices.resolveScan` → live `GET /api/devices/scan?q=` (404 → null).
+- Site attendant Raise: map scan fields; block create when `openTicketId` is set; create via `createTicket` + issue UUIDs from `listIssueCategories`.
+- Open-ticket CTAs → `/tickets/:openTicketId` (Detail Add Update).
+- Update Ticket page: live `resolveScan` (same as Raise/Scan); open → Detail; free → Raise; no mock `loadTicket` panels.
+- Detail header: ops roles (`isOpsTicketUpdater`) → Add update; field roles (`isFieldTicketUpdater`) → QR Update Ticket link.
 
 ## Ticket detail / list UI skills (Phase 19+)
 

@@ -164,6 +164,45 @@ export function TicketDetailSkeleton() {
   )
 }
 
+/** Device history page skeleton. */
+export function DeviceDetailSkeleton() {
+  return (
+    <div aria-busy="true" aria-live="polite">
+      <span className="sr-only">Loading device history</span>
+      <section className="record sk-record">
+        <div className="record-top">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Skeleton height={22} width={120} />
+            <Skeleton height={12} width="55%" style={{ marginTop: 10 }} />
+          </div>
+          <Skeleton height={28} width={88} radius={999} />
+          <div className="push" style={{ display: 'flex', gap: 8 }}>
+            <Skeleton height={32} width={96} radius={8} />
+            <Skeleton height={32} width={90} radius={8} />
+          </div>
+        </div>
+        <div className="facts">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i}>
+              <Skeleton height={9} width="40%" />
+              <Skeleton height={14} width="70%" style={{ marginTop: 8 }} />
+            </div>
+          ))}
+        </div>
+      </section>
+      <SkeletonTiles count={5} five className="sk-tiles" />
+      <div className="panel sk-panel" style={{ marginTop: 16 }}>
+        <div className="panel-head">
+          <Skeleton height={14} width="40%" />
+        </div>
+        <div className="panel-body flush">
+          <SkeletonTable rows={5} cols={8} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /** Dashboard data region skeleton (filters stay outside). */
 export function DashboardSkeleton() {
   return (

@@ -25,7 +25,7 @@ function resultPill(result) {
 }
 
 function personTableHead(view) {
-  if (view === 'day') return ['Ticket', 'Device', 'Road / slot', 'Issue found', 'What he did', 'Result']
+  if (view === 'day') return ['Ticket', 'Slot Id', 'Road / slot', 'Issue found', 'What he did', 'Result']
   if (view === 'month') return ['Week', 'Dates', 'Volume', 'Main issues', 'Outcome', 'Result']
   return ['Day', 'Volume', 'Roads', 'Main issues', 'Outcome', 'Result']
 }

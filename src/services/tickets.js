@@ -64,6 +64,31 @@ export async function getTicket(ticketId) {
 }
 
 /**
+ * Raise a new ticket (POST /api/tickets). No assignee — Admin/control assigns later.
+ * On conflict the API returns 409 OPEN_TICKET_EXISTS / REOPEN_SAME_TICKET with details.
+ * @param {{
+ *   deviceId: string,
+ *   categoryId: string,
+ *   subCategoryId: string,
+ *   description?: string,
+ *   photos?: string[],
+ * }} body
+ * @returns {Promise<{ id: string, uuid: string, status: string }>}
+ */
+export async function createTicket(body) {
+  return api('/api/tickets', {
+    method: 'POST',
+    body: {
+      deviceId: body.deviceId,
+      categoryId: body.categoryId,
+      subCategoryId: body.subCategoryId,
+      description: body.description || undefined,
+      photos: body.photos || [],
+    },
+  })
+}
+
+/**
  * Add a site update / visit note. Body matches POST /api/tickets/:id/updates.
  * Prefer photos: [] here, then upload, then attachTicketUpdatePhotos — so uploads
  * only run after the update is accepted.

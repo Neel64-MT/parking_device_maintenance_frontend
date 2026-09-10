@@ -210,7 +210,7 @@ ticket” instead.
 ### Tickets — list
 
 - Tabs: New, Assigned, Closed, with counts
-- Columns include issue reported, issue found, updates count
+- Columns include **Slot Id** (link to device history), issue reported, issue found, updates count
 - Raise ticket is a flow button, not a menu item
 
 ### Tickets — raise (mobile-first)
@@ -273,12 +273,13 @@ Person-centric daily work report, not a ticket dump.
 
 ### Devices — history (the main screen)
 
-Header: device code, **road and slot** prominent.
+Header: **Slot Id** (preferred) or legacy device public id, **road and slot** prominent.
+Loaded live from `GET /api/devices/:id` (id may be slot_id or PD-xxxx); same layout, data changes with route.
 
 One table, split:
 
 - Left: ticket no., when, issue reported, issue found
-- Right: action taken, parts replaced (names), days open, cost
+- Right: status / resolution fields from API, days open, cost
 
 Totals row: days down, spend.
 
@@ -286,7 +287,8 @@ Part replacement panel: date, part name, ticket. No serials.
 
 ### Devices — add
 
-QR/device code auto-generated. Road from road master. Slot number.
+Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location (road).
+Edit uses the same form with `?id=` and live `getDevice` prefill.
 Link to add road if missing. Replacement parts are captured on tickets,
 never on this form.
 
