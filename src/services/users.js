@@ -32,6 +32,23 @@ export function isDashboardRole(user) {
   return user?.role === 'Admin' || user?.role === 'Project manager'
 }
 
+/**
+ * Field roles that update tickets via QR / Update Ticket flow (not Detail Add Update).
+ * "Engineer" matches role names containing Engineer (e.g. Dy. Engineer) and AMC officer.
+ */
+export function isFieldTicketUpdater(user) {
+  const role = user?.role || ''
+  if (role === 'Technician') return true
+  if (role === 'AMC officer') return true
+  return /engineer/i.test(role)
+}
+
+/** Ops roles that use Detail Add Update (not the field Update Ticket QR entry). */
+export function isOpsTicketUpdater(user) {
+  const role = user?.role || ''
+  return role === 'Admin' || role === 'Project manager' || role === 'Control room'
+}
+
 /** Post-login / index landing path by role. */
 export function homePathForUser(user) {
   return isDashboardRole(user) ? '/dashboard' : '/tickets'

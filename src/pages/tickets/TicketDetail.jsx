@@ -8,7 +8,7 @@ import { ApiRequestError } from '../../services/api'
 import { listParts, sumSelectedPartsAmount } from '../../services/parts'
 import { getTicket, addTicketUpdate, attachTicketUpdatePhotos } from '../../services/tickets'
 import { uploadImages } from '../../services/uploads'
-import { canPerm, isDashboardRole } from '../../services/users'
+import { canPerm, isDashboardRole, isFieldTicketUpdater, isOpsTicketUpdater } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/FilterBar'
 import { ImagePreviewModal } from '../../components/ui/ImagePreviewModal'
@@ -19,6 +19,22 @@ import { PhotoPicker } from '../../components/ui/PhotoPicker'
 import { Pill } from '../../components/ui/Pill'
 import { TicketDetailSkeleton } from '../../components/ui/Skeleton'
 import { TeamSelect } from '../../components/ui/TeamSelect'
+
+function ScanQrIcon() {
+  return (
+    <svg
+      className="ico"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      aria-hidden="true"
+      style={{ width: 16, height: 16, marginRight: 6, verticalAlign: '-2px' }}
+    >
+      <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
+      <path d="M4 12h16" />
+    </svg>
+  )
+}
 
 /** Local time: DD/MM/YYYY at HH:MM AM/PM */
 function formatRaisedOn(value) {
@@ -229,9 +245,12 @@ export default function TicketDetail() {
   const { user } = useAuth()
   const canView = canPerm(user, 'All tickets', 'v')
   const canAssign = canPerm(user, 'All tickets', 'a')
-  const canAddUpdate = canPerm(user, 'Update ticket', 'e')
+  const canUpdateTicketView = canPerm(user, 'Update ticket', 'v')
+  const showAddUpdate = isOpsTicketUpdater(user) && canUpdateTicketView
+  const showFieldUpdateTicket = isFieldTicketUpdater(user) && canUpdateTicketView
   const pickVisitedBy = isDashboardRole(user)
   const backToTickets = ticketsListReturnPath(location.state?.from)
+  const fromHere = `${location.pathname}${location.search}`
 
   const [ticket, setTicket] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -382,7 +401,7 @@ export default function TicketDetail() {
   async function submitUpdate(e) {
     e.preventDefault()
     if (!ticketId) return
-    if (!canAddUpdate) {
+    if (!showAddUpdate) {
       toast('You do not have permission to add ticket updates.', 'error')
       return
     }
@@ -488,7 +507,7 @@ export default function TicketDetail() {
                   <Pill tone={header.statusTone}>{header.status}</Pill>
                 </div>
                 <div className="push">
-                  {canAddUpdate ? (
+                  {showAddUpdate ? (
                     <Button
                       onClick={() => {
                         resetUpdateForm()
@@ -499,6 +518,16 @@ export default function TicketDetail() {
                     >
                       Add update
                     </Button>
+                  ) : null}
+                  {showFieldUpdateTicket ? (
+                    <Link
+                      className="btn"
+                      to="/tickets/update"
+                      state={{ from: location.state?.from || fromHere }}
+                    >
+                      <ScanQrIcon />
+                      Update Ticket
+                    </Link>
                   ) : null}
                   {canReassign ? (
                     <Button onClick={() => setAssignOpen(true)}>Reassign</Button>

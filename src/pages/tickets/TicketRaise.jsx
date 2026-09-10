@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { scanDeviceFacts } from '../../data/scanDevice'
-import { ROAD_OPTIONS, SLOTS } from '../../data/slots'
+import { ApiRequestError } from '../../services/api'
 import { canScanWithCamera, resolveScan } from '../../services/devices'
+import { listIssueCategories } from '../../services/issues'
+import { createTicket } from '../../services/tickets'
 import { uploadImages } from '../../services/uploads'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
@@ -26,7 +28,7 @@ function ScanIcon() {
 function applyScanToDevice(scan) {
   return {
     id: scan.deviceId,
-    location: `${scan.locationSite} · Slot ${scan.slot}`,
+    location: `${scan.parkingLocation || scan.locationSite} · Slot ${scan.slotLabel || scan.slot}`,
     scan,
     dup: Boolean(scan.openTicketId),
   }
@@ -43,21 +45,27 @@ function ticketsListReturnPath(from) {
 export default function TicketRaise() {
   const { user } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
   const canScan = canScanWithCamera(user)
-  const [road, setRoad] = useState('')
-  const [slot, setSlot] = useState('')
+  const resolveGen = useRef(0)
+
+  const [qrInput, setQrInput] = useState('')
   const [device, setDevice] = useState(null)
   const [category, setCategory] = useState('')
   const [subCategory, setSubCategory] = useState('')
+  const [description, setDescription] = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
   const [photos, setPhotos] = useState([])
   const [submitting, setSubmitting] = useState(false)
+  const [resolving, setResolving] = useState(false)
+  const [issueCategories, setIssueCategories] = useState([])
+  const [issuesLoading, setIssuesLoading] = useState(true)
 
   const reportedBy = user?.name || ''
-  const slotOptions = road ? SLOTS[road] || [] : []
   const fromHere = `${location.pathname}${location.search}`
   const blocked = Boolean(device?.dup)
   const backToTickets = ticketsListReturnPath(location.state?.from)
+  const busy = resolving || submitting
 
   const crumb = useMemo(
     () => (
@@ -77,67 +85,144 @@ export default function TicketRaise() {
     [backToTickets],
   )
 
-  function fillSlots(nextRoad) {
-    setRoad(nextRoad)
-    setSlot('')
-    setDevice(null)
+  useEffect(() => {
+    let cancelled = false
+    listIssueCategories()
+      .then((cats) => {
+        if (!cancelled) setIssueCategories(cats)
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          toastApiError(err, 'Could not load issue categories.')
+          setIssueCategories([])
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIssuesLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  function clearProblemFields() {
+    setCategory('')
+    setSubCategory('')
+    setDescription('')
+    setPhotos([])
   }
 
-  async function applyResolved(raw, opts = {}) {
-    const scan = await resolveScan(raw)
-    if (!scan) {
-      toast('Could not resolve that device code.', 'error')
+  function clearDeviceState() {
+    setDevice(null)
+    clearProblemFields()
+  }
+
+  async function applyResolved(raw) {
+    const gen = ++resolveGen.current
+    clearDeviceState()
+    setResolving(true)
+    try {
+      const scan = await resolveScan(raw)
+      if (gen !== resolveGen.current) return
+      if (!scan) {
+        toast('No device matches that code.', 'error')
+        return
+      }
+      setQrInput(scan.qrNumber || scan.qr || String(raw || '').trim())
+      setDevice(applyScanToDevice(scan))
+    } catch (err) {
+      if (gen !== resolveGen.current) return
+      clearDeviceState()
+      toastApiError(err, 'Could not look up that device.')
+    } finally {
+      if (gen === resolveGen.current) setResolving(false)
+    }
+  }
+
+  function findByQr() {
+    const code = qrInput.trim()
+    if (!code) {
+      toast('Enter a QR number.', 'error')
       return
     }
-    if (opts.road) setRoad(opts.road)
-    else if (!road) setRoad(scan.locationSite)
-    if (opts.slot) setSlot(opts.slot)
-    else setSlot(`${scan.slot} — ${scan.deviceId}`)
-    setDevice(applyScanToDevice(scan))
-  }
-
-  function pickDevice(nextSlot) {
-    const nextRoad = road || 'Science City'
-    const chosen = nextSlot || slot || 'S2-114 — PD-0428'
-    const parts = chosen.split(' — ')
-    const deviceId = parts[1] || chosen
-    if (!road) setRoad(nextRoad)
-    if (nextSlot) setSlot(nextSlot)
-    applyResolved(deviceId, { road: nextRoad, slot: nextSlot || chosen })
+    applyResolved(code)
   }
 
   function onQrScan(text) {
     applyResolved(text)
   }
 
+  function openTicketPath(ticketId) {
+    return `/tickets/${encodeURIComponent(ticketId)}`
+  }
+
   async function tryRaise() {
-    if (!device) {
-      toast('Scan or select a device first.', 'error')
+    if (!device?.scan) {
+      toast('Scan or enter a QR number first.', 'error')
       return
     }
     if (blocked) {
       toast('This device already has an open ticket. Update that ticket instead.', 'warning')
       return
     }
+    if (!category || !subCategory) {
+      toast('Select an issue category and sub-category.', 'error')
+      return
+    }
+
     setSubmitting(true)
     try {
       let photoUrls = []
       if (photos.length) {
         const uploaded = await uploadImages(photos)
-        photoUrls = uploaded.map((u) => u.url)
+        photoUrls = uploaded.map((u) => u.url).filter(Boolean)
       }
-      // photoUrls ready for create-ticket API when wired
-      toastApiSuccess(
-        photoUrls.length
-          ? `Design preview — ticket would be created here (${photoUrls.length} photo${photoUrls.length > 1 ? 's' : ''} ready).`
-          : 'Design preview — ticket would be created here.',
-      )
+
+      const created = await createTicket({
+        deviceId: device.scan.deviceId,
+        categoryId: category,
+        subCategoryId: subCategory,
+        description: description.trim() || undefined,
+        photos: photoUrls,
+      })
+
+      toastApiSuccess(created?.id ? `Ticket ${created.id} raised.` : 'Ticket raised.')
+      if (created?.id) {
+        navigate(openTicketPath(created.id), { state: { from: fromHere } })
+      } else {
+        navigate(backToTickets)
+      }
     } catch (err) {
-      toastApiError(err, 'Could not upload images.')
+      if (err instanceof ApiRequestError && err.code === 'OPEN_TICKET_EXISTS') {
+        const openId = err.details?.openTicketId || err.details?.ticketId
+        toast(err.message || 'This device already has an open ticket.', 'warning')
+        if (openId && device?.scan) {
+          setDevice(
+            applyScanToDevice({
+              ...device.scan,
+              openTicketId: openId,
+              openTicketIssue: device.scan.openTicketIssue || 'Open',
+              openTicketAge: device.scan.openTicketAge || 'now',
+            }),
+          )
+        } else if (openId) {
+          navigate(openTicketPath(openId), { state: { from: fromHere } })
+        }
+        return
+      }
+      if (err instanceof ApiRequestError && err.code === 'REOPEN_SAME_TICKET') {
+        const ticketId = err.details?.ticketId || err.details?.openTicketId
+        toast(err.message || 'Reopen the recent ticket instead of creating a new one.', 'warning')
+        if (ticketId) navigate(openTicketPath(ticketId), { state: { from: fromHere } })
+        return
+      }
+      toastApiError(err, 'Could not raise ticket.')
     } finally {
       setSubmitting(false)
     }
   }
+
+  const openTicketId = device?.scan?.openTicketId
 
   return (
     <>
@@ -150,73 +235,82 @@ export default function TicketRaise() {
               <div className="step-n">1</div>
               <div>
                 <h3>Which device</h3>
-                <p>Scan the sticker, or pick road and slot</p>
+                <p>Scan the sticker or type the QR number</p>
               </div>
             </div>
           </div>
           <div className="panel-body">
             {canScan ? (
-              <button type="button" className="scan-btn" onClick={() => setScannerOpen(true)}>
+              <button
+                type="button"
+                className="scan-btn"
+                onClick={() => setScannerOpen(true)}
+                disabled={busy}
+              >
                 <ScanIcon />
                 Scan QR on the machine
               </button>
-            ) : (
-              <p className="muted" style={{ marginBottom: 12 }}>
-                Camera scan is available to Site attendants and Technicians. Pick road and slot
-                below.
+            ) : null}
+
+            <div className="or">or type the QR number</div>
+
+            <Field label="QR Number">
+              <input
+                type="text"
+                value={qrInput}
+                onChange={(e) => setQrInput(e.target.value)}
+                placeholder="e.g. AMCC2346"
+                disabled={busy}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    findByQr()
+                  }
+                }}
+              />
+            </Field>
+            <div style={{ marginBottom: 12 }}>
+              <Button variant="dark" onClick={findByQr} disabled={busy}>
+                {resolving ? 'Fetching device…' : 'Find device'}
+              </Button>
+            </div>
+
+            {resolving ? (
+              <p className="muted" style={{ marginTop: 12 }}>
+                Fetching device…
               </p>
-            )}
+            ) : null}
 
-            <div className="or">or select manually</div>
-
-            <Field label="Road">
-              <select value={road} onChange={(e) => fillSlots(e.target.value)}>
-                <option value="">Select road</option>
-                {ROAD_OPTIONS.map((r) => (
-                  <option key={r}>{r}</option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Slot number">
-              <select
-                value={slot}
-                onChange={(e) => pickDevice(e.target.value)}
-                disabled={!road}
-              >
-                <option value="">{road ? 'Select slot' : 'Select a road first'}</option>
-                {slotOptions.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </Field>
-
-            {device?.scan ? (
+            {device?.scan && !resolving ? (
               <div>
                 <DeviceCard
                   id={device.id}
                   location={device.location}
                   facts={scanDeviceFacts(device.scan)}
                 />
-                {blocked ? (
+                {blocked && openTicketId ? (
                   <div className="reclass" style={{ display: '', marginTop: 12 }}>
                     <div>
                       <b>This device already has an open ticket.</b>{' '}
-                      {device.scan.openTicketId} was raised {device.scan.openTicketAge || 'earlier'}
+                      {openTicketId} was raised {device.scan.openTicketAge || 'earlier'}
                       {device.scan.openTicketIssue
                         ? ` for ${device.scan.openTicketIssue.toLowerCase()}`
                         : ''}
                       . Add an update to that ticket instead of opening a second one.
                       <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <Link className="btn btn-sm" to={`/tickets/${device.scan.openTicketId}`}>
-                          Open {device.scan.openTicketId}
-                        </Link>
                         <Link
                           className="btn btn-sm"
-                          to="/tickets/update"
+                          to={openTicketPath(openTicketId)}
                           state={{ from: fromHere }}
                         >
-                          Update ticket
+                          Open {openTicketId}
+                        </Link>
+                        <Link
+                          className="btn btn-sm btn-primary"
+                          to={openTicketPath(openTicketId)}
+                          state={{ from: fromHere }}
+                        >
+                          Update existing ticket
                         </Link>
                       </div>
                     </div>
@@ -239,20 +333,31 @@ export default function TicketRaise() {
               </div>
             </div>
             <div className="panel-body">
-              <IssueSelects
-                category={category}
-                subCategory={subCategory}
-                onCategoryChange={setCategory}
-                onSubCategoryChange={setSubCategory}
-              />
+              {issuesLoading ? (
+                <p className="muted">Loading issue categories…</p>
+              ) : (
+                <IssueSelects
+                  category={category}
+                  subCategory={subCategory}
+                  onCategoryChange={setCategory}
+                  onSubCategoryChange={setSubCategory}
+                  categories={issueCategories}
+                  disabled={busy || !device}
+                />
+              )}
               <Field label="What is happening">
-                <textarea placeholder="e.g. Flap does not open after payment, two vehicles waiting" />
+                <textarea
+                  placeholder="e.g. Flap does not open after payment, two vehicles waiting"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={busy || !device}
+                />
               </Field>
               <Field label="Photos">
                 <PhotoPicker
                   hint="Up to 5 photos — the slot, the flap, the display."
                   onChange={setPhotos}
-                  disabled={submitting}
+                  disabled={busy || !device}
                 />
               </Field>
               <Field
@@ -284,9 +389,9 @@ export default function TicketRaise() {
             <Button
               variant="primary"
               onClick={tryRaise}
-              disabled={blocked || !device || submitting}
+              disabled={blocked || !device || busy || issuesLoading}
             >
-              {submitting ? 'Uploading…' : 'Raise ticket'}
+              {submitting ? 'Raising…' : resolving ? 'Fetching device…' : 'Raise ticket'}
             </Button>
           </div>
         </div>

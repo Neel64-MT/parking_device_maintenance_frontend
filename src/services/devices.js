@@ -1,10 +1,5 @@
 import { api, apiEnvelope, ApiRequestError } from './api'
 import { clampPageSize, DEFAULT_PAGE_SIZE } from '../constants/pagination'
-import {
-  SCAN_DEVICE_FREE,
-  SCAN_DEVICE_OPEN,
-  SCAN_FREE_CODES,
-} from '../data/scanDevice'
 
 /**
  * Normalize QR / typed input to an uppercase lookup token.
@@ -37,10 +32,8 @@ export function normalizeScanCode(raw) {
 
 /**
  * Resolve a scanned / typed code to device payload.
- * Mock until QR format is finalized — later: GET /api/devices/scan?q=
- *
- * Any successful decode returns a device. Codes with FREE / PD-0501 → no open ticket;
- * everything else → PD-0428 with open TK-1042 (so Site attendant can exercise both paths).
+ * Live: GET /api/devices/scan?q= (includes openTicketId for one-open-ticket branching).
+ * Returns null on 404 / empty code; rethrows other API errors.
  *
  * @param {string} raw
  * @returns {Promise<import('../data/scanDevice').ScanDevice | null>}
@@ -49,17 +42,17 @@ export async function resolveScan(raw) {
   const code = normalizeScanCode(raw)
   if (!code) return null
 
-  const free =
-    SCAN_FREE_CODES.includes(code) ||
-    code.includes('FREE') ||
-    code === 'PD-0501' ||
-    code === 'QR-PD0501'
-
-  return free ? { ...SCAN_DEVICE_FREE } : { ...SCAN_DEVICE_OPEN }
+  try {
+    return await api(`/api/devices/scan?q=${encodeURIComponent(code)}`)
+  } catch (err) {
+    if (err instanceof ApiRequestError && err.status === 404) return null
+    throw err
+  }
 }
 
+/** Camera QR is available to any signed-in user (Raise / Update / Scan flows). */
 export function canScanWithCamera(user) {
-  return user?.role === 'Site attendant' || user?.role === 'Technician'
+  return Boolean(user)
 }
 
 /**

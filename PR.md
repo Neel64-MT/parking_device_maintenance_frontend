@@ -67,15 +67,15 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 
 1. Dashboard — fleet strip, why-down ranked bars, road-wise table (open-tickets table removed in Phase 13)
 2. All tickets — tiles, filters, Open/Assigned/Closed tabs, table (incl. Raised by before Assigned to); ticket status **Open** (not New)
-3. Raise ticket — mobile-first steps: device, problem; reported-by = session user (read-only); no assign/priority step; PhotoPicker (max 5, folder/camera, upload on submit); Cancel / Raise actions in page flow (not fixed)
-4. Update ticket — mobile-first: device → diagnosis → fixed/not fork; Photos before Work done; no Hand over / Next visit planned
+3. Raise ticket — scan/manual device via live scan API; open ticket → Detail update; else problem form + live `POST /api/tickets`; PhotoPicker upload on submit; Cancel / Raise in page flow
+4. Update ticket — live scan/manual find device; open ticket → Detail Add Update; free device → Raise; miss/error states
 5. Close ticket — mobile-first: final issue, resolution, cost, photos (upload on confirm), confirm
 6. Ticket detail — record header, work history timeline, classification, assignment trail; Add Update modal with PhotoPicker
 7. Work report — Day/Week/Month/Range, team strip, per-person panels
 8. Device list — tiles, filters, table (Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location); Sync Devices (Phase 26)
 9. Device history — record, life stats, split ticket/resolution table, parts, timeline
 10. Add device — identity, location, installation form
-11. Scan QR — scan simulate + manual find + result/not-found
+11. Scan QR — live camera / manual find + result / miss / error; branch raise vs update
 12. Issue — category pick list + sub-category table
 13. Road — filters + roads table
 14. Add road — road details, capacity/rate, status/contact
@@ -465,5 +465,38 @@ Device history → GET /api/devices/:id → same layout, data by route id
 | Device history loads live for route param; changes with id | Pass |
 | Legacy PD-xxxx / missing slot_id still resolvable via API | Pass |
 | Lint on touched files | Pass |
+
+### Phase 27 — QR scan → device → raise / update
+
+```text
+QR / typed code → GET /api/devices/scan?q=
+  → openTicketId? → Ticket Detail (Add Update)
+  → else → Raise form → POST /api/tickets
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Live `resolveScan` via `GET /api/devices/scan?q=` | Pass |
+| Device facts show QR / Slot Id / Slot Label / Slot Identifier / Parking Location | Pass |
+| No open ticket → Raise create via `POST /api/tickets` | Pass |
+| Open ticket → no second create; Update → `/tickets/:id` | Pass |
+| `409 OPEN_TICKET_EXISTS` guides to existing ticket | Pass |
+| Scan API failure does not assume free device | Pass |
+| No new QR library; existing `QrScannerModal` reused | Pass |
+| Lint + production build | Pass |
+
+### Phase 27b — Update Ticket live scan
+
+```text
+/tickets/update → resolveScan → openTicketId? → Detail : Raise CTA
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Live `resolveScan` on Update Ticket (no mock TK-1042 form) | Pass |
+| Open ticket → Update/Open → `/tickets/:id` | Pass |
+| Free device → Raise CTA | Pass |
+| Miss / API error EmptyState | Pass |
+| Lint + production build | Pass |
 
 

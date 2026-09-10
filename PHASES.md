@@ -544,10 +544,53 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 27: QR scan → device → raise / update
+
+**Objective:** Wire Raise/Scan to live device scan API; branch raise vs update on `openTicketId`; create tickets via `POST /api/tickets`; reuse Ticket Detail for updates.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `resolveScan` → `GET /api/devices/scan?q=` (404 → null).
+2. `scanDeviceFacts` for Slot Id / QR / parking fields.
+3. `createTicket` + `listIssueCategories`; Raise IssueSelects UUID mode.
+4. TicketRaise: loading, create, OPEN_TICKET_EXISTS / REOPEN_SAME_TICKET, Update → Detail.
+5. ScanQr: live resolve, miss/error, Update → Detail; remove simulate-mock buttons.
+6. Docs: PR, ARCHITECTURE, RULES, DESIGN, MEMORY, PHASES, SKILLS; lint/build.
+
+**Out of scope:** TicketUpdate/Close rewrites; SmartPark from browser; new QR library; `/tickets/by-slot`.
+
+**Verification:** Free device raise; open ticket blocks create; Detail Add Update; 409 handling; camera deny; lint + build.
+
+**Completion:** PR.md Phase 27 criteria pass.
+
+---
+
+## Phase 27b: Update Ticket live scan
+
+**Objective:** Replace mock TK-1042 Update Ticket flow with live `resolveScan` and Detail/Raise branching.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Rewrite `TicketUpdate.jsx`: resolveScan + loading/miss/error; remove loadTicket mock panels.
+2. Open ticket → Update/Open CTAs to `/tickets/:id`; free device → Raise CTA.
+3. Docs + lint/build.
+
+**Out of scope:** Live fixed/not-fixed form on Update page; Ticket Close; inventing missing QR rows in DB.
+
+**Verification:** Open-ticket QR → Detail; free → Raise; unknown → miss; no TK-1042 hardcode.
+
+**Completion:** Signed off in MEMORY.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 25 ──► Phase 26 ──► Phase 26b
+Phase 0 ──► … ──► Phase 25 ──► Phase 26 ──► Phase 26b ──► Phase 27 ──► Phase 27b
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

@@ -49,7 +49,7 @@
   - No client-side security filter; Raise/Update/Close/WorkReport still mock
   - Lint + production build pass
 - [x] **Phase 17 — QR scan + role routing**
-  - `html5-qrcode` + `QrScannerModal`; camera for Site attendant / Technician only
+  - `html5-qrcode` + `QrScannerModal`; camera for any signed-in user
   - `data/scanDevice.js` + `services/devices.resolveScan` (mock any QR; FREE/PD-0501 = no open)
   - TicketRaise: full device fields + lat/lng; block Raise when open ticket (`≠ Closed`)
   - TicketUpdate: camera then existing mock `loadTicket` panels
@@ -140,16 +140,46 @@
 - `DeviceDetailSkeleton` added; mock `DEVICE_*` no longer used on history page
 - DeviceAdd/Edit: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location; edit via `?id=` prefill from `getDevice`
 
+### Phase 27 — QR scan → device → raise / update (complete)
+
+- `resolveScan` → live `GET /api/devices/scan?q=` (404 → null; other errors rethrown)
+- `scanDeviceFacts`: QR Number, Slot Id, Slot Label, Slot Identifier, Parking Location, Status, Open ticket
+- `createTicket` (`POST /api/tickets`) + `listIssueCategories` (`GET /api/issues`); Raise IssueSelects UUID mode
+- TicketRaise: Fetching device…; block when `openTicketId`; Raise create; `OPEN_TICKET_EXISTS` / `REOPEN_SAME_TICKET` → existing ticket
+- Open / Update existing ticket → `/tickets/:id` (Detail Add Update); no Create when open
+- ScanQr: live lookup, miss/error panels; Update → Detail; simulate-mock buttons removed
+- Lint + production build
+
+### Phase 27b — Update Ticket live scan (complete)
+
+- `TicketUpdate.jsx`: live `resolveScan` (QR + manual slot); Fetching device…; miss/error EmptyState
+- Open ticket → Update existing / Open → `/tickets/:id` (Detail Add Update)
+- No open ticket → Raise CTA (no create on Update page)
+- Removed mock `loadTicket` / TK-1042 fixed-not-fixed panels and preview button
+- Docs + lint/build
+
+### Role Update Ticket vs Add Update (complete)
+
+- Ticket Detail: `isOpsTicketUpdater` → **Add update**; `isFieldTicketUpdater` → QR **Update Ticket** → `/tickets/update`
+- Technicians/Engineers do not see Add update; Admin/PM/Control room do not see field Update Ticket on Detail
+- TicketList / Dashboard JumpLink “Update a ticket” only for field updaters
+- Docs + lint/build
+
+### Manual QR Number on Raise / Update (complete)
+
+- Raise + Update: **QR Number** field + camera scan only (Road/Slot dropdowns removed)
+- Find device / Enter → `resolveScan` (same flow as camera)
+- Subtitle: scan or type QR number
+
 ## Currently working on
 
-- **Phase:** Ticket Slot Id + live Device history — complete
+- **Phase:** Manual QR Number on Raise / Update — complete
 - **Task:** —
 - **File:** —
 
 ## Pending
 
-- Wire Raise/Close create APIs (Update posts when ticketId known in Phase 23)
-- Live `GET /api/devices/scan` after QR payload finalized
+- Wire Close create API; Ticket Close page still design preview (Detail Add Update is live)
 - External inspection package (`PROJECT_PATH` — deferred until path provided)
 - Roles tab on Users still mostly preview matrix
 - Real Settings preferences beyond profile/password
@@ -164,7 +194,7 @@
 17. WorkReport stays mock until backend report is ownership-scoped.
 18. Phase 17: camera QR for Site attendant + Technician only; scan resolves mock until QR format finalized; open ticket = status ≠ Closed (one per device).
 19. Sidebar MENU items carry `screen` keys matching `user.permissions`; hide when no view (`v`); Settings stays always visible (no perm screen); unauthorized `/users` redirects via `homePathForUser` (not always `/dashboard`).
-20. Technician Update flow stays mock after scan; Site attendant Raise shows device + blocks second open ticket.
+20. Update Ticket uses live scan (Phase 27b); open ticket → Detail Add Update; free → Raise.
 21. Phase 18: only Admin / Project manager land on and open Dashboard; other roles home to All tickets.
 22. Ticket workflow status labels: Open / Under repair / Waiting for spare / Closed — never display **New**.
 23. Ticket list visibility is raiser OR assignee for non–Admin/PM; do not hide a user’s own raised tickets because the device road is outside `user_roads`.
@@ -183,6 +213,11 @@
 36. Table pagination is Card Minimal right-aligned (Page X of Y + N per page left; Prev/Next right), one row at all widths including ≤560 (compact gaps; Prev short label; select stays content-sized).
 37. Phase 26 — Device Sync button in JumpLinks (dark, left of Add); poll backend run status; Device list shows five sync columns only; QR Number links to history; Slot Identifier may be `—` until SmartPark provides it.
 38. Ticket list/detail show **Slot Id** (not Device ID); Device history loads live by route param (slot id or PD-xxxx); same page layout, data changes with id.
+39. Phase 27: one device lookup via scan API supplies `openTicketId`; Raise create uses scan `deviceId` + issue UUIDs; open-ticket Update goes to Ticket Detail.
+40. Phase 27b: `/tickets/update` is live find-device only (no mock TK-1042 form); Add Update stays on Ticket Detail for ops roles.
+41. Role split: field (`isFieldTicketUpdater`) → QR Update Ticket; ops (`isOpsTicketUpdater`) → Detail Add update.
+42. Camera **Scan QR on the machine** is available to all signed-in users (`canScanWithCamera`).
+43. Raise/Update identify device by camera scan or typed **QR Number** only (no Road/Slot dropdowns).
 ## Important decisions (detail)
 
 1–11. Prior phases (filters UI-only, static detail samples, responsive, Phase 10 JWT).
@@ -214,8 +249,8 @@
 
 | Gap | Detail |
 |-----|--------|
-| Domain screens | Raise/Update/Close/WorkReport create still mock; Detail Add Update is live |
-| QR payload | Live `GET /api/devices/scan` not wired yet; FE `resolveScan` mock until format finalized |
+| Domain screens | Update/Close/WorkReport create still mock; Raise create + Detail Add Update are live |
+| Manual Raise slots | Static `SLOTS` may 404 against live DB — surface miss; no full device-list fetch |
 | Inspection package | `PROJECT_PATH` deferred until product supplies path |
 | Roles tab | Permission matrix save still toast/preview |
 | Forgot SMTP | Dev logs reset URL when SMTP unset |
@@ -225,4 +260,4 @@
 
 ## Handoff notes
 
-Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` / `010_device_sync.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH / Phase 26 device list field mapping. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: Site attendant / Technician; mock scan defaults to open TK-1042; use PD-0501 or FREE for a free device. Live screens show skeleton loaders while fetching (Phase 22). Masters submenu labels are Issue / Road / Parts; Parts icon is interlocking gears. Device list: Sync Devices (Admin/PM with Device list `c`) → `POST /api/device-sync`; table shows Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location. **Next phase: after 26.**
+Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` / `010_device_sync.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH / Phase 26 device list field mapping. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: any signed-in user; live `GET /api/devices/scan?q=`; open ticket → Detail; free → Raise `POST /api/tickets`. Live screens show skeleton loaders while fetching (Phase 22). Masters submenu labels are Issue / Road / Parts; Parts icon is interlocking gears. Device list: Sync Devices (Admin/PM with Device list `c`) → `POST /api/device-sync`; table shows Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location. **Next phase: after 27b.**

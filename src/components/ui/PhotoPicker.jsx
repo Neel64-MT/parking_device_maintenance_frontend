@@ -57,10 +57,7 @@ export function PhotoPicker({
   }, [])
 
   useLayoutEffect(() => {
-    if (!menuOpen) {
-      setMenuPos(null)
-      return undefined
-    }
+    if (!menuOpen) return undefined
 
     function place() {
       const btn = addBtnRef.current
@@ -93,6 +90,7 @@ export function PhotoPicker({
       if (menuRef.current?.contains(t)) return
       if (folderRef.current?.contains(t)) return
       setMenuOpen(false)
+      setMenuPos(null)
     }
     document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)
@@ -100,6 +98,7 @@ export function PhotoPicker({
 
   function closeMenu() {
     setMenuOpen(false)
+    setMenuPos(null)
   }
 
   function openFolderPicker() {

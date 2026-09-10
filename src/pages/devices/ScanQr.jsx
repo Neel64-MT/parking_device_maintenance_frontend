@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
-import { toast } from '../../context/ToastContext'
+import { toast, toastApiError } from '../../context/ToastContext'
 import { scanDeviceFacts, scanStatusTone } from '../../data/scanDevice'
 import { canScanWithCamera, resolveScan } from '../../services/devices'
 import { Button } from '../../components/ui/Button'
@@ -17,10 +17,13 @@ export default function ScanQr() {
   const { user } = useAuth()
   const location = useLocation()
   const canScan = canScanWithCamera(user)
+  const resolveGen = useRef(0)
+
   const [manual, setManual] = useState('')
-  const [state, setState] = useState('idle') // idle | hit | miss
+  const [state, setState] = useState('idle') // idle | hit | miss | error
   const [scan, setScan] = useState(null)
   const [scannerOpen, setScannerOpen] = useState(false)
+  const [resolving, setResolving] = useState(false)
   const fromHere = `${location.pathname}${location.search}`
 
   const crumb = useMemo(
@@ -49,14 +52,29 @@ export default function ScanQr() {
       toast('Enter a device ID, QR code or slot number.', 'error')
       return
     }
-    const result = await resolveScan(v)
-    if (!result) {
-      setState('miss')
+
+    const gen = ++resolveGen.current
+    setResolving(true)
+    setScan(null)
+    setState('idle')
+    try {
+      const result = await resolveScan(v)
+      if (gen !== resolveGen.current) return
+      if (!result) {
+        setState('miss')
+        setScan(null)
+        return
+      }
+      setScan(result)
+      setState('hit')
+    } catch (err) {
+      if (gen !== resolveGen.current) return
+      setState('error')
       setScan(null)
-      return
+      toastApiError(err, 'Could not look up that device.')
+    } finally {
+      if (gen === resolveGen.current) setResolving(false)
     }
-    setScan(result)
-    setState('hit')
   }
 
   function onQrScan(text) {
@@ -72,7 +90,6 @@ export default function ScanQr() {
           links={[
             { to: '/devices', label: 'Device list' },
             { to: '/tickets/raise', label: 'Raise a ticket' },
-            { to: '/tickets/update', label: 'Update a ticket' },
           ]}
         />
 
@@ -85,21 +102,14 @@ export default function ScanQr() {
             </div>
             <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {canScan ? (
-                <Button variant="primary" onClick={() => setScannerOpen(true)}>
+                <Button
+                  variant="primary"
+                  onClick={() => setScannerOpen(true)}
+                  disabled={resolving}
+                >
                   Open camera
                 </Button>
-              ) : (
-                <p className="muted" style={{ margin: 0 }}>
-                  Camera scan is available to Site attendants and Technicians.
-                </p>
-              )}
-              <Button
-                variant="dark"
-                onClick={() => findDevice('QR-PD0428')}
-              >
-                Simulate open ticket
-              </Button>
-              <Button onClick={() => findDevice('PD-0501')}>Simulate free device</Button>
+              ) : null}
             </div>
           </Panel>
 
@@ -109,7 +119,8 @@ export default function ScanQr() {
                 type="text"
                 value={manual}
                 onChange={(e) => setManual(e.target.value)}
-                placeholder="e.g. PD-0428 or S2-114"
+                placeholder="e.g. PD-0428, AMCC2346, or slot Id"
+                disabled={resolving}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
@@ -118,8 +129,8 @@ export default function ScanQr() {
                 }}
               />
             </Field>
-            <Button variant="dark" onClick={() => findDevice(manual)}>
-              Find device
+            <Button variant="dark" onClick={() => findDevice(manual)} disabled={resolving}>
+              {resolving ? 'Fetching device…' : 'Find device'}
             </Button>
 
             <p className="muted" style={{ marginTop: 14 }}>
@@ -129,7 +140,17 @@ export default function ScanQr() {
           </Panel>
         </div>
 
-        {state === 'hit' && scan ? (
+        {resolving ? (
+          <section className="panel">
+            <div className="panel-body">
+              <p className="muted" style={{ margin: 0 }}>
+                Fetching device…
+              </p>
+            </div>
+          </section>
+        ) : null}
+
+        {state === 'hit' && scan && !resolving ? (
           <section className="panel">
             <div className="panel-head">
               <div>
@@ -142,7 +163,8 @@ export default function ScanQr() {
                 <div>
                   <h3>{scan.deviceId}</h3>
                   <div className="sub">
-                    {scan.deviceName} · {scan.locationSite} · Slot {scan.slot}
+                    {scan.deviceName} · {scan.parkingLocation || scan.locationSite} · Slot{' '}
+                    {scan.slotLabel || scan.slot}
                   </div>
                 </div>
                 <div style={{ marginLeft: 20 }}>
@@ -161,26 +183,34 @@ export default function ScanQr() {
             <div className="form-actions">
               {scan.openTicketId ? (
                 <>
-                  <Link className="btn btn-primary" to="/tickets/update" state={{ from: fromHere }}>
-                    Update ticket
+                  <Link
+                    className="btn btn-primary"
+                    to={`/tickets/${encodeURIComponent(scan.openTicketId)}`}
+                    state={{ from: fromHere }}
+                  >
+                    Update existing ticket
                   </Link>
-                  <Link className="btn" to={`/tickets/${scan.openTicketId}`}>
+                  <Link
+                    className="btn"
+                    to={`/tickets/${encodeURIComponent(scan.openTicketId)}`}
+                    state={{ from: fromHere }}
+                  >
                     Open {scan.openTicketId}
                   </Link>
                 </>
               ) : (
-                <Link className="btn btn-primary" to="/tickets/raise">
+                <Link className="btn btn-primary" to="/tickets/raise" state={{ from: fromHere }}>
                   Raise a ticket
                 </Link>
               )}
-              <Link className="btn" to={`/devices/${scan.deviceId}`}>
+              <Link className="btn" to={`/devices/${encodeURIComponent(scan.deviceId)}`}>
                 View history
               </Link>
             </div>
           </section>
         ) : null}
 
-        {state === 'miss' ? (
+        {state === 'miss' && !resolving ? (
           <section className="panel">
             <EmptyState
               title="No device matches that code"
@@ -191,6 +221,22 @@ export default function ScanQr() {
               }
             >
               Check the number on the sticker, or search the device list by slot number.
+            </EmptyState>
+          </section>
+        ) : null}
+
+        {state === 'error' && !resolving ? (
+          <section className="panel">
+            <EmptyState
+              title="Could not check this device"
+              action={
+                <Button variant="dark" onClick={() => findDevice(manual)}>
+                  Try again
+                </Button>
+              }
+            >
+              Ticket status could not be determined. Fix the connection and retry before raising a
+              ticket.
             </EmptyState>
           </section>
         ) : null}
