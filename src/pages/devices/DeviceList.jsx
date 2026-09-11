@@ -509,15 +509,7 @@ export default function DeviceList() {
                           </td>
                           <td>{displayOrDash(row.slotLabel)}</td>
                           <td>{displayOrDash(row.slotIdentifier)}</td>
-                          <td>
-                            {qr ? (
-                              <Link className="code" to={`/devices/${encodeURIComponent(row.id)}`}>
-                                {qr}
-                              </Link>
-                            ) : (
-                              '—'
-                            )}
-                          </td>
+                          <td>{qr ? qr : '—'}</td>
                           <td>{displayOrDash(row.parkingLocation || row.road)}</td>
                         </tr>
                       )
