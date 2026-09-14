@@ -242,7 +242,7 @@ body.rail-lock {
   align-items: center;
   gap: 10px;
   padding: 9px 16px;
-  font-size: 16px;
+    font-size: 16px;
   color: #c6d4e0;
   background: none;
   border: 0;
@@ -712,6 +712,38 @@ html.rail-opening .nav-group>button::after {
 .btn .ico {
   width: 15px;
   height: 15px;
+}
+
+.cell-with-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.btn-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn-copy:hover {
+  color: var(--ink);
+  background: var(--hover);
+}
+
+.btn-copy .ico {
+  width: 14px;
+  height: 14px;
 }
 
 @keyframes ico-spin {
@@ -1664,7 +1696,7 @@ td a:not(.btn):not(.code):hover {
 }
 
 .parts-total-amount {
-  font-size: 20px;
+    font-size: 20px;
   font-weight: 700;
   color: var(--ink);
   letter-spacing: -0.02em;

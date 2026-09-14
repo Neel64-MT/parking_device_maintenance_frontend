@@ -323,18 +323,22 @@ export default function TicketRaise() {
                       . Add an update to that ticket instead of opening a second one.
                       <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <Link
+                          className="btn btn-sm btn-primary"
+                          to={`/tickets/update?ticketId=${encodeURIComponent(openTicketId)}`}
+                          state={{
+                            ticketId: openTicketId,
+                            qr: qrInput.trim() || device.scan.qrNumber || device.scan.qr || '',
+                            from: fromHere,
+                          }}
+                        >
+                          Update Ticket
+                        </Link>
+                        <Link
                           className="btn btn-sm"
                           to={openTicketPath(openTicketId)}
                           state={{ from: fromHere }}
                         >
                           Open {openTicketId}
-                        </Link>
-                        <Link
-                          className="btn btn-sm btn-primary"
-                          to={openTicketPath(openTicketId)}
-                          state={{ from: fromHere }}
-                        >
-                          Update existing ticket
                         </Link>
                       </div>
                     </div>

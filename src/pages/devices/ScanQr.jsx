@@ -185,10 +185,14 @@ export default function ScanQr() {
                 <>
                   <Link
                     className="btn btn-primary"
-                    to={`/tickets/${encodeURIComponent(scan.openTicketId)}`}
-                    state={{ from: fromHere }}
+                    to={`/tickets/update?ticketId=${encodeURIComponent(scan.openTicketId)}`}
+                    state={{
+                      ticketId: scan.openTicketId,
+                      qr: scan.qrNumber || scan.qr || '',
+                      from: fromHere,
+                    }}
                   >
-                    Update existing ticket
+                    Update Ticket
                   </Link>
                   <Link
                     className="btn"

@@ -2,20 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
-import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
+import { toast } from '../../context/ToastContext'
 import { TEAM } from '../../data/team'
 import { ApiRequestError } from '../../services/api'
-import { listParts, sumSelectedPartsAmount } from '../../services/parts'
-import { getTicket, addTicketUpdate, attachTicketUpdatePhotos } from '../../services/tickets'
-import { uploadImages } from '../../services/uploads'
+import { getTicket } from '../../services/tickets'
 import { canPerm, isDashboardRole, isFieldTicketUpdater, isOpsTicketUpdater } from '../../services/users'
+import { TicketAddUpdateForm } from '../../components/tickets/TicketAddUpdateForm'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/FilterBar'
 import { ImagePreviewModal } from '../../components/ui/ImagePreviewModal'
-import { IssueSelects } from '../../components/ui/IssueSelects'
 import { Modal } from '../../components/ui/Modal'
-import { PartChips } from '../../components/ui/PartChips'
-import { PhotoPicker } from '../../components/ui/PhotoPicker'
 import { Pill } from '../../components/ui/Pill'
 import { TicketDetailSkeleton } from '../../components/ui/Skeleton'
 import { TeamSelect } from '../../components/ui/TeamSelect'
@@ -246,8 +242,6 @@ export default function TicketDetail() {
   const canView = canPerm(user, 'All tickets', 'v')
   const canAssign = canPerm(user, 'All tickets', 'a')
   const canUpdateTicketView = canPerm(user, 'Update ticket', 'v')
-  const showAddUpdate = isOpsTicketUpdater(user) && canUpdateTicketView
-  const showFieldUpdateTicket = isFieldTicketUpdater(user) && canUpdateTicketView
   const pickVisitedBy = isDashboardRole(user)
   const backToTickets = ticketsListReturnPath(location.state?.from)
   const fromHere = `${location.pathname}${location.search}`
@@ -258,60 +252,13 @@ export default function TicketDetail() {
 
   const [updOpen, setUpdOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(() => Boolean(location.state?.openAssign))
-  const [updType, setUpdType] = useState('Site visit — not resolved')
-  const [updCat, setUpdCat] = useState('')
-  const [updSub, setUpdSub] = useState('')
   const [handover, setHandover] = useState(TEAM[0])
   const [previewImages, setPreviewImages] = useState(null)
   const [viewingUpdate, setViewingUpdate] = useState(null)
-  const [updPhotos, setUpdPhotos] = useState([])
-  const [updWorkDone, setUpdWorkDone] = useState('')
-  const [updCost, setUpdCost] = useState('')
-  const [updPartIds, setUpdPartIds] = useState([])
-  const [updVisitedBy, setUpdVisitedBy] = useState(() => (isDashboardRole(user) ? '' : user?.name || ''))
-  const [updSubmitting, setUpdSubmitting] = useState(false)
-  const [partsItems, setPartsItems] = useState([])
-  const [partsLoading, setPartsLoading] = useState(false)
-  const [partsError, setPartsError] = useState('')
 
-  function resetUpdateForm() {
-    setUpdType('Site visit — not resolved')
-    setUpdCat('')
-    setUpdSub('')
-    setUpdPhotos([])
-    setUpdWorkDone('')
-    setUpdCost('')
-    setUpdPartIds([])
-    setUpdVisitedBy(pickVisitedBy ? '' : user?.name || '')
+  function openAddUpdateModal() {
+    setUpdOpen(true)
   }
-
-  useEffect(() => {
-    if (!updOpen) return undefined
-    let cancelled = false
-    listParts()
-      .then((list) => {
-        if (!cancelled) {
-          setPartsItems(list)
-          setPartsError('')
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setPartsItems([])
-          setPartsError(err instanceof ApiRequestError ? err.message : 'Could not load parts.')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setPartsLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [updOpen])
-
-  const partsHintTotal = sumSelectedPartsAmount(partsItems, updPartIds)
-  const labourHint = updCost === '' ? 0 : Number(updCost) || 0
-  const visitHintTotal = partsHintTotal + labourHint
 
   async function reloadTicket() {
     if (!ticketId) return
@@ -374,6 +321,13 @@ export default function TicketDetail() {
   const assignedTo =
     (header?.facts || []).find((f) => f.label === 'Assigned to')?.value || ''
   const isAssigned = Boolean(assignedTo && assignedTo !== 'Not assigned')
+  const isTicketAssignee = Boolean(user?.id && ticket?.assigneeId === user.id)
+  const showAddUpdate =
+    canUpdateTicketView &&
+    header?.status !== 'Closed' &&
+    (isOpsTicketUpdater(user) || isTicketAssignee)
+  const showFieldUpdateTicket =
+    isFieldTicketUpdater(user) && canUpdateTicketView && !isTicketAssignee
   const canManageAssign = canAssign && header && header.status !== 'Closed'
   const canReassign = canManageAssign && isAssigned
   const canFirstAssign = canManageAssign && !isAssigned
@@ -397,61 +351,6 @@ export default function TicketDetail() {
       </Link>
     )
   }, [header])
-
-  async function submitUpdate(e) {
-    e.preventDefault()
-    if (!ticketId) return
-    if (!showAddUpdate) {
-      toast('You do not have permission to add ticket updates.', 'error')
-      return
-    }
-    if (pickVisitedBy && !updVisitedBy.trim()) {
-      toast('Select who visited.', 'error')
-      return
-    }
-    setUpdSubmitting(true)
-    try {
-      // 1) Persist update first — if this fails (e.g. 403), do not upload.
-      const saved = await addTicketUpdate(ticketId, {
-        updateType: updType,
-        workDone: updWorkDone.trim() || undefined,
-        cost: updCost === '' ? 0 : Number(updCost) || 0,
-        parts: [...new Set(updPartIds)],
-        photos: [],
-      })
-
-      // 2) Upload only after update succeeds; 3) attach URLs so overall success needs both.
-      if (updPhotos.length) {
-        if (!saved?.eventId) {
-          throw new ApiRequestError('Update saved but server did not return an event id for photos.', {
-            status: 500,
-          })
-        }
-        const uploaded = await uploadImages(updPhotos)
-        const photoUrls = uploaded.map((u) => u.url).filter(Boolean)
-        if (!photoUrls.length) {
-          throw new ApiRequestError('Update saved but photo upload returned no URLs.', {
-            status: 500,
-          })
-        }
-        await attachTicketUpdatePhotos(ticketId, saved.eventId, photoUrls)
-      }
-
-      await reloadTicket()
-      resetUpdateForm()
-      setUpdOpen(false)
-      const visitCost = saved?.cost != null ? Number(saved.cost) : null
-      if (visitCost != null && !Number.isNaN(visitCost)) {
-        toastApiSuccess(`Update saved. Visit cost ₹${visitCost.toLocaleString('en-IN')}.`)
-      } else {
-        toastApiSuccess('Update saved.')
-      }
-    } catch (err) {
-      toastApiError(err, 'Could not save update.')
-    } finally {
-      setUpdSubmitting(false)
-    }
-  }
 
   function submitAssign(e) {
     e.preventDefault()
@@ -508,22 +407,13 @@ export default function TicketDetail() {
                 </div>
                 <div className="push">
                   {showAddUpdate ? (
-                    <Button
-                      onClick={() => {
-                        resetUpdateForm()
-                        setPartsLoading(true)
-                        setPartsError('')
-                        setUpdOpen(true)
-                      }}
-                    >
-                      Add update
-                    </Button>
+                    <Button onClick={openAddUpdateModal}>Add update</Button>
                   ) : null}
-                  {showFieldUpdateTicket ? (
+                  {showFieldUpdateTicket && header?.id ? (
                     <Link
                       className="btn"
-                      to="/tickets/update"
-                      state={{ from: location.state?.from || fromHere }}
+                      to={`/tickets/update?ticketId=${encodeURIComponent(header.id)}`}
+                      state={{ from: location.state?.from || fromHere, ticketId: header.id }}
                     >
                       <ScanQrIcon />
                       Update Ticket
@@ -759,159 +649,32 @@ export default function TicketDetail() {
         ) : null}
       </main>
 
-      <Modal
+            <Modal
         open={updOpen}
         title="Add update"
         subtitle="Record a visit or progress note on this ticket"
         onClose={() => {
-          if (updSubmitting) return
           setUpdOpen(false)
-          resetUpdateForm()
         }}
-        closeDisabled={updSubmitting}
         wide
       >
-        <form className="modal-update-form" onSubmit={submitUpdate}>
-          <div className="row">
-            <Field label="Update type">
-              <select value={updType} onChange={(e) => setUpdType(e.target.value)}>
-                <option>Site visit — not resolved</option>
-                <option>Site visit — resolved</option>
-                <option>Remote check</option>
-                <option>Waiting for spare</option>
-                <option>Waiting for traffic police / AMC</option>
-              </select>
-            </Field>
-            <Field label="Visited by">
-              {pickVisitedBy ? (
-                <select
-                  value={updVisitedBy}
-                  onChange={(e) => setUpdVisitedBy(e.target.value)}
-                  disabled={updSubmitting}
-                  required
-                >
-                  <option value="">Select who visited</option>
-                  {user?.name ? <option value={user.name}>{user.name}</option> : null}
-                  {TEAM.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <select value={user?.name || ''} disabled>
-                  <option value={user?.name || ''}>{user?.name || 'Current user'}</option>
-                </select>
-              )}
-            </Field>
-            <Field label="Date and time">
-              <input type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
-            </Field>
-          </div>
-
-          <div className="row" style={{ marginTop: 12 }}>
-            <IssueSelects
-              category={updCat}
-              subCategory={updSub}
-              onCategoryChange={setUpdCat}
-              onSubCategoryChange={setUpdSub}
-              categoryLabel="Issue category found"
-            />
-            <Field
-              label="Labour / other charges"
-              hintAfter="Part prices come from Parts and are added by the server."
-            >
-              <input
-                type="number"
-                placeholder="0"
-                value={updCost}
-                onChange={(e) => setUpdCost(e.target.value)}
-                min="0"
-                disabled={updSubmitting}
-              />
-            </Field>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <Field
-              label="Parts changed"
-              hint="Tap every part you replaced. Leave blank if nothing was changed."
-            >
-              <PartChips
-                items={partsItems}
-                selected={updPartIds}
-                onChange={setUpdPartIds}
-                loading={partsLoading}
-                error={partsError}
-                disabled={updSubmitting}
-              />
-              {updPartIds.length > 0 ? (
-                <div className="parts-total" aria-live="polite">
-                  <div className="parts-total-meta">
-                    <strong>
-                      Parts total · {updPartIds.length} selected
-                    </strong>
-                    <span>
-                      From Parts (display only). Server adds this to labour
-                      {labourHint > 0
-                        ? ` · est. visit ₹${visitHintTotal.toLocaleString('en-IN')}`
-                        : ''}
-                      .
-                    </span>
-                  </div>
-                  <div className="parts-total-amount">
-                    ₹{partsHintTotal.toLocaleString('en-IN')}
-                  </div>
-                </div>
-              ) : null}
-            </Field>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <Field label="Photos">
-              <PhotoPicker
-                key={updOpen ? 'upd-photos-open' : 'upd-photos-closed'}
-                hint="Up to 5 photos — the work, the device, the site."
-                onChange={setUpdPhotos}
-                disabled={updSubmitting}
-              />
-            </Field>
-          </div>
-
-          <div className="row" style={{ marginTop: 12 }}>
-            <Field label="What was done today" className="span-2" style={{ flex: 3 }}>
-              <textarea
-                style={{ minHeight: 64 }}
-                placeholder="Plain description of the work done on this visit, even if nothing was fixed."
-                value={updWorkDone}
-                onChange={(e) => setUpdWorkDone(e.target.value)}
-              />
-            </Field>
-          </div>
-
-          <p className="muted modal-update-hint">
-            The ticket closes only when the update type is <b>resolved</b>. Everything else keeps it
-            open.
-          </p>
-
-          <div className="modal-actions modal-update-actions">
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                setUpdOpen(false)
-                resetUpdateForm()
-              }}
-              disabled={updSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" variant="primary" disabled={updSubmitting}>
-              {updSubmitting ? 'Saving…' : 'Save update'}
-            </Button>
-          </div>
-        </form>
+        {updOpen && ticketId ? (
+          <TicketAddUpdateForm
+            ticketId={ticketId}
+            user={user}
+            pickVisitedBy={pickVisitedBy}
+            photoPickerKey="upd-photos-open"
+            canSubmit={showAddUpdate}
+            onCancel={() => setUpdOpen(false)}
+            onSuccess={async () => {
+              setUpdOpen(false)
+              await reloadTicket()
+            }}
+          />
+        ) : null}
       </Modal>
 
-      <Modal
+<Modal
         open={Boolean(viewingUpdate)}
         title="View update"
         subtitle="Update details only — photos open from View Image"

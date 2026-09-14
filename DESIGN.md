@@ -349,14 +349,30 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Scan resolve | Live `GET /api/devices/scan?q=`; “Fetching device…” while in flight |
 | Device facts | QR Number, Slot Id, Slot Label, Slot Identifier, Parking Location, Status, Open ticket |
 | No open ticket | Raise step 2; issue UUID selects; Raise → upload → `POST /api/tickets` |
-| Open ticket | `.reclass`; no Create; Open / Update existing → `/tickets/:id` |
+| Open ticket | `.reclass`; no Create; primary **Update Ticket** → `/tickets/update` (`ticketId` + `qr`); secondary Open → Detail |
 | Create conflict | Toast + refresh blocked state / navigate via `details.openTicketId` |
 | Scan miss / error | EmptyState; error does not allow Raise |
 | Camera | Existing `QrScannerModal`; permission error inside modal |
 | Mobile | Existing `.page.mobile` Raise layout; scanner modal wide |
-| Update Ticket (`/tickets/update`) | Same live scan; open → Detail; free → Raise; no mock TK-1042 form |
+| Update Ticket (`/tickets/update`) | Live scan or `?ticketId=`; assignee gate; **Add Update form on page**; free → Raise (+ `qr`) |
 | Manual QR Number | Raise/Update: scan or type QR Number only (no Road/Slot selects); Find device → `resolveScan` |
+| Detail actions | Ops **or** assignee → **Add update** (Modal); field non-assignee → QR **Update Ticket** → `/tickets/update` |
 
-| Detail actions by role | Field (Tech/Engineer): QR **Update Ticket**; Ops (Admin/PM/Control): **Add update** |
+## Phase 28 — QR lookup → Update Ticket
+
+| Item | Pattern |
+|------|---------|
+| Raise open ticket | Primary button label **Update Ticket** (not Raise) |
+| Preload | `?ticketId=` + optional `state.qr` / `from` |
+| Assignee gate | `getTicket` → open + `assigneeId === user.id` or toast |
+
+## Phase 29 — Update form on Update page
+
+| Item | Pattern |
+|------|---------|
+| Route | `/tickets/update` (plural; not `/ticket/update`) |
+| Form | Shared `TicketAddUpdateForm` inline (not Detail redirect) |
+| Ready | After gate, form visible — no second Update click |
+| Detail | Trail/history unchanged; Modal Add Update still for ops/assignee |
 
 
