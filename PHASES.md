@@ -620,10 +620,52 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 28: QR lookup → Update Ticket (Raise & Update)
+
+**Objective:** Route open-ticket Raise/Update QR flows through `/tickets/update` with preload; gate Add Update to the current assignee; reuse Detail Add Update Modal (no second open ticket).
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Raise: open-ticket primary **Update Ticket** → `/tickets/update` with `state.ticketId` / `qr` / `from`; keep Open secondary.
+2. Update: consume entry state; `getTicket` assignee gate; handoff Detail `openUpdate`; free device Raise passes `qr`.
+3. Detail: Add Update for ops or assignee; honor `openUpdate` once.
+4. Docs: PR, ARCHITECTURE, RULES, DESIGN, MEMORY, PHASES, SKILLS; lint/build.
+
+**Out of scope:** New scan APIs; Add Update form on Update page; extending scan JSON with assignee; Ticket Close.
+
+**Verification:** Free raise unchanged; open → Update Ticket → assignee modal; not-mine toast; no second raise UI; field assignee can submit.
+
+**Completion:** PR.md Phase 28 criteria pass.
+
+---
+
+## Phase 29: Update Ticket form on `/tickets/update`
+
+**Objective:** Stop Detail `openUpdate` handoff; show shared Add Update form directly on `/tickets/update` after assignee gate.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Extract `TicketAddUpdateForm` from Detail Modal.
+2. TicketUpdate: gate → stay; sync `?ticketId=`; render form in-page.
+3. Wire Raise / ScanQr / Detail Update Ticket links to `/tickets/update?ticketId=`.
+4. Docs + lint/build.
+
+**Out of scope:** Singular `/ticket/update` route; removing Detail page; new APIs.
+
+**Verification:** Update Ticket stays on Update page with form; Open still goes to Detail; assignee gate toasts; photos/parts submit.
+
+**Completion:** PR.md Phase 29 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 25 ──► Phase 26 ──► Phase 26b ──► Phase 27 ──► Phase 27b
+Phase 0 ──► … ──► Phase 25 ──► Phase 26 ──► Phase 26b ──► Phase 27 ──► Phase 27b ──► Phase 28 ──► Phase 29
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

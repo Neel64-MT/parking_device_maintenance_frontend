@@ -1,6 +1,7 @@
 /**
  * Canonical device payload returned after a QR scan (GET /api/devices/scan).
  * open ticket = status ≠ Closed (at most one per device / Slot Id).
+ * Assignee is not on the scan payload — use getTicket().assigneeId for Update gates.
  */
 
 /** @typedef {object} ScanDevice

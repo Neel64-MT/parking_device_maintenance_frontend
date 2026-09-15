@@ -1,14 +1,18 @@
-import { useMemo, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast, toastApiError } from '../../context/ToastContext'
 import { scanDeviceFacts } from '../../data/scanDevice'
 import { canScanWithCamera, resolveScan } from '../../services/devices'
+import { getTicket } from '../../services/tickets'
+import { isDashboardRole } from '../../services/users'
+import { TicketAddUpdateForm } from '../../components/tickets/TicketAddUpdateForm'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Field } from '../../components/ui/FilterBar'
+import { Pill } from '../../components/ui/Pill'
 import { QrScannerModal } from '../../components/ui/QrScannerModal'
 
 function ScanIcon() {
@@ -28,17 +32,50 @@ function applyScanToDevice(scan) {
   }
 }
 
+/**
+ * Open ticket + assigned to current user.
+ * Assignee comes from getTicket (scan payload has no assignee id).
+ */
+async function gateAssigneeUpdate(ticketId, userId) {
+  const data = await getTicket(ticketId)
+  const status = data?.header?.status
+  if (!status || status === 'Closed') {
+    return { ok: false, message: 'That ticket is closed and cannot be updated here.', data: null }
+  }
+  if (!data?.assigneeId) {
+    return { ok: false, message: 'This ticket has no assignee. Assign it before adding an update.', data: null }
+  }
+  if (data.assigneeId !== userId) {
+    return { ok: false, message: 'This ticket is not assigned to you.', data: null }
+  }
+  return { ok: true, data }
+}
+
 export default function TicketUpdate() {
   const { user } = useAuth()
   const canScan = canScanWithCamera(user)
+  const pickVisitedBy = isDashboardRole(user)
   const location = useLocation()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const resolveGen = useRef(0)
+  const entryHandled = useRef(false)
+  const gatingRef = useRef(false)
 
-  const [qrInput, setQrInput] = useState('')
+  const queryTicketId = (searchParams.get('ticketId') || '').trim()
+  const stateTicketId =
+    typeof location.state?.ticketId === 'string' ? location.state.ticketId.trim() : ''
+  const entryTicketId = queryTicketId || stateTicketId
+  const entryQr = typeof location.state?.qr === 'string' ? location.state.qr.trim() : ''
+
+  const [qrInput, setQrInput] = useState(() => entryQr)
   const [device, setDevice] = useState(null)
   const [lookupState, setLookupState] = useState('idle') // idle | hit | miss | error
   const [scannerOpen, setScannerOpen] = useState(false)
   const [resolving, setResolving] = useState(false)
+  const [gating, setGating] = useState(false)
+  const [activeTicket, setActiveTicket] = useState(null)
+  const [formBusy, setFormBusy] = useState(false)
 
   const fromHere = `${location.pathname}${location.search}`
 
@@ -72,9 +109,43 @@ export default function TicketUpdate() {
     setLookupState('idle')
   }
 
+  function syncTicketQuery(ticketId) {
+    const params = new URLSearchParams(location.search)
+    if (ticketId) params.set('ticketId', ticketId)
+    else params.delete('ticketId')
+    const qs = params.toString()
+    navigate(
+      { pathname: '/tickets/update', search: qs ? `?${qs}` : '' },
+      { replace: true, state: { ...(location.state || {}), ticketId, from: location.state?.from || backTo } },
+    )
+  }
+
+  async function activateTicket(ticketId) {
+    if (!user?.id || gatingRef.current) return
+    gatingRef.current = true
+    setGating(true)
+    try {
+      const result = await gateAssigneeUpdate(ticketId, user.id)
+      if (!result.ok) {
+        toast(result.message, 'error')
+        setActiveTicket(null)
+        return
+      }
+      setActiveTicket(result.data)
+      syncTicketQuery(ticketId)
+    } catch (err) {
+      toastApiError(err, 'Could not open that ticket for update.')
+      setActiveTicket(null)
+    } finally {
+      gatingRef.current = false
+      setGating(false)
+    }
+  }
+
   async function applyResolved(raw) {
     const gen = ++resolveGen.current
     clearResult()
+    setActiveTicket(null)
     setResolving(true)
     try {
       const scan = await resolveScan(raw)
@@ -87,6 +158,11 @@ export default function TicketUpdate() {
       setQrInput(scan.qrNumber || scan.qr || String(raw || '').trim())
       setDevice(applyScanToDevice(scan))
       setLookupState('hit')
+      // Open ticket found — gate assignee and show form without a second click
+      if (scan.openTicketId) {
+        if (gen === resolveGen.current) setResolving(false)
+        await activateTicket(scan.openTicketId)
+      }
     } catch (err) {
       if (gen !== resolveGen.current) return
       clearResult()
@@ -114,69 +190,149 @@ export default function TicketUpdate() {
     return `/tickets/${encodeURIComponent(ticketId)}`
   }
 
+  function clearActiveTicket() {
+    setActiveTicket(null)
+    syncTicketQuery('')
+  }
+
+  // Entry: ?ticketId= / state.ticketId / state.qr
+  useEffect(() => {
+    if (entryHandled.current) return
+    if (!entryTicketId && !entryQr) return
+    entryHandled.current = true
+
+    // Defer so the effect does not synchronously cascade setState (react-hooks/set-state-in-effect).
+    const id = window.setTimeout(() => {
+      if (entryTicketId) {
+        if (entryQr) setQrInput(entryQr)
+        void activateTicket(entryTicketId)
+        return
+      }
+      if (entryQr) void applyResolved(entryQr)
+    }, 0)
+    return () => window.clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once for entry navigation
+  }, [])
+
   const openTicketId = device?.scan?.openTicketId
-  const busy = resolving
+  const busy = resolving || gating
+  const raiseQr = qrInput.trim() || device?.scan?.qrNumber || device?.scan?.qr || ''
+  const header = activeTicket?.header
+  const formReady = Boolean(activeTicket?.header?.id)
 
   return (
     <>
       <PageMeta pageId="ticket-update" title="Update ticket" crumb={crumb} actions={actions} />
 
       <main className="page mobile">
-        <section className="panel">
-          <div className="panel-head">
-            <div className="step-head">
-              <div className="step-n">1</div>
-              <div>
-                <h3>Which device</h3>
-                <p>Scan the sticker or type the QR number</p>
+        {!formReady ? (
+          <section className="panel">
+            <div className="panel-head">
+              <div className="step-head">
+                <div className="step-n">1</div>
+                <div>
+                  <h3>Which device</h3>
+                  <p>Scan the sticker or type the QR number</p>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="panel-body">
-            {canScan ? (
-              <button
-                type="button"
-                className="scan-btn"
-                onClick={() => setScannerOpen(true)}
-                disabled={busy}
-              >
-                <ScanIcon />
-                Scan QR on the machine
-              </button>
-            ) : null}
+            <div className="panel-body">
+              {canScan ? (
+                <button
+                  type="button"
+                  className="scan-btn"
+                  onClick={() => setScannerOpen(true)}
+                  disabled={busy}
+                >
+                  <ScanIcon />
+                  Scan QR on the machine
+                </button>
+              ) : null}
 
-            <div className="or">or type the QR number</div>
+              <div className="or">or type the QR number</div>
 
-            <Field label="QR Number">
-              <input
-                type="text"
-                value={qrInput}
-                onChange={(e) => setQrInput(e.target.value)}
-                placeholder="e.g. AMCC2346"
-                disabled={busy}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    findByQr()
-                  }
-                }}
-              />
-            </Field>
-            <div style={{ marginBottom: 0 }}>
-              <Button variant="dark" onClick={findByQr} disabled={busy}>
-                {resolving ? 'Fetching device…' : 'Find device'}
-              </Button>
+              <Field label="QR Number">
+                <input
+                  type="text"
+                  value={qrInput}
+                  onChange={(e) => setQrInput(e.target.value)}
+                  placeholder="e.g. AMCC2346"
+                  disabled={busy}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      findByQr()
+                    }
+                  }}
+                />
+              </Field>
+              <div style={{ marginBottom: 0 }}>
+                <Button variant="dark" onClick={findByQr} disabled={busy}>
+                  {resolving ? 'Fetching device…' : gating ? 'Opening ticket…' : 'Find device'}
+                </Button>
+              </div>
+
+              {resolving || gating ? (
+                <p className="muted" style={{ marginTop: 12 }}>
+                  {gating ? 'Checking assignment…' : 'Fetching device…'}
+                </p>
+              ) : null}
             </div>
+          </section>
+        ) : null}
 
-            {resolving ? (
-              <p className="muted" style={{ marginTop: 12 }}>
-                Fetching device…
-              </p>
-            ) : null}
-          </div>
-        </section>
+        {formReady && header ? (
+          <>
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <h3>{header.id}</h3>
+                  <p>
+                    Slot Id {header.deviceId}
+                    {header.road ? ` · ${header.road}` : ''}
+                    {header.slot ? `, Slot ${header.slot}` : ''}
+                  </p>
+                </div>
+                <div className="actions">
+                  <Pill tone={header.statusTone}>{header.status}</Pill>
+                  <Button size="sm" onClick={clearActiveTicket} disabled={busy}>
+                    Change device
+                  </Button>
+                  <Link className="btn btn-sm" to={openTicketPath(header.id)} state={{ from: fromHere }}>
+                    Full history
+                  </Link>
+                </div>
+              </div>
+            </section>
 
-        {lookupState === 'hit' && device?.scan && !resolving ? (
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <h3>Add update</h3>
+                  <p>Record a visit or progress note on this ticket</p>
+                </div>
+              </div>
+              <div className="panel-body">
+                <TicketAddUpdateForm
+                  ticketId={header.id}
+                  user={user}
+                  pickVisitedBy={pickVisitedBy}
+                  formClassName="modal-update-form"
+                  formId="ticket-update-page-form"
+                  photoPickerKey={`upd-page-${header.id}`}
+                  hideActions
+                  canSubmit
+                  onBusyChange={setFormBusy}
+                  onSuccess={() => {
+                    /* stay on page; form resets itself */
+                  }}
+                />
+              </div>
+            </section>
+          </>
+        ) : null}
+
+        {!formReady && lookupState === 'hit' && device?.scan && !resolving ? (
           <section className="panel">
             <div className="panel-head">
               <div>
@@ -207,13 +363,14 @@ export default function TicketUpdate() {
                       ? `Current issue: ${device.scan.openTicketIssue}.`
                       : ''}
                     <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <Link
-                        className="btn btn-sm btn-primary"
-                        to={openTicketPath(openTicketId)}
-                        state={{ from: fromHere }}
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        disabled={gating}
+                        onClick={() => activateTicket(openTicketId)}
                       >
-                        Update existing ticket
-                      </Link>
+                        {gating ? 'Opening…' : 'Update Ticket'}
+                      </Button>
                       <Link
                         className="btn btn-sm"
                         to={openTicketPath(openTicketId)}
@@ -233,7 +390,7 @@ export default function TicketUpdate() {
                       <Link
                         className="btn btn-sm btn-primary"
                         to="/tickets/raise"
-                        state={{ from: fromHere }}
+                        state={{ from: fromHere, qr: raiseQr }}
                       >
                         Raise a ticket
                       </Link>
@@ -245,7 +402,7 @@ export default function TicketUpdate() {
           </section>
         ) : null}
 
-        {lookupState === 'miss' && !resolving ? (
+        {!formReady && lookupState === 'miss' && !resolving ? (
           <section className="panel">
             <EmptyState
               title="No device matches that code"
@@ -266,7 +423,7 @@ export default function TicketUpdate() {
           </section>
         ) : null}
 
-        {lookupState === 'error' && !resolving ? (
+        {!formReady && lookupState === 'error' && !resolving ? (
           <section className="panel">
             <EmptyState
               title="Could not check this device"
@@ -292,6 +449,16 @@ export default function TicketUpdate() {
             <Link className="btn" to={backTo}>
               Cancel
             </Link>
+            {formReady ? (
+              <Button
+                type="submit"
+                variant="primary"
+                form="ticket-update-page-form"
+                disabled={formBusy || busy}
+              >
+                {formBusy ? 'Saving…' : 'Save update'}
+              </Button>
+            ) : null}
           </div>
         </div>
       </main>
