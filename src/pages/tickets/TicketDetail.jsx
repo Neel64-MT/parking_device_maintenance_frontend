@@ -325,9 +325,10 @@ export default function TicketDetail() {
   const showAddUpdate =
     canUpdateTicketView &&
     header?.status !== 'Closed' &&
+    isAssigned &&
     (isOpsTicketUpdater(user) || isTicketAssignee)
   const showFieldUpdateTicket =
-    isFieldTicketUpdater(user) && canUpdateTicketView && !isTicketAssignee
+    isFieldTicketUpdater(user) && canUpdateTicketView && isAssigned && !isTicketAssignee
   const canManageAssign = canAssign && header && header.status !== 'Closed'
   const canReassign = canManageAssign && isAssigned
   const canFirstAssign = canManageAssign && !isAssigned

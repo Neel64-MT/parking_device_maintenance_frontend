@@ -43,7 +43,7 @@ async function gateAssigneeUpdate(ticketId, userId) {
     return { ok: false, message: 'That ticket is closed and cannot be updated here.', data: null }
   }
   if (!data?.assigneeId) {
-    return { ok: false, message: 'This ticket is not assigned to you.', data: null }
+    return { ok: false, message: 'This ticket has no assignee. Assign it before adding an update.', data: null }
   }
   if (data.assigneeId !== userId) {
     return { ok: false, message: 'This ticket is not assigned to you.', data: null }
@@ -158,6 +158,11 @@ export default function TicketUpdate() {
       setQrInput(scan.qrNumber || scan.qr || String(raw || '').trim())
       setDevice(applyScanToDevice(scan))
       setLookupState('hit')
+      // Open ticket found — gate assignee and show form without a second click
+      if (scan.openTicketId) {
+        if (gen === resolveGen.current) setResolving(false)
+        await activateTicket(scan.openTicketId)
+      }
     } catch (err) {
       if (gen !== resolveGen.current) return
       clearResult()
@@ -196,12 +201,16 @@ export default function TicketUpdate() {
     if (!entryTicketId && !entryQr) return
     entryHandled.current = true
 
-    if (entryTicketId) {
-      activateTicket(entryTicketId)
-      if (entryQr) setQrInput(entryQr)
-      return
-    }
-    if (entryQr) applyResolved(entryQr)
+    // Defer so the effect does not synchronously cascade setState (react-hooks/set-state-in-effect).
+    const id = window.setTimeout(() => {
+      if (entryTicketId) {
+        if (entryQr) setQrInput(entryQr)
+        void activateTicket(entryTicketId)
+        return
+      }
+      if (entryQr) void applyResolved(entryQr)
+    }, 0)
+    return () => window.clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once for entry navigation
   }, [])
 
