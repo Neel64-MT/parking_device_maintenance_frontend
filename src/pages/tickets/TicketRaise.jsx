@@ -180,6 +180,16 @@ export default function TicketRaise() {
     return `/tickets/${encodeURIComponent(ticketId)}`
   }
 
+  function goToUpdateTicket(ticketId, qr = '') {
+    navigate(`/tickets/update?ticketId=${encodeURIComponent(ticketId)}`, {
+      state: {
+        ticketId,
+        qr: qr || qrInput.trim() || device?.scan?.qrNumber || device?.scan?.qr || '',
+        from: fromHere,
+      },
+    })
+  }
+
   async function tryRaise() {
     if (!device?.scan) {
       toast('Scan or enter a QR number first.', 'error')
@@ -230,14 +240,14 @@ export default function TicketRaise() {
             }),
           )
         } else if (openId) {
-          navigate(openTicketPath(openId), { state: { from: fromHere } })
+          goToUpdateTicket(openId)
         }
         return
       }
       if (err instanceof ApiRequestError && err.code === 'REOPEN_SAME_TICKET') {
         const ticketId = err.details?.ticketId || err.details?.openTicketId
         toast(err.message || 'Reopen the recent ticket instead of creating a new one.', 'warning')
-        if (ticketId) navigate(openTicketPath(ticketId), { state: { from: fromHere } })
+        if (ticketId) goToUpdateTicket(ticketId)
         return
       }
       toastApiError(err, 'Could not raise ticket.')
@@ -323,18 +333,22 @@ export default function TicketRaise() {
                       . Add an update to that ticket instead of opening a second one.
                       <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <Link
+                          className="btn btn-sm btn-primary"
+                          to={`/tickets/update?ticketId=${encodeURIComponent(openTicketId)}`}
+                          state={{
+                            ticketId: openTicketId,
+                            qr: qrInput.trim() || device.scan.qrNumber || device.scan.qr || '',
+                            from: fromHere,
+                          }}
+                        >
+                          Update Ticket
+                        </Link>
+                        <Link
                           className="btn btn-sm"
                           to={openTicketPath(openTicketId)}
                           state={{ from: fromHere }}
                         >
                           Open {openTicketId}
-                        </Link>
-                        <Link
-                          className="btn btn-sm btn-primary"
-                          to={openTicketPath(openTicketId)}
-                          state={{ from: fromHere }}
-                        >
-                          Update existing ticket
                         </Link>
                       </div>
                     </div>

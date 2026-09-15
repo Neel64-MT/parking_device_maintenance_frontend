@@ -68,7 +68,7 @@ Frontend ticket rendering (Phase 16+)
 TicketList / Dashboard / TicketDetail must consume scoped APIs; never download all tickets and filter in React for authorization.
 Reuse canPerm and Users loading/empty/error patterns; do not add a second role store.
 Preserve existing layout; only bind live data.
-Raise create POST is live (Phase 27). Update Ticket is a live find-device step (Phase 27b) that routes to Detail Add Update. Leave Close page create POST and WorkReport mock until those APIs are wired (photo files may still upload on submit via uploadImages; Detail Add Update is live as of Phase 21; Work report backend is not ownership-scoped yet).
+Raise create POST is live (Phase 27). Update Ticket shows the Add Update form on `/tickets/update` after assignee gate (Phase 29). Leave Close page create POST and WorkReport mock until those APIs are wired (photo files may still upload on submit via uploadImages; Detail Add Update is live as of Phase 21; Work report backend is not ownership-scoped yet).
 Ticket list / detail UI (Phase 19+)
 Open tab (new) must not show the Updates column; Assigned keeps it.
 Closed tab (cls) shows Days After Close, not Days open.
@@ -76,7 +76,7 @@ Open tab (new) = unassigned non-closed only; Assigned (asg) = has assignee; Clos
 Tile Open, not attended must match Open tab; assigned rows still stored as Open/New must listStatus as Under repair for pills and Under repair tile (DB unchanged).
 Add Update must reuse the existing form fields; present it in Modal only.
 Add Update submit (Phase 21+): POST /api/tickets/:id/updates first (photos may be empty), then uploadImages, then PATCH …/updates/:eventId/photos. Do not upload photos before the update is accepted. Toast success only when all required steps succeed; reload work history from GET ticket.
-Show Add Update only for ops roles (Admin / Project manager / Control room) via `isOpsTicketUpdater` + Update ticket `v`. Show QR **Update Ticket** (→ `/tickets/update`) only for field roles (Technician / Engineer / AMC via `isFieldTicketUpdater`) + Update ticket `v`. Do not show Add Update to Technicians/Engineers. Backend remains the authority for mutations.
+Show Add Update for ops roles (Admin / Project manager / Control room) via `isOpsTicketUpdater`, **or** for the current ticket assignee (`ticket.assigneeId === user.id`), when Update ticket `v` is set and status is not Closed. Show QR **Update Ticket** (→ `/tickets/update`) for field roles (`isFieldTicketUpdater`) who are **not** the assignee. Backend remains the authority for mutations.
 Work history displays oldest → newest (new entries at the bottom); keep the trail always visible.
 Show **View Update** on every work-history row; open a Modal with mapped trail fields only (when, actor, title, status, body, cost, next visit, parts). Do **not** put images, thumbnails, or ImagePreviewModal inside View Update.
 Show **View Image** only when event photos is non-empty; gallery reuses Modal (main + thumbnails). Keep View Image separate from View Update.
@@ -99,8 +99,11 @@ Camera Scan is available to any signed-in user (`canScanWithCamera` = Boolean(us
 Resolve scans with live GET /api/devices/scan?q= via resolveScan (normalizeScanCode first). Do not call SmartPark from the browser. Do not invent /devices/by-qr or /tickets/by-slot.
 Open ticket = status ≠ Closed; at most one open ticket per device / Slot Id. FE must not offer Create new ticket when openTicketId is set; backend remains authoritative (409 OPEN_TICKET_EXISTS).
 Do not proceed to raise when device lookup fails or returns miss. Do not assume no open ticket when the scan API errors.
-Raise create: POST /api/tickets with scan deviceId (not QR alone) + category/subCategory UUIDs from GET /api/issues + optional photos. On OPEN_TICKET_EXISTS / REOPEN_SAME_TICKET, guide to the existing ticket / Detail Add Update.
-Open-ticket Update CTAs from Raise/Scan/Update Ticket must go to /tickets/:openTicketId (live Detail). `/tickets/update` is a live find-device step (resolveScan), not a mock TK-1042 form.
+Raise create: POST /api/tickets with scan deviceId (not QR alone) + category/subCategory UUIDs from GET /api/issues + optional photos. On OPEN_TICKET_EXISTS / REOPEN_SAME_TICKET, guide to Update Ticket / existing ticket.
+Raise open-ticket primary CTA is **Update Ticket** → `/tickets/update?ticketId=` (+ optional `qr` / `from` state). Secondary Open → `/tickets/:id`. Never offer Raise create when `openTicketId` is set.
+`/tickets/update` is the Update Ticket experience: QR find-device (or entry `ticketId`), assignee gate via `getTicket` (open + `assigneeId === user.id`), then render shared `TicketAddUpdateForm` on the page. Do **not** redirect Update Ticket actions to `/tickets/:id`. Not assigned / closed → toast; do not show the form.
+Reuse existing QrScannerModal and resolveScan. Assignee is not on the scan payload — use getTicket.assigneeId. Backend remains final authorization on POST update.
+Reuse `TicketAddUpdateForm` for Detail Modal and Update page — do not duplicate submit/API logic.
 Avoid duplicate in-flight scan lookups; clear stale device state before a new scan.
 Do not keep mock loadTicket / fixed-not-fixed panels on Update Ticket.
 External inspection package path (PROJECT_PATH) is deferred until product supplies it.

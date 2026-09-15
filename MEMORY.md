@@ -128,7 +128,7 @@
 - Sync Devices button (inline sync SVG) in JumpLinks; gated on Device list `c`
 - `startDeviceSync` / `getDeviceSync` / `getLatestDeviceSync`; poll every 2s; non-blocking UI
 - On complete: toast + `reloadToken` refetch (keeps page/filters); resume in-progress via `/latest`
-- Table columns: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location
+- Table columns: Slot Id, Slot Label, Slot Identifier, QR Number (copy icon when present), Parking Location
 - Backend list maps new fields (keeps legacy `id`/`qr`/`road`/`slot`)
 - Lint on touched files + production build pass
 
@@ -173,9 +173,9 @@
 
 ## Currently working on
 
-- **Phase:** Manual QR Number on Raise / Update — complete
-- **Task:** —
-- **File:** —
+- **Phase:** Phase 29 — Update Ticket form on `/tickets/update`
+- **Task:** Complete — shared form on Update page; no Detail openUpdate handoff
+- **File:** `TicketAddUpdateForm.jsx`, `TicketUpdate.jsx`, `TicketDetail.jsx`, `TicketRaise.jsx`, `ScanQr.jsx`
 
 ## Pending
 
@@ -218,6 +218,8 @@
 41. Role split: field (`isFieldTicketUpdater`) → QR Update Ticket; ops (`isOpsTicketUpdater`) → Detail Add update.
 42. Camera **Scan QR on the machine** is available to all signed-in users (`canScanWithCamera`).
 43. Raise/Update identify device by camera scan or typed **QR Number** only (no Road/Slot dropdowns).
+44. Phase 28: Raise open-ticket **Update Ticket** → `/tickets/update` with `ticketId`; Update gates via `getTicket.assigneeId === user.id`.
+45. Phase 29: Update Ticket form renders on `/tickets/update` via shared `TicketAddUpdateForm` (no navigate to Detail for Update). Detail keeps Modal Add Update for trail. Prefer `?ticketId=` for refresh.
 ## Important decisions (detail)
 
 1–11. Prior phases (filters UI-only, static detail samples, responsive, Phase 10 JWT).
@@ -280,4 +282,4 @@
 
 ## Handoff notes
 
-Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` / `010_device_sync.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH / Phase 26 device list field mapping. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: any signed-in user; live `GET /api/devices/scan?q=`; open ticket → Detail; free → Raise `POST /api/tickets`. Live screens show skeleton loaders while fetching (Phase 22). Masters submenu labels are Issue / Road / Parts; Parts icon is interlocking gears. Device list: Sync Devices (Admin/PM with Device list `c`) → `POST /api/device-sync`; complete toast may show Created/Updated/Skipped from `stats`; table shows Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location. Status tiles filter the list via `status` (stay on `/devices`). Site attendant / Technician sidebar: top-level **All tickets** (not under Tickets). **Next phase: after 27b.**
+Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` / `010_device_sync.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH / Phase 26 device list field mapping. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: any signed-in user; live `GET /api/devices/scan?q=`. Raise open ticket → **Update Ticket** → `/tickets/update?ticketId=` → assignee gate → **Add Update form on Update page**. Free device → Raise `POST /api/tickets`. Live screens show skeleton loaders while fetching (Phase 22). Masters submenu labels are Issue / Road / Parts; Parts icon is interlocking gears. Device list: Sync Devices (Admin/PM with Device list `c`) → `POST /api/device-sync`; complete toast may show Created/Updated/Skipped from `stats`; table shows Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location. Status tiles filter the list via `status` (stay on `/devices`). Site attendant / Technician sidebar: top-level **All tickets** (not under Tickets). **Next phase: 30.**

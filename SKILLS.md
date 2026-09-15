@@ -156,9 +156,9 @@ Inspect existing code
 - Gate camera with `canScanWithCamera(user)` — any signed-in user.
 - Resolve scans through `services/devices.resolveScan` → live `GET /api/devices/scan?q=` (404 → null).
 - Site attendant Raise: map scan fields; block create when `openTicketId` is set; create via `createTicket` + issue UUIDs from `listIssueCategories`.
-- Open-ticket CTAs → `/tickets/:openTicketId` (Detail Add Update).
-- Update Ticket page: live `resolveScan` (same as Raise/Scan); open → Detail; free → Raise; no mock `loadTicket` panels.
-- Detail header: ops roles (`isOpsTicketUpdater`) → Add update; field roles (`isFieldTicketUpdater`) → QR Update Ticket link.
+- Raise open-ticket primary **Update Ticket** → `/tickets/update?ticketId=` (+ `qr` state); secondary Open → Detail.
+- Update Ticket page: live `resolveScan` or entry `ticketId`; gate with `getTicket` (open + assignee); show `TicketAddUpdateForm` on the page; free → Raise (+ `qr`).
+- Detail header: ops **or** assignee → Add update Modal (shared form); field non-assignee → QR Update Ticket link.
 
 ## Ticket detail / list UI skills (Phase 19+)
 

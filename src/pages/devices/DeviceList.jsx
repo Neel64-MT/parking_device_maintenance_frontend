@@ -14,6 +14,7 @@ import {
 import { listRoadLookups } from '../../services/roads'
 import { canPerm } from '../../services/users'
 import { Button } from '../../components/ui/Button'
+import { CopyTextButton } from '../../components/ui/CopyTextButton'
 import { Field, FilterBar } from '../../components/ui/FilterBar'
 import { JumpLinks } from '../../components/ui/JumpLinks'
 import { Panel } from '../../components/ui/Panel'
@@ -509,7 +510,16 @@ export default function DeviceList() {
                           </td>
                           <td>{displayOrDash(row.slotLabel)}</td>
                           <td>{displayOrDash(row.slotIdentifier)}</td>
-                          <td>{qr ? qr : '—'}</td>
+                          <td>
+                            {qr ? (
+                              <span className="cell-with-copy">
+                                <span>{qr}</span>
+                                <CopyTextButton text={qr} aria-label="Copy QR number" />
+                              </span>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
                           <td>{displayOrDash(row.parkingLocation || row.road)}</td>
                         </tr>
                       )
