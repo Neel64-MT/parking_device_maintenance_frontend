@@ -68,7 +68,7 @@ Frontend ticket rendering (Phase 16+)
 TicketList / Dashboard / TicketDetail must consume scoped APIs; never download all tickets and filter in React for authorization.
 Reuse canPerm and Users loading/empty/error patterns; do not add a second role store.
 Preserve existing layout; only bind live data.
-Raise create POST is live (Phase 27). Update Ticket shows the Add Update form on `/tickets/update` after assignee gate (Phase 29). Leave Close page create POST and WorkReport mock until those APIs are wired (photo files may still upload on submit via uploadImages; Detail Add Update is live as of Phase 21; Work report backend is not ownership-scoped yet).
+Raise create POST is live (Phase 27). Update Ticket shows the Add Update form on `/tickets/update` after assignee gate (Phase 29). Work report is live via `GET /api/reports/work` (+ CSV export) with Work report `v` (Phase 30). Leave Close page create POST until that API is wired (photo files may still upload on submit via uploadImages; Detail Add Update is live as of Phase 21).
 Ticket list / detail UI (Phase 19+)
 Open tab (new) must not show the Updates column; Assigned keeps it.
 Closed tab (cls) shows Days After Close, not Days open.
