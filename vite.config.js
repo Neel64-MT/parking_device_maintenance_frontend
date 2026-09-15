@@ -3,7 +3,9 @@ import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // Production lives at /frontend/ because the server root already hosts CoreDocAssist.
+  base: command === 'build' ? '/~gsrtc/parking_device_maintenance/frontend/dist/' : '/',
   plugins: [react(), tailwindcss()],
   server: {
     allowedHosts: ['lana-nonconceptual-unplunderously.ngrok-free.dev'],
@@ -18,4 +20,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

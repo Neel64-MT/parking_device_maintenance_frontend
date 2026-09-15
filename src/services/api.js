@@ -18,6 +18,13 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY)
 }
 
+/** Prefix /api and /uploads with Vite `base` (e.g. /frontend) in production. */
+function resolveUrl(path) {
+  const normalized = path.startsWith('/') ? path : `/${path}`
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+  return base ? `${base}${normalized}` : normalized
+}
+
 export class ApiRequestError extends Error {
   constructor(message, { status = 0, code = null, details = null } = {}) {
     super(message)
@@ -42,7 +49,7 @@ export async function apiEnvelope(path, options = {}) {
     if (token) headers.Authorization = `Bearer ${token}`
   }
 
-  const res = await fetch(path.startsWith('/') ? path : `/${path}`, {
+  const res = await fetch(resolveUrl(path), {
     method,
     headers,
     body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),

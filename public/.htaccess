@@ -2,14 +2,10 @@ DirectoryIndex index.html
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /
 
   # Node API (same host as this site; port matches vite.config.js)
   <IfModule mod_proxy.c>
-    RewriteCond %{REQUEST_URI} ^/api
     RewriteRule ^api(/.*)?$ http://127.0.0.1:5050/api$1 [P,L]
-
-    RewriteCond %{REQUEST_URI} ^/uploads
     RewriteRule ^uploads(/.*)?$ http://127.0.0.1:5050/uploads$1 [P,L]
   </IfModule>
 

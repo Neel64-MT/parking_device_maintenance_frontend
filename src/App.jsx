@@ -4,9 +4,11 @@ import { PageMetaProvider } from './context/PageMetaContext'
 import { ToastProvider } from './context/ToastContext'
 import { AppRoutes } from './routes'
 
+const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/'
+
 export default function App() {
   return (
-    <BrowserRouter useTransitions={false}>
+    <BrowserRouter basename={routerBasename} useTransitions={false}>
       <ToastProvider>
         <AuthProvider>
           <PageMetaProvider>
