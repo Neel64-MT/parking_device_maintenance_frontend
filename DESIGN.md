@@ -339,7 +339,18 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Ticket list column | **Slot Id** (was Device); link `/devices/{deviceId}` |
 | Ticket detail subline | `Slot Id {id}` + road + Slot label |
 | Device history | Live `getDevice(routeId)`; header title = Slot Id / fallback; skeleton while loading |
-| Work report (day) | Column header **Slot Id** |
+| Work report (day) | Column header **Slot Id**; live rows from API |
+
+## Phase 30 — Work report live API
+
+| Item | Pattern |
+|------|---------|
+| Load | `GET /api/reports/work?view=&from=&to=&person=&road=` via `getWorkReport` |
+| Dates | From/To enabled only for Date range view; Day/Week/Month omit dates (backend defaults) |
+| Person / Road | Lookups: technicians `name`, roads `name`; sentinels Everyone / All roads omitted |
+| Export | `GET /api/reports/work/export` → CSV download (`work-report.csv`) |
+| Auth | Page `canPerm(user, 'Work report', 'v')`; else Navigate home |
+| Empty / loading | EmptyState when no people; SkeletonTable while first load |
 | Add / Edit device | Form fields: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location; Edit via `/devices/add?id=` |
 
 ## Phase 27 — QR → device → raise / update

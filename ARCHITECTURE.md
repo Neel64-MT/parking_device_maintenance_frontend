@@ -69,6 +69,7 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **Phase 27b — Update Ticket live scan:** `/tickets/update` uses the same `resolveScan`; miss/error empty states; mock TK-1042 form removed.
 - **Phase 28 — QR Update Ticket handoff:** Raise open-ticket primary **Update Ticket** → `/tickets/update` with `ticketId`; assignee gate via `getTicket`.
 - **Phase 29 — Update form on `/tickets/update`:** Shared `TicketAddUpdateForm`; Update Ticket stays on `/tickets/update?ticketId=` and shows the form in-page (no Detail `openUpdate` redirect). Detail keeps Modal Add Update for ops/assignee trail viewing. Scan QR / Raise / Detail field CTA use the same Update URL.
+- **Phase 30 — Work report API:** `/tickets/report` loads `GET /api/reports/work`; Export → `/api/reports/work/export` (CSV); Person from `/api/lookups/technicians`; Road from `/api/lookups/roads`; page gated with Work report `v`. Mock `data/workReport.js` removed.
 - **Forgot/reset:** Backend token email flow (SHA-256, 1h TTL); FE `/forgot-password`, `/reset-password`. Role gate as Phase 25.
 - **Admin change password:** Reuse `PATCH /api/users/:id` with `password` (requires Users edit). Increments `password_version` (invalidates JWTs).
 - **Self-service Settings (Phase 13):**
@@ -105,9 +106,11 @@ frontend/
     ├── services/
     │   ├── api.js
     │   ├── auth.js             # login, me, updateProfile, changePassword, logout, …
-    │   ├── users.js            # Users admin + canPerm + homePathForUser / isDashboardRole
+    │   ├── users.js            # Users admin + canPerm + homePathForUser / listTechnicianLookups
     │   ├── tickets.js          # list/get + createTicket + addTicketUpdate + attachTicketUpdatePhotos
     │   ├── dashboard.js
+    │   ├── reports.js          # getWorkReport + exportWorkReport (CSV)
+    │   ├── roads.js            # listRoadLookups
     │   ├── devices.js          # listDevices + device-sync + resolveScan → GET /api/devices/scan
     │   ├── issues.js           # listIssueCategories (Raise UUID selects)
     │   └── uploads.js          # validateImageFile + uploadImage / uploadImages (submit-time)

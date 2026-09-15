@@ -173,9 +173,9 @@
 
 ## Currently working on
 
-- **Phase:** Phase 29 — Update Ticket form on `/tickets/update`
-- **Task:** Complete — shared form on Update page; no Detail openUpdate handoff
-- **File:** `TicketAddUpdateForm.jsx`, `TicketUpdate.jsx`, `TicketDetail.jsx`, `TicketRaise.jsx`, `ScanQr.jsx`
+- **Phase:** Phase 30 — Work Report API (static → dynamic)
+- **Task:** Complete — live `/api/reports/work` + export; mock removed
+- **File:** `services/reports.js`, `services/users.js` (`listTechnicianLookups`), `WorkReport.jsx`; deleted `data/workReport.js`
 
 ## Pending
 
@@ -183,7 +183,6 @@
 - External inspection package (`PROJECT_PATH` — deferred until path provided)
 - Roles tab on Users still mostly preview matrix
 - Real Settings preferences beyond profile/password
-- Backend Work report ownership scoping (if product requires)
 - Run migration `007_ticket_status_open.sql` / `009_parts_amount.sql` / `010_device_sync.sql` on environments that need them
 - Finish / verify remaining Phase 23 Parts criteria if still Pending in PR.md
 
@@ -191,7 +190,7 @@
 
 1–15. Prior phases (auth, sidebar, Settings, Raise, ticket visibility API).
 16. FE TicketList / Dashboard / TicketDetail consume scoped APIs; no React security filter.
-17. WorkReport stays mock until backend report is ownership-scoped.
+17. Phase 30: Work report uses `GET /api/reports/work` (+ `/export`); From/To only for Date range; Person/Road from lookups; page gated with Work report `v`.
 18. Phase 17: camera QR for Site attendant + Technician only; scan resolves mock until QR format finalized; open ticket = status ≠ Closed (one per device).
 19. Sidebar MENU items carry `screen` keys matching `user.permissions`; hide when no view (`v`); Settings stays always visible (no perm screen); unauthorized `/users` redirects via `homePathForUser` (not always `/dashboard`).
 20. Update Ticket uses live scan (Phase 27b); open ticket → Detail Add Update; free → Raise.
@@ -220,6 +219,19 @@
 43. Raise/Update identify device by camera scan or typed **QR Number** only (no Road/Slot dropdowns).
 44. Phase 28: Raise open-ticket **Update Ticket** → `/tickets/update` with `ticketId`; Update gates via `getTicket.assigneeId === user.id`.
 45. Phase 29: Update Ticket form renders on `/tickets/update` via shared `TicketAddUpdateForm` (no navigate to Detail for Update). Detail keeps Modal Add Update for trail. Prefer `?ticketId=` for refresh.
+46. Phase 30: Work report is live (`getWorkReport` / `exportWorkReport`); mock `workReport.js` removed; close rate stays client-side from closed/worked.
+
+### Phase 30 — Work Report API (complete)
+
+- Migrated from static `REPORT` to `GET /api/reports/work`
+- Export → `GET /api/reports/work/export` (CSV download)
+- Person options: `GET /api/lookups/technicians`; Road: `listRoadLookups`
+- Filters: view, person, road; from/to only when Date range
+- Auth: `canPerm(..., 'Work report', 'v')` → else Navigate home
+- Loading SkeletonTable; EmptyState when no people; toastApiError on failure
+- Files: `src/services/reports.js`, `WorkReport.jsx`, `listTechnicianLookups` in `users.js`; deleted `src/data/workReport.js`
+- Status: Complete
+
 ## Important decisions (detail)
 
 1–11. Prior phases (filters UI-only, static detail samples, responsive, Phase 10 JWT).
@@ -251,7 +263,7 @@
 
 | Gap | Detail |
 |-----|--------|
-| Domain screens | Update/Close/WorkReport create still mock; Raise create + Detail Add Update are live |
+| Domain screens | Close create still mock; Raise create + Detail Add Update + Work report are live |
 | Manual Raise slots | Static `SLOTS` may 404 against live DB — surface miss; no full device-list fetch |
 | Inspection package | `PROJECT_PATH` deferred until product supplies path |
 | Roles tab | Permission matrix save still toast/preview |
