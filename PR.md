@@ -501,6 +501,41 @@ QR / typed code → GET /api/devices/scan?q=
 | Miss / API error EmptyState | Pass |
 | Lint + production build | Pass |
 
+### Phase 28 — QR lookup → Update Ticket
+
+```text
+Raise/Update QR → openTicketId? → Update Ticket (/tickets/update) → getTicket assignee gate → Detail openUpdate
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Raise/Update support typed QR Number + existing camera scanner | Pass |
+| Lookup reuses `resolveScan` (`GET /api/devices/scan`); no duplicate scanner/API | Pass |
+| Raise: no open ticket → existing create flow unchanged | Pass |
+| Raise: open ticket → no second create; primary **Update Ticket** → `/tickets/update` with `ticketId` | Pass |
+| Update: open + assigned to me → ready for update handoff | Pass |
+| Update: closed / not assigned / missing → toast; form not opened | Pass |
+| One open ticket per Slot Id respected in UI; backend still authoritative | Pass |
+| Detail Add Update for ops or current assignee | Pass |
+| Lint + production build | Pass |
+
+### Phase 29 — Update form on `/tickets/update`
+
+```text
+Update Ticket → /tickets/update?ticketId= → assignee gate → TicketAddUpdateForm on page
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Update Ticket does not navigate to `/tickets/<id>` for the update action | Pass |
+| Update Ticket navigates to `/tickets/update` with `ticketId` | Pass |
+| Form shown directly on Update page after gate (no second click) | Pass |
+| Shared `TicketAddUpdateForm` reused (Detail Modal + Update page) | Pass |
+| Raise / Scan QR / Detail field CTAs use Update URL | Pass |
+| Detail trail / Open {id} unchanged | Pass |
+| Refresh with `?ticketId=` reloads when assignee | Pass |
+| Lint + production build | Pass |
+
 ### Device list status tiles → filter
 
 | Criterion | Result |

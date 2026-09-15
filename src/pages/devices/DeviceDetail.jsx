@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { ApiRequestError } from '../../services/api'
 import { getDevice } from '../../services/devices'
+import { CopyTextButton } from '../../components/ui/CopyTextButton'
 import { Panel } from '../../components/ui/Panel'
 import { Pill } from '../../components/ui/Pill'
 import { DeviceDetailSkeleton } from '../../components/ui/Skeleton'
@@ -184,7 +185,14 @@ export default function DeviceDetail() {
                     {header.qr || header.qrNumber ? (
                       <>
                         {' '}
-                        · {header.qr || header.qrNumber}
+                        ·{' '}
+                        <span className="cell-with-copy">
+                          <span>{header.qr || header.qrNumber}</span>
+                          <CopyTextButton
+                            text={header.qr || header.qrNumber}
+                            aria-label="Copy QR number"
+                          />
+                        </span>
                       </>
                     ) : null}
                   </div>
