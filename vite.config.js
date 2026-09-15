@@ -9,11 +9,11 @@ export default defineConfig({
     allowedHosts: ['lana-nonconceptual-unplunderously.ngrok-free.dev'],
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://209.182.213.242:5050',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:5000',
+        target: 'http://209.182.213.242:5050',
         changeOrigin: true,
       },
     },
