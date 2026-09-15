@@ -71,7 +71,7 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 4. Update ticket — live scan/manual find device; open ticket → Detail Add Update; free device → Raise; miss/error states
 5. Close ticket — mobile-first: final issue, resolution, cost, photos (upload on confirm), confirm
 6. Ticket detail — record header, work history timeline, classification, assignment trail; Add Update modal with PhotoPicker
-7. Work report — Day/Week/Month/Range, team strip, per-person panels
+7. Work report — Day/Week/Month/Range via live `GET /api/reports/work`; team strip + per-person panels; Export CSV; Person/Road from lookups
 8. Device list — tiles (click → `status` filter on same page), filters, table (Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location); Sync Devices (Phase 26)
 9. Device history — record, life stats, split ticket/resolution table, parts, timeline
 10. Add device — identity, location, installation form
@@ -534,6 +534,24 @@ Update Ticket → /tickets/update?ticketId= → assignee gate → TicketAddUpdat
 | Raise / Scan QR / Detail field CTAs use Update URL | Pass |
 | Detail trail / Open {id} unchanged | Pass |
 | Refresh with `?ticketId=` reloads when assignee | Pass |
+| Lint + production build | Pass |
+
+### Phase 30 — Work Report API
+
+```text
+Work report → GET /api/reports/work → people UI; Export → /work/export CSV
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Mock `REPORT` / `data/workReport.js` removed | Pass |
+| Loads from `GET /api/reports/work` with view / person / road | Pass |
+| From/To sent only for Date range view | Pass |
+| Person from technicians lookup; Road from road lookups | Pass |
+| Export downloads CSV via `/api/reports/work/export` | Pass |
+| Page gated with Work report `v` | Pass |
+| Loading / empty / error states wired | Pass |
+| Layout unchanged (team strip + person panels) | Pass |
 | Lint + production build | Pass |
 
 ### Device list status tiles → filter

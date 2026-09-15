@@ -20,6 +20,22 @@ export async function listRoles() {
   return api('/api/roles')
 }
 
+/**
+ * Assignable field staff for Work report person filter (`GET /api/lookups/technicians`).
+ * Requires All tickets `v`. Value for the report API is `name` (exact full_name).
+ * @returns {Promise<{ id: string, name: string, role: string, label: string }[]>}
+ */
+export async function listTechnicianLookups() {
+  const data = await api('/api/lookups/technicians')
+  if (!Array.isArray(data)) return []
+  return data.map((row) => ({
+    id: String(row.id),
+    name: String(row.name || ''),
+    role: String(row.role || ''),
+    label: String(row.label || row.name || ''),
+  }))
+}
+
 /** Check a permission code string for a flag letter (v/c/e/a/x/d). */
 export function canPerm(user, screen, flag) {
   const code = user?.permissions?.[screen] || '......'
