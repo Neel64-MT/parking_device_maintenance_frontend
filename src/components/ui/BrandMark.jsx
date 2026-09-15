@@ -1,5 +1,5 @@
 /** Shared app brand mark (sidebar, auth title, favicon source). */
-export const BRAND_MARK_SRC = '/brand-mark.png'
+export const BRAND_MARK_SRC = `${import.meta.env.BASE_URL}brand-mark.png`
 export const BRAND_MARK_ALT = 'Parking Device Maintenance'
 
 /**

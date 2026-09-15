@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router-dom'
 
-const AUTH_LOGO_SRC = '/auth-logo.png'
+const AUTH_LOGO_SRC = `${import.meta.env.BASE_URL}auth-logo.png`
 
 export function AuthLayout() {
   return (
