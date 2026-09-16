@@ -450,7 +450,7 @@ Table columns → Slot Id, Slot Label, Slot Identifier, QR Number, Parking Locat
 | Device table shows only the five sync columns | Pass |
 | List API maps `slotId` / `slotLabel` / `slotIdentifier` / `qrNumber` / `parkingLocation` | Pass |
 | Pagination 10/25/50/100 preserved; refresh keeps current page/filters | Pass |
-| Gated on Device list `c` (Admin/PM); no new npm deps | Pass |
+| Gated on Device list `c` (Admin/PM/Technician/Engineer); no new npm deps | Pass |
 | Lint on touched files + production build | Pass |
 
 ### Phase 26b — Ticket Slot Id + live Device history
@@ -471,19 +471,22 @@ Device history → GET /api/devices/:id → same layout, data by route id
 ### Phase 27 — QR scan → device → raise / update
 
 ```text
-QR / typed code → GET /api/devices/scan?q=
-  → openTicketId? → Ticket Detail (Add Update)
+QR / typed / sticker → resolveScan
+  → qr_token → POST /api/devices/slot-mac
+  → else → GET /api/devices/scan?q=
+  → openTicketId? → Update / Detail
   → else → Raise form → POST /api/tickets
 ```
 
 | Criterion | Result |
 |-----------|--------|
-| Live `resolveScan` via `GET /api/devices/scan?q=` | Pass |
+| Live `resolveScan`: sticker → `/slot-mac`; legacy → `/scan` | Pass |
 | Device facts show QR / Slot Id / Slot Label / Slot Identifier / Parking Location | Pass |
 | No open ticket → Raise create via `POST /api/tickets` | Pass |
-| Open ticket → no second create; Update → `/tickets/:id` | Pass |
+| Open ticket → no second create; Update → `/tickets/:id` (later → `/tickets/update`) | Pass |
 | `409 OPEN_TICKET_EXISTS` guides to existing ticket | Pass |
 | Scan API failure does not assume free device | Pass |
+| No SmartPark calls from the browser | Pass |
 | No new QR library; existing `QrScannerModal` reused | Pass |
 | Lint + production build | Pass |
 
@@ -510,7 +513,7 @@ Raise/Update QR → openTicketId? → Update Ticket (/tickets/update) → getTic
 | Criterion | Result |
 |-----------|--------|
 | Raise/Update support typed QR Number + existing camera scanner | Pass |
-| Lookup reuses `resolveScan` (`GET /api/devices/scan`); no duplicate scanner/API | Pass |
+| Lookup reuses `resolveScan` (slot-mac / scan); no duplicate scanner/API | Pass |
 | Raise: no open ticket → existing create flow unchanged | Pass |
 | Raise: open ticket → no second create; primary **Update Ticket** → `/tickets/update` with `ticketId` | Pass |
 | Update: open + assigned to me → ready for update handoff | Pass |
@@ -553,6 +556,23 @@ Work report → GET /api/reports/work → people UI; Export → /work/export CSV
 | Loading / empty / error states wired | Pass |
 | Layout unchanged (team strip + person panels) | Pass |
 | Lint + production build | Pass |
+
+### Phase 33 FE — SmartPark sticker `qr_token`
+
+```text
+Camera/typed → extractQrToken?
+  → yes → POST /api/devices/slot-mac { qrToken }
+  → no  → GET /api/devices/scan?q=
+```
+
+| Criterion | Result |
+|-----------|--------|
+| `extractQrToken` + `resolveScan` wired (no page UI change) | Pass |
+| Sticker / `?qr_token=` → POST `/api/devices/slot-mac` | Pass |
+| Legacy PD/QR/slot → GET `/api/devices/scan` | Pass |
+| 404 → miss UX (null); other errors rethrown | Pass |
+| No SmartPark host calls from the browser | Pass |
+| Raise/Update still branch on `openTicketId` | Pass |
 
 ### Device list status tiles → filter
 

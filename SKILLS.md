@@ -154,7 +154,7 @@ Inspect existing code
 
 - Use `QrScannerModal` + `html5-qrcode`; stop the camera on close.
 - Gate camera with `canScanWithCamera(user)` — any signed-in user.
-- Resolve scans through `services/devices.resolveScan` → live `GET /api/devices/scan?q=` (404 → null).
+- Resolve scans through `services/devices.resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy PD/QR/slot → `GET /api/devices/scan?q=` (404 → null). Never call SmartPark from the browser.
 - Site attendant Raise: map scan fields; block create when `openTicketId` is set; create via `createTicket` + issue UUIDs from `listIssueCategories`.
 - Raise open-ticket primary **Update Ticket** → `/tickets/update?ticketId=` (+ `qr` state); secondary Open → Detail.
 - Update Ticket page: live `resolveScan` or entry `ticketId`; gate with `getTicket` (open + assignee); show `TicketAddUpdateForm` on the page; free → Raise (+ `qr`).

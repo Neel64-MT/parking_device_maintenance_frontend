@@ -12,6 +12,8 @@
  * @property {number|null} [slotId]
  * @property {string|null} [slotLabel]
  * @property {string|null} [slotIdentifier]
+ * @property {string|null} [macId]
+ * @property {string|null} [bleMac]
  * @property {string|null} [qrNumber]
  * @property {string|null} [qr]
  * @property {string|null} [parkingLocation]

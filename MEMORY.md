@@ -142,7 +142,7 @@
 
 ### Phase 27 — QR scan → device → raise / update (complete)
 
-- `resolveScan` → live `GET /api/devices/scan?q=` (404 → null; other errors rethrown)
+- `resolveScan` → sticker `qr_token` → `POST /api/devices/slot-mac`; else `GET /api/devices/scan?q=` (404 → null; other errors rethrown)
 - `scanDeviceFacts`: QR Number, Slot Id, Slot Label, Slot Identifier, Parking Location, Status, Open ticket
 - `createTicket` (`POST /api/tickets`) + `listIssueCategories` (`GET /api/issues`); Raise IssueSelects UUID mode
 - TicketRaise: Fetching device…; block when `openTicketId`; Raise create; `OPEN_TICKET_EXISTS` / `REOPEN_SAME_TICKET` → existing ticket
