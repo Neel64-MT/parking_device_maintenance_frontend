@@ -324,7 +324,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 |------|---------|
 | Sync button | JumpLinks `actions`, left of Add device; `btn-dark` + inline sync SVG; label **Sync Devices** |
 | Syncing | Same button disabled; label **Syncing...**; rest of page usable |
-| Visibility | `canPerm(user, 'Device list', 'c')` only |
+| Visibility | `canPerm(user, 'Device list', 'c')` — Admin, PM, Technician, Engineer |
 | Toast | Start / complete / fail via existing `toast()`; on complete show `Created` / `Updated` / `Skipped` from `run.stats` (`devicesCreated` / `devicesUpdated` / `devicesSkipped`) when present |
 | Table columns | Slot Id, Slot Label, Slot Identifier, QR Number (`.code` → history), Parking Location |
 | Empty cell | `—` for null identifier / missing values |
@@ -357,7 +357,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 
 | Item | Pattern |
 |------|---------|
-| Scan resolve | Live `GET /api/devices/scan?q=`; “Fetching device…” while in flight |
+| Scan resolve | `resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy → `GET /api/devices/scan?q=`; “Fetching device…” while in flight |
 | Device facts | QR Number, Slot Id, Slot Label, Slot Identifier, Parking Location, Status, Open ticket |
 | No open ticket | Raise step 2; issue UUID selects; Raise → upload → `POST /api/tickets` |
 | Open ticket | `.reclass`; no Create; primary **Update Ticket** → `/tickets/update` (`ticketId` + `qr`); secondary Open → Detail |
