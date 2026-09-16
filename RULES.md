@@ -96,7 +96,7 @@ Ticket list Open tab label is Open (keep tab id new for API compatibility unless
 Keep Raised by immediately before Assigned to on TicketList.
 QR scan / Raise rules (Phase 17+ / 27+)
 Camera Scan is available to any signed-in user (`canScanWithCamera` = Boolean(user)).
-Resolve scans with live GET /api/devices/scan?q= via resolveScan (normalizeScanCode first). Do not call SmartPark from the browser. Do not invent /devices/by-qr or /tickets/by-slot.
+Resolve scans with live `resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy PD/QR/slot → `GET /api/devices/scan?q=`. Do not call SmartPark from the browser. Do not invent /devices/by-qr or /tickets/by-slot.
 Open ticket = status ≠ Closed; at most one open ticket per device / Slot Id. FE must not offer Create new ticket when openTicketId is set; backend remains authoritative (409 OPEN_TICKET_EXISTS).
 Do not proceed to raise when device lookup fails or returns miss. Do not assume no open ticket when the scan API errors.
 Raise create: POST /api/tickets with scan deviceId (not QR alone) + category/subCategory UUIDs from GET /api/issues + optional photos. On OPEN_TICKET_EXISTS / REOPEN_SAME_TICKET, guide to Update Ticket / existing ticket.
