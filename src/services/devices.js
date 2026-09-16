@@ -31,14 +31,78 @@ export function normalizeScanCode(raw) {
 }
 
 /**
+ * Extract SmartPark sticker token from camera/manual input.
+ * Prefer URL query `id` (sticker QR), then `qr_token` / `qrToken`.
+ * Returns null for legacy PD/QR/slot codes (those use GET /scan).
+ * Do not uppercase — tokens are case-sensitive.
+ * @param {string} raw
+ * @returns {string | null}
+ */
+export function extractQrToken(raw) {
+  const trimmed = String(raw || '').trim()
+  if (!trimmed) return null
+
+  try {
+    if (/^https?:\/\//i.test(trimmed)) {
+      const url = new URL(trimmed)
+      const fromQuery =
+        url.searchParams.get('id') ||
+        url.searchParams.get('qr_token') ||
+        url.searchParams.get('qrToken')
+      if (fromQuery && fromQuery.trim()) return fromQuery.trim()
+    }
+  } catch {
+    /* fall through */
+  }
+
+  const qMatch =
+    trimmed.match(/[?&]id=([^&#]+)/) ||
+    trimmed.match(/[?&]qr_token=([^&#]+)/i) ||
+    trimmed.match(/[?&]qrToken=([^&#]+)/)
+  if (qMatch?.[1]) {
+    try {
+      return decodeURIComponent(qMatch[1]).trim()
+    } catch {
+      return qMatch[1].trim()
+    }
+  }
+
+  // Legacy device identifiers — keep on GET /scan
+  if (/^(PD|QR|RD)-/i.test(trimmed)) return null
+  if (/^device[/\\]/i.test(trimmed)) return null
+  if (/^\d+$/.test(trimmed)) return null
+  if (/^[A-Z]{1,3}-\d+/i.test(trimmed)) return null
+  if (/^[0-9A-F]{2}(:[0-9A-F]{2}){5}$/i.test(trimmed)) return null
+  if (/^https?:\/\//i.test(trimmed)) return null
+
+  // Opaque sticker token (base64-like); do not uppercase
+  if (/^[A-Za-z0-9+/=_-]{16,}$/.test(trimmed) && !/\s/.test(trimmed)) return trimmed
+  return null
+}
+
+/**
  * Resolve a scanned / typed code to device payload.
- * Live: GET /api/devices/scan?q= (includes openTicketId for one-open-ticket branching).
+ * Sticker token (URL ?id= / qr_token, or opaque) → POST /api/devices/slot-mac.
+ * Legacy codes → GET /api/devices/scan?q= (includes openTicketId).
  * Returns null on 404 / empty code; rethrows other API errors.
  *
  * @param {string} raw
  * @returns {Promise<import('../data/scanDevice').ScanDevice | null>}
  */
 export async function resolveScan(raw) {
+  const qrToken = extractQrToken(raw)
+  if (qrToken) {
+    try {
+      return await api('/api/devices/slot-mac', {
+        method: 'POST',
+        body: { qr_token: qrToken },
+      })
+    } catch (err) {
+      if (err instanceof ApiRequestError && err.status === 404) return null
+      throw err
+    }
+  }
+
   const code = normalizeScanCode(raw)
   if (!code) return null
 
