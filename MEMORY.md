@@ -173,9 +173,9 @@
 
 ## Currently working on
 
-- **Phase:** Phase 31 — Ticket Detail assign / reassign API
-- **Task:** Complete — `assignTicket` + technicians Hand to; trail reload
-- **File:** `services/tickets.js`, `TicketDetail.jsx`
+- **Phase:** Phase 34 — Issue Master create + category hard delete
+- **Task:** Complete — live create category/sub; category DELETE + IN_USE→deactivate; docs
+- **File:** `IssueMaster.jsx`, `issues.js`, docs
 
 ## Pending
 
@@ -184,7 +184,8 @@
 - Roles tab on Users still mostly preview matrix
 - Real Settings preferences beyond profile/password
 - TicketList assignee filter still hardcoded names (Detail assign is live)
-- Run migration `007_ticket_status_open.sql` / `009_parts_amount.sql` / `010_device_sync.sql` on environments that need them
+- TicketList / Add Update / Close still use static `ISSUE_MASTER` for some selects (Raise is live)
+- Run migration `007_ticket_status_open.sql` / `009_parts_amount.sql` / `010_device_sync.sql` / `015_issue_master_delete_field_roles.sql` on environments that need them
 - Finish / verify remaining Phase 23 Parts criteria if still Pending in PR.md
 
 ## Important decisions
@@ -193,6 +194,8 @@
 16. FE TicketList / Dashboard / TicketDetail consume scoped APIs; no React security filter.
 17. Phase 30: Work report uses `GET /api/reports/work` (+ `/export`); From/To only for Date range; Person/Road from lookups; page gated with Work report `v`.
 18. Phase 31: Detail Assign Save → `POST /api/tickets/:id/assign` with `assigneeId` from `GET /api/lookups/technicians`; optional note → `reason`; reload detail for trail/facts.
+19. Phase 32: Parts “delete” = soft `PATCH { active: false }` (no hard DELETE). Issue sub delete = `DELETE` + 409→deactivate; UI gated with Issue master `d`/`e`. Image hover/pinch zoom without new libs. Crop uses `dvh` + sticky actions + larger mobile handles.
+19b. Phase 34: Issue create category/sub via `POST` (`c`); category hard-delete via `DELETE` (`d`) with 409→`PATCH active:false` when `e`. Cache clear so Raise picks up new rows.
 19. Sidebar MENU items carry `screen` keys matching `user.permissions`; hide when no view (`v`); Settings stays always visible (no perm screen); unauthorized `/users` redirects via `homePathForUser` (not always `/dashboard`).
 20. Update Ticket uses live scan (Phase 27b); open ticket → Detail Add Update; free → Raise.
 21. Phase 18: only Admin / Project manager land on and open Dashboard; other roles home to All tickets.
@@ -241,6 +244,21 @@
 - Save validates worker; busy button; Cancel resets without API
 - Success toast + `reloadTicket()` for Assigned to fact + `assignmentTrail`
 - Trail `when` formatted; empty: `No assignment history.`
+- Status: Complete
+
+### Phase 32 — Master delete + image zoom/crop (complete)
+
+- PartMaster: confirm Modal before soft deactivate (`PATCH` active false); Issue `e` or Technician
+- IssueMaster: live `GET /api/issues`; sub Delete (`d`) / Deactivate on use or 409; category soft-deactivate (`e`)
+- `ImagePreviewModal`: hover pointer-position zoom + pinch/pan; Reset control
+- `CameraCaptureModal`: viewport-capped crop, sticky actions, larger mobile handles
+- Status: Complete
+
+### Phase 34 — Issue Master create + category hard delete (complete)
+
+- `createIssueCategory` / `createIssueSubcategory` / `deleteIssueCategory` in `issues.js`
+- IssueMaster inline create forms wired (`c`); category Trash → hard delete (`d`); 409 → deactivate if `e`
+- Sub edit/delete unchanged; Raise Ticket benefits from cache clear
 - Status: Complete
 
 ## Important decisions (detail)

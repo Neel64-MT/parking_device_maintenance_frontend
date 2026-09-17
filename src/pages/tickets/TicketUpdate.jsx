@@ -324,7 +324,7 @@ export default function TicketUpdate() {
                   canSubmit
                   onBusyChange={setFormBusy}
                   onSuccess={() => {
-                    /* stay on page; form resets itself */
+                    navigate(backTo)
                   }}
                 />
               </div>

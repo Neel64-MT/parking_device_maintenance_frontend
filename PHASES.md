@@ -705,10 +705,54 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 32: Master delete + Amazon-style zoom + mobile crop
+
+**Objective:** Soft-deactivate Parts with confirm; live Issue Master list + subcategory delete/deactivate per Issue master `d`; pointer-position image zoom + pinch; mobile-friendly camera crop.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. PartMaster confirm Modal + deactivate gate (`e` or Technician); refresh list.
+2. `issues.js` delete/deactivate/updateCategory; IssueMaster live list + confirm; 409 → deactivate.
+3. Align demo `ROLES` Issue master `d` for Technician / Engineer / PM.
+4. ImagePreviewModal hover zoom + pinch/pan + Reset; CSS `dvh` stage.
+5. CameraCaptureModal crop max-height, sticky actions, larger handles.
+6. Docs update.
+
+**Out of scope:** Part hard-delete API; Issue create/edit live POST; new image libraries.
+
+**Verification:** Role-gated delete/deactivate; confirm cancel; 403/409 toasts; hover/pinch zoom; crop actions reachable on narrow viewports.
+
+**Completion:** PR.md Phase 32 criteria pass.
+
+---
+
+## Phase 34: Issue Master create + category hard delete
+
+**Objective:** Wire Issue category/subcategory create and category hard-delete to live `/api/issues` APIs; keep master-detail UI and Raise Ticket compatibility.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `issues.js`: `createIssueCategory`, `createIssueSubcategory`, `deleteIssueCategory` + cache clear.
+2. IssueMaster: wire `saveCategory` / `saveSub` with validation, busy, toast, refresh.
+3. Category Trash (`d`) → confirm → `DELETE`; `409 IN_USE` → `PATCH active:false` when `e`.
+4. Docs update.
+
+**Out of scope:** TicketList/Add Update/Close static `ISSUE_MASTER` replacement; category rename; inactive-row admin list.
+
+**Verification:** Create cat/sub; duplicate/short name; delete unused; IN_USE deactivate; unauthorized; Raise still lists new categories after create.
+
+**Completion:** PR.md Phase 34 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 28 ──► Phase 29 ──► Phase 30 ──► Phase 31
+Phase 0 ──► … ──► Phase 28 ──► Phase 29 ──► Phase 30 ──► Phase 31 ──► Phase 32 ──► Phase 34
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

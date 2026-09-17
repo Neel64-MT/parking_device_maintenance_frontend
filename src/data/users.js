@@ -244,7 +244,7 @@ export const ROLES = {
     },
   },
   'Project manager': {
-    note: 'City-wide ops; can manage users and approve signups; cannot delete masters.',
+    note: 'City-wide ops; can manage users and approve signups; can hard-delete unused Issue sub-categories.',
     p: {
       Dashboard: 'v.....',
       'Raise ticket': 'vc....',
@@ -255,7 +255,7 @@ export const ROLES = {
       'Add device': 'vc....',
       'Device history': 'v.....',
       'Scan QR': 'v.....',
-      'Issue master': 'vce...',
+      'Issue master': 'vce..d',
       'Road master': 'vce...',
       Users: 'vce...',
       'Roles & permissions': 'v.....',
@@ -280,7 +280,7 @@ export const ROLES = {
     },
   },
   Technician: {
-    note: 'Sees only devices and tickets on the roads assigned to them, and only the tickets they currently hold. May run Device Sync.',
+    note: 'Sees only devices and tickets on the roads assigned to them, and only the tickets they currently hold. May run Device Sync. May edit and delete unused Issue sub-categories.',
     p: {
       Dashboard: '......',
       'Raise ticket': 'vc....',
@@ -291,14 +291,14 @@ export const ROLES = {
       'Add device': '......',
       'Device history': 'v.....',
       'Scan QR': 'v.....',
-      'Issue master': 'v.....',
+      'Issue master': 'v....d',
       'Road master': '......',
       Users: '......',
       'Roles & permissions': '......',
     },
   },
   Engineer: {
-    note: 'Field engineer: same as Technician for tickets; may run Device Sync; eligible for Visited By.',
+    note: 'Field engineer: same as Technician for tickets; may run Device Sync; eligible for Visited By; may edit and delete unused Issue sub-categories.',
     p: {
       Dashboard: '......',
       'Raise ticket': 'vc....',
@@ -309,7 +309,7 @@ export const ROLES = {
       'Add device': '......',
       'Device history': 'v.....',
       'Scan QR': 'v.....',
-      'Issue master': 'v.....',
+      'Issue master': 'v....d',
       'Road master': '......',
       Users: '......',
       'Roles & permissions': '......',
