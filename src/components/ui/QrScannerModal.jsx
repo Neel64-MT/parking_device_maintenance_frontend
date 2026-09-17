@@ -6,6 +6,40 @@ import { Modal } from './Modal'
 const SCAN_CONFIG = { fps: 8, qrbox: { width: 220, height: 220 } }
 
 /**
+ * Invert RGB on the scan canvas (Safari-safe; no CSS filter).
+ * Parking stickers are often white modules on black — html5-qrcode only
+ * decodes dark-on-light unless we flip the frame first.
+ * @param {CanvasRenderingContext2D | null | undefined} ctx
+ * @param {HTMLCanvasElement | null | undefined} canvas
+ */
+function invertScanCanvas(ctx, canvas) {
+  if (!ctx || !canvas?.width || !canvas?.height) return
+  const { width, height } = canvas
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const pixels = imageData.data
+  for (let i = 0; i < pixels.length; i += 4) {
+    pixels[i] = 255 - pixels[i]
+    pixels[i + 1] = 255 - pixels[i + 1]
+    pixels[i + 2] = 255 - pixels[i + 2]
+  }
+  ctx.putImageData(imageData, 0, 0)
+}
+
+/**
+ * Same as Html5Qrcode, but retries each frame with inverted colors so
+ * white-on-black sticker QR codes decode.
+ */
+class InvertAwareHtml5Qrcode extends Html5Qrcode {
+  scanContext(qrCodeSuccessCallback, qrCodeErrorCallback) {
+    return super.scanContext(qrCodeSuccessCallback, qrCodeErrorCallback).then((ok) => {
+      if (ok) return true
+      invertScanCanvas(this.context, this.canvasElement)
+      return super.scanContext(qrCodeSuccessCallback, qrCodeErrorCallback)
+    })
+  }
+}
+
+/**
  * @param {unknown} err
  */
 function isPermissionDenied(err) {
@@ -64,6 +98,7 @@ function cameraStartErrorMessage(err) {
 /**
  * Camera QR scanner dialog. Starts on open; stops on close / successful decode.
  * Tries rear camera, then front, then the first listed device (desktop-friendly).
+ * Supports inverted (white-on-black) sticker QR codes.
  * @param {{
  *   open: boolean,
  *   onClose: () => void,
@@ -98,7 +133,7 @@ export function QrScannerModal({
 
     handledRef.current = false
     let cancelled = false
-    const scanner = new Html5Qrcode(readerId)
+    const scanner = new InvertAwareHtml5Qrcode(readerId)
     scannerRef.current = scanner
 
     function onDecoded(decoded) {
@@ -119,11 +154,11 @@ export function QrScannerModal({
       setBusy(true)
       setError('')
 
-      if (typeof window !== 'undefined' && window.isSecureContext === false) {
-        setError('Camera needs a secure page. Open the app via HTTPS or localhost.')
-        setBusy(false)
-        return
-      }
+      // if (typeof window !== 'undefined' && window.isSecureContext === false) {
+      //   setError('Camera needs a secure page. Open the app via HTTPS or localhost.')
+      //   setBusy(false)
+      //   return
+      // }
       if (!navigator.mediaDevices?.getUserMedia) {
         setError('Camera is not available in this browser. Type the QR Number instead.')
         setBusy(false)

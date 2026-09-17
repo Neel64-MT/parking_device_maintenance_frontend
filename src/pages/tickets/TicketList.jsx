@@ -1,18 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
-import { toast } from '../../context/ToastContext'
+import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { DEFAULT_PAGE_SIZE } from '../../constants/pagination'
 import { ISSUE_MASTER } from '../../data/issueMaster'
 import { ROAD_OPTIONS } from '../../data/slots'
 import { TICKET_TAB_META } from '../../data/tickets'
 import { ApiRequestError } from '../../services/api'
-import { listTickets } from '../../services/tickets'
-import { canPerm, isFieldTicketUpdater } from '../../services/users'
+import { assignTicket, listTickets } from '../../services/tickets'
+import { canPerm, isFieldTicketUpdater, listTechnicianLookups } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field, FilterBar } from '../../components/ui/FilterBar'
 import { JumpLinks } from '../../components/ui/JumpLinks'
+import { Modal } from '../../components/ui/Modal'
 import { Panel } from '../../components/ui/Panel'
 import { Pill } from '../../components/ui/Pill'
 import { SkeletonTable, SkeletonTiles } from '../../components/ui/Skeleton'
@@ -81,8 +82,20 @@ export default function TicketList() {
   const [tabCounts, setTabCounts] = useState({ new: 0, asg: 0, cls: 0 })
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [listVersion, setListVersion] = useState(0)
+
+  const [assignRow, setAssignRow] = useState(null)
+  const [assigneeId, setAssigneeId] = useState('')
+  const [assignReason, setAssignReason] = useState('')
+  const [assignSaving, setAssignSaving] = useState(false)
+  const assignSavingRef = useRef(false)
+  const [assignHandError, setAssignHandError] = useState('')
+  const [techOptions, setTechOptions] = useState([])
+  const [techsLoading, setTechsLoading] = useState(false)
 
   const meta = TICKET_TAB_META[tab]
+  const assignOpen = Boolean(assignRow)
+  const assignIsReassign = Boolean(assignRow?.assignedTo)
 
   useEffect(() => {
     let cancelled = false
@@ -145,7 +158,99 @@ export default function TicketList() {
     return () => {
       cancelled = true
     }
-  }, [canView, canFilterAssignee, tab, applied, page, limit])
+  }, [canView, canFilterAssignee, tab, applied, page, limit, listVersion])
+
+  useEffect(() => {
+    if (!canAssign) return undefined
+    let cancelled = false
+    const id = window.setTimeout(() => {
+      setTechsLoading(true)
+      listTechnicianLookups()
+        .then((list) => {
+          if (!cancelled) setTechOptions((list || []).filter((t) => t.id))
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setTechOptions([])
+            toastApiError(err, 'Could not load workers.')
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setTechsLoading(false)
+        })
+    }, 0)
+    return () => {
+      cancelled = true
+      window.clearTimeout(id)
+    }
+  }, [canAssign])
+
+  function resolveRowAssigneeId(row) {
+    if (!row) return ''
+    if (row.assigneeId) return String(row.assigneeId)
+    const name = String(row.assignedTo || '').trim()
+    if (!name) return ''
+    const match = techOptions.find(
+      (t) => t.label === name || t.name === name || String(t.label || '').startsWith(name),
+    )
+    return match?.id ? String(match.id) : ''
+  }
+
+  function openAssignForm(row) {
+    setAssignHandError('')
+    setAssignReason('')
+    setAssigneeId(resolveRowAssigneeId(row))
+    setAssignRow(row)
+  }
+
+  function closeAssignForm() {
+    if (assignSavingRef.current) return
+    setAssignRow(null)
+    setAssigneeId('')
+    setAssignReason('')
+    setAssignHandError('')
+  }
+
+  function setAssignBusy(busy) {
+    assignSavingRef.current = busy
+    setAssignSaving(busy)
+  }
+
+  async function submitAssign(e) {
+    e.preventDefault()
+    if (assignSavingRef.current || !assignRow?.id) return
+    const selected = String(assigneeId || '').trim()
+    if (!selected) {
+      setAssignHandError('Select a worker to hand this ticket to.')
+      return
+    }
+    setAssignHandError('')
+    setAssignBusy(true)
+    try {
+      const result = await assignTicket(assignRow.id, {
+        assigneeId: selected,
+        reason: assignReason,
+        isFirstAssign: !assignRow.assignedTo,
+      })
+      toastApiSuccess(
+        result?.assigneeName
+          ? `Assigned to ${result.assigneeName}.`
+          : 'Ticket assigned.',
+      )
+      setAssignBusy(false)
+      closeAssignForm()
+      setListVersion((v) => v + 1)
+    } catch (err) {
+      if (err instanceof ApiRequestError && Array.isArray(err.details)) {
+        const hand = err.details.find(
+          (d) => d?.field === 'assigneeId' || d?.field === 'assignee',
+        )
+        if (hand?.message) setAssignHandError(String(hand.message))
+      }
+      toastApiError(err, 'Could not save assignment.')
+      setAssignBusy(false)
+    }
+  }
 
   function handleTab(id) {
     const nextTab = parseTab(id)
@@ -417,33 +522,38 @@ export default function TicketList() {
                             {canAssign &&
                             row.status !== 'Closed' &&
                             row.assignedTo ? (
-                              <Link
-                                className="btn btn-sm btn-reassign"
-                                to={`/tickets/${row.id}`}
-                                state={{ ...ticketLinkState, openAssign: true }}
+                              <Button
+                                size="sm"
+                                className="btn-reassign"
+                                onClick={() => openAssignForm(row)}
                               >
                                 Reassign
-                              </Link>
+                              </Button>
                             ) : null}
-                            <Link
-                              className={`btn btn-sm${
-                                row.assignedTo && row.actionLabel === 'Assign'
-                                  ? ''
-                                  : row.actionPrimary
+                            {canAssign &&
+                            row.status !== 'Closed' &&
+                            !row.assignedTo &&
+                            row.actionLabel === 'Assign' ? (
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={() => openAssignForm(row)}
+                              >
+                                Assign
+                              </Button>
+                            ) : (
+                              <Link
+                                className={`btn btn-sm${
+                                  row.actionPrimary && row.actionLabel !== 'Assign'
                                     ? ' btn-primary'
                                     : ''
-                              }`}
-                              to={`/tickets/${row.id}`}
-                              state={
-                                !row.assignedTo && row.actionLabel === 'Assign'
-                                  ? { ...ticketLinkState, openAssign: true }
-                                  : ticketLinkState
-                              }
-                            >
-                              {row.assignedTo && row.actionLabel === 'Assign'
-                                ? 'Open'
-                                : row.actionLabel}
-                            </Link>
+                                }`}
+                                to={`/tickets/${row.id}`}
+                                state={ticketLinkState}
+                              >
+                                {row.actionLabel === 'Assign' ? 'Open' : row.actionLabel}
+                              </Link>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -463,6 +573,79 @@ export default function TicketList() {
           />
         </Panel>
       </main>
+
+      <Modal
+        open={assignOpen && canAssign}
+        title={assignIsReassign ? 'Reassign ticket' : 'Assign ticket'}
+        subtitle={
+          assignIsReassign
+            ? `Hand ${assignRow?.id || 'this ticket'} to another worker`
+            : `Choose who should hold ${assignRow?.id || 'this ticket'}`
+        }
+        onClose={closeAssignForm}
+        closeDisabled={assignSaving}
+        wide
+      >
+        {assignOpen && canAssign ? (
+          <form onSubmit={submitAssign}>
+            <div className="row">
+              <Field label="Hand to">
+                <select
+                  value={assigneeId}
+                  disabled={techsLoading || assignSaving}
+                  onChange={(e) => {
+                    setAssigneeId(e.target.value)
+                    setAssignHandError('')
+                  }}
+                  aria-invalid={Boolean(assignHandError)}
+                >
+                  <option value="">
+                    {techsLoading ? 'Loading workers…' : 'Select worker'}
+                  </option>
+                  {techOptions.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label || t.name}
+                    </option>
+                  ))}
+                </select>
+                {assignHandError ? (
+                  <p className="muted" style={{ color: 'var(--bad)', marginTop: 6 }}>
+                    {assignHandError}
+                  </p>
+                ) : null}
+              </Field>
+              <Field label="Note">
+                <input
+                  type="text"
+                  placeholder="Optional note"
+                  value={assignReason}
+                  disabled={assignSaving}
+                  onChange={(e) => setAssignReason(e.target.value)}
+                />
+              </Field>
+            </div>
+            <div className="row" style={{ marginTop: 12 }}>
+              <Button
+                type="submit"
+                size="sm"
+                variant="primary"
+                disabled={assignSaving || techsLoading}
+                aria-busy={assignSaving}
+              >
+                {assignSaving ? 'Loading…' : assignIsReassign ? 'Reassign' : 'Assign'}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={assignSaving}
+                onClick={closeAssignForm}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        ) : null}
+      </Modal>
     </>
   )
 }

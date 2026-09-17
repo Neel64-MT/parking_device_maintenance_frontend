@@ -70,7 +70,7 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 3. Raise ticket — scan/manual device via live scan API; open ticket → Detail update; else problem form + live `POST /api/tickets`; PhotoPicker upload on submit; Cancel / Raise in page flow
 4. Update ticket — live scan/manual find device; open ticket → Detail Add Update; free device → Raise; miss/error states
 5. Close ticket — mobile-first: final issue, resolution, cost, photos (upload on confirm), confirm
-6. Ticket detail — record header, work history timeline, classification, assignment trail; Add Update modal with PhotoPicker
+6. Ticket detail — record header, work history timeline, classification, assignment trail; live Assign/Reassign; Add Update modal with PhotoPicker
 7. Work report — Day/Week/Month/Range via live `GET /api/reports/work`; team strip + per-person panels; Export CSV; Person/Road from lookups
 8. Device list — tiles (click → `status` filter on same page), filters, table (Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location); Sync Devices (Phase 26)
 9. Device history — record, life stats, split ticket/resolution table, parts, timeline
@@ -556,6 +556,24 @@ Work report → GET /api/reports/work → people UI; Export → /work/export CSV
 | Loading / empty / error states wired | Pass |
 | Layout unchanged (team strip + person panels) | Pass |
 | Lint + production build | Pass |
+
+### Phase 31 — Ticket Detail assign / reassign
+
+```text
+Assign / Reassign → Hand to (technicians UUID) + note → POST /api/tickets/:id/assign → reload trail
+```
+
+| Criterion | Result |
+|-----------|--------|
+| `assignTicket` service wired | Pass |
+| Hand to from `GET /api/lookups/technicians` (not TEAM) | Pass |
+| Optional note sent as `reason` | Pass |
+| Validation when no worker selected | Pass |
+| Success reloads assignee + assignment trail | Pass |
+| Cancel does not call API | Pass |
+| Empty trail shows `No assignment history.` | Pass |
+| UI gated with All tickets `a` | Pass |
+| Layout unchanged | Pass |
 
 ### Phase 33 FE — SmartPark sticker `qr_token`
 
