@@ -3,12 +3,13 @@ import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
-export default defineConfig(({ command }) => ({
-  // Production lives at /frontend/ because the server root already hosts CoreDocAssist.
-  base: command === 'build' ? '/~gsrtc/parking_device_maintenance/frontend/dist/' : '/',
+export default defineConfig({
+  base: '/',
   plugins: [react(), tailwindcss()],
   server: {
-    allowedHosts: ['lana-nonconceptual-unplunderously.ngrok-free.dev'],
+    allowedHosts: [
+      'smartparkdevicetrack.dev-project-server.com',
+    ],
     proxy: {
       '/api': {
         target: 'http://209.182.213.242:5050',
@@ -20,4 +21,4 @@ export default defineConfig(({ command }) => ({
       },
     },
   },
-}))
+})
