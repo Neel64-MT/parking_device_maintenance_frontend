@@ -372,25 +372,18 @@ body.rail-lock {
   margin-top: auto;
 }
 
-.rail-bottom>.nav-item>a {
+.rail-bottom > .nav-item > a,
+.rail-foot.nav-item > a {
   padding-top: 10px;
   padding-bottom: 10px;
 }
 
 .rail-foot {
-  padding: 12px 16px 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.09);
-  font-size: 12px;
-  color: #7e93a6;
 }
 
-.rail-foot-text {
-  display: block;
-  overflow: hidden;
-  opacity: 1;
-  max-height: 48px;
-  transform: translateX(0);
-  transition: none;
+.rail-foot.nav-item {
+  padding: 0;
 }
 
 /* Desktop collapsed icon-rail — icons stay at expanded left inset (no centering) */
@@ -425,18 +418,6 @@ body.rail-lock {
   pointer-events: none;
 }
 
-.rail.collapsed .rail-foot {
-  padding: 10px 0;
-  min-height: 8px;
-}
-
-.rail.collapsed .rail-foot-text {
-  opacity: 0;
-  max-height: 0;
-  transform: translateX(-8px);
-  pointer-events: none;
-}
-
 /* ---------- Shell + topbar (original §§4) ---------- */
 .shell {
   margin-left: var(--rail);
@@ -459,13 +440,11 @@ html.rail-opening .shell {
     width 0.38s linear;
 }
 
-/* Labels/foot text only — do not animate nav padding/gap (that slides icons). */
+/* Labels only — do not animate nav padding/gap (that slides icons). */
 html.rail-closing .brand-text,
 html.rail-closing .nav-label,
-html.rail-closing .rail-foot-text,
 html.rail-opening .brand-text,
-html.rail-opening .nav-label,
-html.rail-opening .rail-foot-text {
+html.rail-opening .nav-label {
   transition:
     opacity 0.38s linear,
     max-width 0.38s linear,
@@ -714,6 +693,9 @@ html.rail-opening .nav-group>button::after {
 .btn-icon {
   width: 30px;
   padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn .ico {
@@ -973,6 +955,12 @@ input:disabled {
   border-top: 1px solid var(--line-soft);
   font-size: 12px;
   color: var(--ink-3);
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+
+/* Trailing link layout only — plain text must stay block or <em> becomes a squeezed flex item */
+.foot-note:has(> a) {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -982,6 +970,7 @@ input:disabled {
   color: var(--teal-dk);
   font-weight: 500;
   margin-left: auto;
+  flex-shrink: 0;
 }
 
 .foot-note a:hover {
@@ -2147,45 +2136,164 @@ td a:not(.btn):not(.code):hover {
 @media (max-width: 940px) {
   .grid-master {
     grid-template-columns: 1fr;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .grid-master > .panel {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .grid-master .panel-head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .grid-master .panel-head .actions {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .grid-master .panel-head .actions input[type='search'] {
+    flex: 1 1 140px;
+    min-width: 0;
+    width: auto;
+  }
+
+  .grid-master .pick-list {
+    max-height: min(280px, 40vh);
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .grid-master .pick {
+    padding: 10px 8px 10px 12px;
+    gap: 6px;
+  }
+
+  .grid-master .pick .ct {
+    font-size: 11px;
+  }
+
+  .grid-master .pick-row-del {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    margin: 0 10px 0 2px;
+  }
+
+  .grid-master .inline-form .row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .grid-master .inline-form .row .muted {
+    margin-left: 0 !important;
+    margin-top: 4px;
+  }
+
+  .grid-master .foot-note {
+    padding: 12px 14px;
+  }
+
+  .grid-master th.col-tickets,
+  .grid-master td.col-tickets {
+    min-width: 4.5rem;
+  }
+
+  .grid-master .act-row {
+    gap: 6px;
+  }
+
+  .grid-master .panel-body .btn-icon {
+    width: 32px;
+    height: 32px;
   }
 }
 
 .pick-list {
   max-height: 640px;
+  overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.pick-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--line-soft);
+  background: #fff;
+}
+
+.pick-row:last-child {
+  border-bottom: 0;
+}
+
+.pick-row:has(.pick.on) {
+  background: #eaf3f2;
+  box-shadow: inset 3px 0 0 var(--teal);
+}
+
+.pick-row-del {
+  flex-shrink: 0;
+  align-self: center;
+  margin: 0 10px 0 4px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .pick {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
   text-align: left;
-  padding: 11px 18px;
+  padding: 11px 10px 11px 18px;
   border: 0;
-  border-bottom: 1px solid var(--line-soft);
+  border-bottom: 0;
   background: none;
   color: inherit;
   cursor: pointer;
-}
-
-.pick:last-child {
-  border-bottom: 0;
+  box-sizing: border-box;
 }
 
 .pick:hover {
   background: var(--hover);
 }
 
+.pick-row:has(.pick.on) .pick:hover,
 .pick.on {
-  background: #eaf3f2;
-  box-shadow: inset 3px 0 0 var(--teal);
+  background: transparent;
+}
+
+.pick.on {
+  box-shadow: none;
 }
 
 .pick .nm {
   font-size: 13px;
   font-weight: 500;
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .pick .cd {
@@ -2200,6 +2308,7 @@ td a:not(.btn):not(.code):hover {
   font-size: 12px;
   color: var(--ink-3);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .pick.on .ct {
@@ -2868,6 +2977,63 @@ a.rank-row:hover .name {
   color: var(--warn);
 }
 
+.status-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+}
+
+.status-switch-track {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #e8ecef;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.status-switch-track.is-on {
+  background: var(--ok, #0f766e);
+  border-color: var(--ok, #0f766e);
+}
+
+.status-switch-track:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.status-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+  transition: transform 0.15s ease;
+  pointer-events: none;
+}
+
+.status-switch-track.is-on .status-switch-knob {
+  transform: translateX(20px);
+}
+
+.status-switch-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.status-switch-track.is-on + .status-switch-label {
+  color: var(--ok, #0f766e);
+}
+
 .sticky-bar {
   position: static;
   background: transparent;
@@ -3112,21 +3278,18 @@ table.split tfoot td {
 
   /* Fade labels with the drawer slide so open/close doesn't leave text popping. */
   .rail.is-opening:not(.show) .brand-text,
-  .rail.is-opening:not(.show) .nav-label,
-  .rail.is-opening:not(.show) .rail-foot-text {
+  .rail.is-opening:not(.show) .nav-label {
     opacity: 0;
   }
 
   .rail.is-opening.show .brand-text,
-  .rail.is-opening.show .nav-label,
-  .rail.is-opening.show .rail-foot-text {
+  .rail.is-opening.show .nav-label {
     opacity: 1;
     transition: opacity 0.36s linear;
   }
 
   .rail.is-closing .brand-text,
-  .rail.is-closing .nav-label,
-  .rail.is-closing .rail-foot-text {
+  .rail.is-closing .nav-label {
     opacity: 0;
     transition: opacity 0.36s linear;
   }
@@ -3760,8 +3923,8 @@ button.linkish:hover {
 }
 .img-preview-main {
   width: 100%;
-  min-height: 200px;
-  max-height: min(52vh, 420px);
+  min-height: 180px;
+  max-height: min(52dvh, 52vh, 420px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3771,25 +3934,24 @@ button.linkish:hover {
   overflow: hidden;
   position: relative;
   user-select: none;
+  touch-action: none;
 }
 .img-preview-main.is-zoomable {
-  cursor: grab;
-  touch-action: none;
+  cursor: crosshair;
 }
 .img-preview-main.is-dragging {
   cursor: grabbing;
 }
 .img-preview-main img {
   max-width: 100%;
-  max-height: min(52vh, 420px);
+  max-height: min(52dvh, 52vh, 420px);
   object-fit: contain;
   display: block;
-  transform-origin: center center;
   pointer-events: none;
   will-change: transform;
 }
 .img-preview-main img.is-sideways {
-  max-width: min(52vh, 420px);
+  max-width: min(52dvh, 52vh, 420px);
   max-height: 100%;
 }
 .img-preview-controls {
@@ -3905,6 +4067,7 @@ button.linkish:hover {
   justify-content: stretch;
   margin-top: 16px;
   width: 100%;
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 .camera-capture-actions .btn {
@@ -3912,6 +4075,22 @@ button.linkish:hover {
   min-width: 0;
   padding: 0 8px;
   font-size: 12px;
+}
+
+.camera-capture-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.camera-capture-body.is-review .camera-capture-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: 12px;
+  padding-top: 10px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0));
+  background: linear-gradient(to top, #fff 70%, rgba(255, 255, 255, 0.92));
 }
 
 @media (max-width: 520px) {
@@ -3932,7 +4111,10 @@ button.linkish:hover {
 .camera-crop-stage {
   width: 100%;
   min-height: 0;
-  display: block;
+  max-height: min(55dvh, 55vh, 520px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   border-radius: 10px;
   background: transparent;
@@ -3944,6 +4126,7 @@ button.linkish:hover {
   position: relative;
   display: block;
   width: 100%;
+  max-height: min(55dvh, 55vh, 520px);
   line-height: 0;
 }
 
@@ -3952,7 +4135,8 @@ button.linkish:hover {
   width: 100%;
   height: auto;
   max-width: 100%;
-  max-height: none;
+  max-height: min(55dvh, 55vh, 520px);
+  object-fit: contain;
   border-radius: 10px;
   pointer-events: none;
 }
@@ -3998,6 +4182,39 @@ button.linkish:hover {
   right: -8px;
   bottom: -8px;
   cursor: nwse-resize;
+}
+
+@media (max-width: 640px) {
+  .camera-crop-handle {
+    width: 28px;
+    height: 28px;
+    border-width: 2px;
+  }
+
+  .camera-crop-handle.nw {
+    left: -14px;
+    top: -14px;
+  }
+
+  .camera-crop-handle.ne {
+    right: -14px;
+    top: -14px;
+  }
+
+  .camera-crop-handle.sw {
+    left: -14px;
+    bottom: -14px;
+  }
+
+  .camera-crop-handle.se {
+    right: -14px;
+    bottom: -14px;
+  }
+
+  .camera-capture-actions .btn {
+    flex: 1 1 calc(50% - 8px);
+    min-height: 44px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
