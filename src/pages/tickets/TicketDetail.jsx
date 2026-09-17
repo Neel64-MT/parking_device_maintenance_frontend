@@ -198,18 +198,6 @@ function ViewUpdateDetails({ item }) {
           <p>{note}</p>
         </div>
       ) : null}
-      {costLabel ? (
-        <div>
-          <small>Cost</small>
-          <span>{costLabel}</span>
-        </div>
-      ) : null}
-      {nextVisit ? (
-        <div>
-          <small>Next visit</small>
-          <span>{nextVisit}</span>
-        </div>
-      ) : null}
       {parts.length ? (
         <div>
           <small>Parts changed</small>
@@ -220,6 +208,18 @@ function ViewUpdateDetails({ item }) {
               )
               .join(', ')}
           </span>
+        </div>
+      ) : null}
+      {costLabel ? (
+        <div>
+          <small>Cost</small>
+          <span>{costLabel}</span>
+        </div>
+      ) : null}
+      {nextVisit ? (
+        <div>
+          <small>Next visit</small>
+          <span>{nextVisit}</span>
         </div>
       ) : null}
       {extraMeta.length ? (

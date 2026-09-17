@@ -232,7 +232,9 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Work history | Always visible; oldest first; newest at bottom |
 | Photos | Text **View Update** (always) + **View Image** when photos exist (no inline imgs) |
 | View Update | `Modal` with trail fields only — no image preview |
-| View Image | `ImagePreviewModal` main + thumbs; Zoom in / Zoom out / Rotate; pan/explore when zoomed |
+| View Image | `ImagePreviewModal` main + thumbs; Zoom in/out / Reset / Rotate; desktop hover pointer zoom; pinch + pan on touch |
+| Pan / explore | Hover or pinch sets zoom; drag pans; `touch-action: none` on stage |
+| Reset | Thumbnail change or Reset control clears zoom + rotation + pan |
 | Back to tickets | Restores list tab via `state.from` (`/tickets?tab=…`); crumb matches |
 
 ## Phase 20 — Image attachment in ticket
@@ -244,8 +246,8 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Camera live | `CameraCaptureModal` + `getUserMedia`; video fills mount |
 | Flip control | Circular overlay on preview (`.camera-flip-btn`): camera outline + circular arrows SVG; top-right desktop, bottom-right ≤520px |
 | Camera actions | **Cancel** + **Take photo** only (one equal-width row) |
-| Crop / review | Drag box + corner handles; actions **Cancel** / **Recapture** / **Upload** |
-| Crop layout | Frame + image `width: 100%`; stage background transparent — **no black side letterbox** on mobile |
+| Crop / review | Drag box + corner handles; sticky **Cancel** / **Recapture** / **Upload** |
+| Crop layout | Image fits viewport (`max-height` + `object-fit: contain`); transparent stage — **no black letterbox**; larger handles on mobile |
 | Preview thumbs | Local object-URL in `.photo-thumb.has-img`; × removes one; count `N of 5` |
 | Cap | Max **5** photos; Add tile hidden at limit |
 | Upload timing | Parent `uploadImages` on form submit — not per-file on add |
@@ -296,15 +298,33 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 |------|---------|
 | Trail actions | `.tl-trail-actions`: **View Update** (always) then **View Image** (when photos) — `linkish` |
 | View Update modal | Standard `Modal`; `.view-update-facts` label/value rows; long text wraps |
-| View Update content | When, By, Update type, Status, What was done, Cost, Next visit, Parts — skip empty; **no images** |
+| View Update content | When, By, Update type, Status, What was done, Parts, Cost, Next visit — skip empty; **no images** |
 | Image controls | Below main image, above thumbs: `.img-preview-controls` + `.img-preview-ctrl` (40px tap) |
-| Zoom | Scale 1 → 3 step 0.25; Zoom out disabled at 1; Zoom in disabled at 3 |
-| Pan / explore | When zoom > 1: move pointer over stage (desktop) or drag (touch/mouse) to scroll the zoomed image; grab cursor; `touch-action: none` |
+| Zoom | Scale 1 → 3 step 0.25; Zoom out disabled at 1; Zoom in disabled at 3; desktop hover enters ~2.25 toward pointer |
+| Pan / explore | Hover or pinch sets zoom; drag pans; `touch-action: none` on stage |
 | Rotate | +90° CSS rotate; wraps at 360; `.is-sideways` caps for 90/270 fit |
-| Containment | `.img-preview-main { overflow: hidden }`; transform origin center; pan clamped to stage |
-| Reset | Selecting another thumbnail resets zoom + rotation + pan |
+| Containment | `.img-preview-main { overflow: hidden }`; transform-origin follows pointer; pan clamped to stage |
+| Reset | Thumbnail change or Reset control clears zoom + rotation + pan |
 | Icons | Inline SVG stroke icons + native `title` / `aria-label` (no new icon lib) |
 | Reduced motion | No transform transition under `prefers-reduced-motion` |
+
+## Phase 32 — Master delete + mobile crop
+
+| Item | Pattern |
+|------|---------|
+| Part deactivate | Confirm Modal → `PATCH` `{ active: false }`; Issue `e` or Technician |
+| Issue list | Live `GET /api/issues`; usage90d for Delete vs Deactivate label |
+| Issue sub remove | Confirm → `DELETE` or deactivate; 409 IN_USE → deactivate |
+| Crop stage | `max-height: min(55dvh, …)`; sticky review actions; ≥28px handles ≤640px |
+
+## Phase 34 — Issue create + category delete
+
+| Item | Pattern |
+|------|---------|
+| Create category | Inline form → `POST /api/issues/categories` `{ name }`; Issue master `c`; min 2 chars |
+| Create subcategory | Inline form → `POST /api/issues/subcategories` `{ categoryId, name, severity }`; keep selected category |
+| Category delete | Trash icon → confirm → `DELETE /api/issues/categories/:id` (`d`); 409 → `PATCH active:false` if `e` |
+| Busy | Disable create/delete controls while request runs; toast via `toastApi*` |
 
 ## Phase 25 — Forgot password role gate + 404
 

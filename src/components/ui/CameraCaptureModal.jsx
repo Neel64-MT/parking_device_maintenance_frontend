@@ -364,6 +364,7 @@ export function CameraCaptureModal({ open, onClose, onCapture }) {
         </p>
       ) : null}
 
+      <div className={`camera-capture-body${isReview ? ' is-review' : ''}`}>
       {isReview ? (
         <div className="camera-crop-stage">
           <div className="camera-crop-frame">
@@ -500,6 +501,7 @@ export function CameraCaptureModal({ open, onClose, onCapture }) {
             </Button>
           </>
         )}
+      </div>
       </div>
     </Modal>,
     document.body,
