@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
-import { toast } from '../../context/ToastContext'
-import { TEAM } from '../../data/team'
+import { toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { ApiRequestError } from '../../services/api'
-import { getTicket } from '../../services/tickets'
-import { canPerm, isDashboardRole, isFieldTicketUpdater, isOpsTicketUpdater } from '../../services/users'
+import { assignTicket, getTicket } from '../../services/tickets'
+import {
+  canPerm,
+  isDashboardRole,
+  isFieldTicketUpdater,
+  isOpsTicketUpdater,
+  listTechnicianLookups,
+} from '../../services/users'
 import { TicketAddUpdateForm } from '../../components/tickets/TicketAddUpdateForm'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/FilterBar'
@@ -14,7 +19,6 @@ import { ImagePreviewModal } from '../../components/ui/ImagePreviewModal'
 import { Modal } from '../../components/ui/Modal'
 import { Pill } from '../../components/ui/Pill'
 import { TicketDetailSkeleton } from '../../components/ui/Skeleton'
-import { TeamSelect } from '../../components/ui/TeamSelect'
 
 function ScanQrIcon() {
   return (
@@ -126,6 +130,13 @@ function ViewUpdateDetails({ item }) {
   const nextVisit = item.nextVisit ? String(item.nextVisit).slice(0, 10) : ''
   const parts = item.parts || []
   const extraMeta = (item.meta || []).filter((m) => m.kind !== 'nextVisit' && m.kind !== 'cost')
+  const isRaised = item.isRaisedEvent
+  const category = item.category || ''
+  const subcategory = item.subcategory || ''
+  const rawBody = String(item.body || '').trim()
+  const hasWhatHappening = Boolean(rawBody && !/^ticket\s+raised$/i.test(rawBody))
+  const whatWasDone = !isRaised ? item.workDone || item.body || '' : ''
+  const note = item.note || ''
 
   return (
     <div className="view-update-facts">
@@ -153,10 +164,38 @@ function ViewUpdateDetails({ item }) {
           <span>{item.status}</span>
         </div>
       ) : null}
-      {item.body ? (
+      {category ? (
+        <div>
+          <small>{isRaised ? 'Issue category' : 'Issue category found'}</small>
+          <span>{category}</span>
+        </div>
+      ) : null}
+      {subcategory ? (
+        <div>
+          <small>Sub-category</small>
+          <span>{subcategory}</span>
+        </div>
+      ) : null}
+      {isRaised ? (
+        <div>
+          <small>What is happening</small>
+          {hasWhatHappening ? (
+            <p>{rawBody}</p>
+          ) : (
+            <p className="view-update-empty">No description provided</p>
+          )}
+        </div>
+      ) : null}
+      {whatWasDone ? (
         <div>
           <small>What was done</small>
-          <p>{item.body}</p>
+          <p>{whatWasDone}</p>
+        </div>
+      ) : null}
+      {note ? (
+        <div>
+          <small>Note</small>
+          <p>{note}</p>
         </div>
       ) : null}
       {costLabel ? (
@@ -185,7 +224,7 @@ function ViewUpdateDetails({ item }) {
       ) : null}
       {extraMeta.length ? (
         <div>
-          <small>Notes</small>
+          <small>Other</small>
           <span>
             {extraMeta.map((m, i) => (
               <span key={i}>
@@ -216,11 +255,21 @@ function mapWorkHistory(events) {
       meta.push({ kind: 'cost', amount: `₹ ${Number(e.cost).toLocaleString('en-IN')}` })
     }
     const closed = String(e.status || '').toLowerCase().includes('closed')
+    const title = e.title || e.actor || 'Update'
+    const body = e.body || ''
+    const eventType = String(e.eventType || e.event_type || '').toLowerCase()
+    const isRaisedEvent =
+      eventType === 'raised' || /^ticket\s+raised$/i.test(title)
+    const isAssignmentEvent =
+      eventType === 'assigned' ||
+      /^assigned$/i.test(title) ||
+      /ticket\s+re-?assigned/i.test(body) ||
+      /ticket\s+assigned/i.test(body)
     return {
       when: e.when,
       actor: e.actor || '',
-      title: e.title || e.actor || 'Update',
-      body: e.body || '',
+      title,
+      body,
       status: e.status || '',
       statusClass: closed ? 'ok' : 'warn',
       tone: closed ? 'ok' : undefined,
@@ -229,6 +278,12 @@ function mapWorkHistory(events) {
       parts: normalizeParts(e.parts),
       meta: meta.length ? meta : null,
       photos: normalizePhotos(e.photos),
+      category: e.category || '',
+      subcategory: e.subcategory || '',
+      workDone: e.workDone || '',
+      note: e.note || '',
+      isRaisedEvent,
+      isAssignmentEvent,
     }
   })
   // Chronological: oldest first, newest at the bottom
@@ -252,12 +307,36 @@ export default function TicketDetail() {
 
   const [updOpen, setUpdOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(() => Boolean(location.state?.openAssign))
-  const [handover, setHandover] = useState(TEAM[0])
+  const [assigneeId, setAssigneeId] = useState('')
+  const [assignReason, setAssignReason] = useState('')
+  const [assignSaving, setAssignSaving] = useState(false)
+  const assignSavingRef = useRef(false)
+  const [assignHandError, setAssignHandError] = useState('')
+  const [techOptions, setTechOptions] = useState([])
+  const [techsLoading, setTechsLoading] = useState(false)
   const [previewImages, setPreviewImages] = useState(null)
   const [viewingUpdate, setViewingUpdate] = useState(null)
 
   function openAddUpdateModal() {
     setUpdOpen(true)
+  }
+
+  function resetAssignForm(nextAssigneeId = '') {
+    setAssigneeId(nextAssigneeId)
+    setAssignReason('')
+    setAssignHandError('')
+  }
+
+  function closeAssignForm() {
+    if (assignSavingRef.current) return
+    setAssignOpen(false)
+    setAssignHandError('')
+    setAssignReason('')
+  }
+
+  function setAssignBusy(busy) {
+    assignSavingRef.current = busy
+    setAssignSaving(busy)
   }
 
   async function reloadTicket() {
@@ -333,6 +412,49 @@ export default function TicketDetail() {
   const canReassign = canManageAssign && isAssigned
   const canFirstAssign = canManageAssign && !isAssigned
 
+  useEffect(() => {
+    if (!canAssign) return undefined
+    let cancelled = false
+    // Defer setState so the effect does not synchronously cascade (react-hooks/set-state-in-effect).
+    const id = window.setTimeout(() => {
+      setTechsLoading(true)
+      listTechnicianLookups()
+        .then((list) => {
+          if (!cancelled) setTechOptions((list || []).filter((t) => t.id))
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setTechOptions([])
+            toastApiError(err, 'Could not load workers.')
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setTechsLoading(false)
+        })
+    }, 0)
+    return () => {
+      cancelled = true
+      window.clearTimeout(id)
+    }
+  }, [canAssign])
+
+  function openAssignForm() {
+    resetAssignForm(ticket?.assigneeId ? String(ticket.assigneeId) : '')
+    setAssignOpen(true)
+  }
+
+  // Prefill Hand to when the form opens (incl. list deep-link openAssign).
+  useEffect(() => {
+    if (!assignOpen) return undefined
+    const next = ticket?.assigneeId ? String(ticket.assigneeId) : ''
+    const id = window.setTimeout(() => {
+      setAssigneeId(next)
+      setAssignReason('')
+      setAssignHandError('')
+    }, 0)
+    return () => window.clearTimeout(id)
+  }, [assignOpen, ticket?.assigneeId])
+
   const crumb = useMemo(() => {
     if (!header) return null
     return (
@@ -353,10 +475,40 @@ export default function TicketDetail() {
     )
   }, [header])
 
-  function submitAssign(e) {
+  async function submitAssign(e) {
     e.preventDefault()
-    setAssignOpen(false)
-    toast('Design preview — this form is not connected yet.', 'info')
+    if (assignSavingRef.current) return
+    const selected = String(assigneeId || '').trim()
+    if (!selected) {
+      setAssignHandError('Select a worker to hand this ticket to.')
+      return
+    }
+    setAssignHandError('')
+    setAssignBusy(true)
+    try {
+      const result = await assignTicket(ticketId, {
+        assigneeId: selected,
+        reason: assignReason,
+        isFirstAssign: !ticket?.assigneeId,
+      })
+      toastApiSuccess(
+        result?.assigneeName
+          ? `Assigned to ${result.assigneeName}.`
+          : 'Ticket assigned.',
+      )
+      setAssignBusy(false)
+      closeAssignForm()
+      await reloadTicket()
+    } catch (err) {
+      if (err instanceof ApiRequestError && Array.isArray(err.details)) {
+        const hand = err.details.find(
+          (d) => d?.field === 'assigneeId' || d?.field === 'assignee',
+        )
+        if (hand?.message) setAssignHandError(String(hand.message))
+      }
+      toastApiError(err, 'Could not save assignment.')
+      setAssignBusy(false)
+    }
   }
 
   const reportedLabel = classification?.reported
@@ -420,14 +572,14 @@ export default function TicketDetail() {
                       Update Ticket
                     </Link>
                   ) : null}
-                  {canReassign ? (
-                    <Button onClick={() => setAssignOpen(true)}>Reassign</Button>
-                  ) : null}
-                  {canFirstAssign ? (
-                    <Button variant="primary" onClick={() => setAssignOpen(true)}>
-                      Assign
-                    </Button>
-                  ) : null}
+                      {canReassign ? (
+                        <Button onClick={openAssignForm}>Reassign</Button>
+                      ) : null}
+                      {canFirstAssign ? (
+                        <Button variant="primary" onClick={openAssignForm}>
+                          Assign
+                        </Button>
+                      ) : null}
                   <Link className="btn btn-primary" to="/tickets/close">
                     Close ticket
                   </Link>
@@ -479,24 +631,28 @@ export default function TicketDetail() {
                           ) : null}
                         </h4>
                         {item.body ? <p>{item.body}</p> : null}
-                        <p className="tl-trail-actions">
-                          <button
-                            type="button"
-                            className="linkish"
-                            onClick={() => setViewingUpdate(item)}
-                          >
-                            View Update
-                          </button>
-                          {item.photos?.length ? (
-                            <button
-                              type="button"
-                              className="linkish"
-                              onClick={() => setPreviewImages(item.photos)}
-                            >
-                              View Image
-                            </button>
-                          ) : null}
-                        </p>
+                        {!item.isAssignmentEvent || item.photos?.length ? (
+                          <p className="tl-trail-actions">
+                            {!item.isAssignmentEvent ? (
+                              <button
+                                type="button"
+                                className="linkish"
+                                onClick={() => setViewingUpdate(item)}
+                              >
+                                View Update
+                              </button>
+                            ) : null}
+                            {item.photos?.length ? (
+                              <button
+                                type="button"
+                                className="linkish"
+                                onClick={() => setPreviewImages(item.photos)}
+                              >
+                                View Image
+                              </button>
+                            ) : null}
+                          </p>
+                        ) : null}
                         {item.meta ? (
                           <div className="tl-meta">
                             {item.meta.map((m, i) => (
@@ -547,39 +703,16 @@ export default function TicketDetail() {
                     </div>
                     <div className="actions">
                       {canReassign ? (
-                        <Button size="sm" onClick={() => setAssignOpen((o) => !o)}>
+                        <Button size="sm" onClick={openAssignForm}>
                           Reassign
                         </Button>
                       ) : null}
                       {canFirstAssign ? (
-                        <Button size="sm" variant="primary" onClick={() => setAssignOpen((o) => !o)}>
+                        <Button size="sm" variant="primary" onClick={openAssignForm}>
                           Assign
                         </Button>
                       ) : null}
                     </div>
-                  </div>
-
-                  <div className={`inline-form${assignOpen && canManageAssign ? ' open' : ''}`}>
-                    {canManageAssign ? (
-                    <form onSubmit={submitAssign}>
-                      <div className="row">
-                        <Field label="Hand to">
-                          <TeamSelect value={handover} onChange={setHandover} />
-                        </Field>
-                        <Field label="Note">
-                          <input type="text" placeholder="Optional note" />
-                        </Field>
-                      </div>
-                      <div className="row" style={{ marginTop: 12 }}>
-                        <Button type="submit" size="sm" variant="primary">
-                          Save assignment
-                        </Button>
-                        <Button size="sm" onClick={() => setAssignOpen(false)}>
-                          Cancel
-                        </Button>
-                      </div>
-                    </form>
-                    ) : null}
                   </div>
 
                   <div className="panel-body">
@@ -589,7 +722,7 @@ export default function TicketDetail() {
                       ) : null}
                       {assignmentTrail.map((item) => (
                         <div key={`${item.when}-${item.title}`} className="tl-item">
-                          <div className="when">{item.when}</div>
+                          <div className="when">{formatRaisedOn(item.when)}</div>
                           <h4>{item.title}</h4>
                           {item.body ? <p>{item.body}</p> : null}
                         </div>
@@ -650,7 +783,7 @@ export default function TicketDetail() {
         ) : null}
       </main>
 
-            <Modal
+      <Modal
         open={updOpen}
         title="Add update"
         subtitle="Record a visit or progress note on this ticket"
@@ -675,7 +808,80 @@ export default function TicketDetail() {
         ) : null}
       </Modal>
 
-<Modal
+      <Modal
+        open={assignOpen && canManageAssign}
+        title={isAssigned ? 'Reassign ticket' : 'Assign ticket'}
+        subtitle={
+          isAssigned
+            ? 'Hand this ticket to another worker'
+            : 'Choose who should hold this ticket'
+        }
+        onClose={closeAssignForm}
+        closeDisabled={assignSaving}
+        wide
+      >
+        {assignOpen && canManageAssign ? (
+          <form onSubmit={submitAssign}>
+            <div className="row">
+              <Field label="Hand to">
+                <select
+                  value={assigneeId}
+                  disabled={techsLoading || assignSaving}
+                  onChange={(e) => {
+                    setAssigneeId(e.target.value)
+                    setAssignHandError('')
+                  }}
+                  aria-invalid={Boolean(assignHandError)}
+                >
+                  <option value="">
+                    {techsLoading ? 'Loading workers…' : 'Select worker'}
+                  </option>
+                  {techOptions.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label || t.name}
+                    </option>
+                  ))}
+                </select>
+                {assignHandError ? (
+                  <p className="muted" style={{ color: 'var(--bad)', marginTop: 6 }}>
+                    {assignHandError}
+                  </p>
+                ) : null}
+              </Field>
+              <Field label="Note">
+                <input
+                  type="text"
+                  placeholder="Optional note"
+                  value={assignReason}
+                  disabled={assignSaving}
+                  onChange={(e) => setAssignReason(e.target.value)}
+                />
+              </Field>
+            </div>
+            <div className="row" style={{ marginTop: 12 }}>
+              <Button
+                type="submit"
+                size="sm"
+                variant="primary"
+                disabled={assignSaving || techsLoading}
+                aria-busy={assignSaving}
+              >
+                {assignSaving ? 'Loading…' : isAssigned ? 'Reassign' : 'Assign'}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={assignSaving}
+                onClick={closeAssignForm}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        ) : null}
+      </Modal>
+
+      <Modal
         open={Boolean(viewingUpdate)}
         title="View update"
         subtitle="Update details only — photos open from View Image"

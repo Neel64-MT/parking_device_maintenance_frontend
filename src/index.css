@@ -664,8 +664,15 @@ html.rail-opening .nav-group>button::after {
   white-space: nowrap;
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
   background: var(--hover);
+}
+
+.btn:disabled,
+.btn[aria-busy='true'] {
+  opacity: 0.65;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .btn-primary {
@@ -674,7 +681,7 @@ html.rail-opening .nav-group>button::after {
   color: #fff;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: #095b57;
 }
 
@@ -684,7 +691,7 @@ html.rail-opening .nav-group>button::after {
   color: #fff;
 }
 
-.btn-dark:hover {
+.btn-dark:hover:not(:disabled) {
   background: var(--navy-2);
 }
 
@@ -3737,6 +3744,13 @@ button.linkish:hover {
   margin: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+.view-update-facts p.muted,
+.view-update-facts .view-update-empty {
+  color: var(--ink-3);
+  font-weight: 400;
+  font-style: italic;
+  opacity: 0.75;
 }
 
 .img-preview {

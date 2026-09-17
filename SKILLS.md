@@ -141,6 +141,7 @@ Inspect existing code
 
 - Reuse `appendTicketVisibilitySql` / `assertTicketAccess` from backend `lib/ticket-access.ts`.
 - Read paths filter by ownership; **assign** uses road scope only.
+- Detail Assign/Reassign: `assignTicket` → `POST /api/tickets/:id/assign` with `assigneeId` from `listTechnicianLookups`; optional note as `reason`; reload ticket for trail/facts.
 - PM signup approval = Users `e` on existing PATCH — sync FE `ROLES` matrix with `DEFAULT_ROLE_PERMS`.
 
 ## Frontend ticket API skills (Phase 16+)
