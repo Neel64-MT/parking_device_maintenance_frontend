@@ -141,6 +141,7 @@ Inspect existing code
 
 - Reuse `appendTicketVisibilitySql` / `assertTicketAccess` from backend `lib/ticket-access.ts`.
 - Read paths filter by ownership; **assign** uses road scope only.
+- Detail Assign/Reassign: `assignTicket` → `POST /api/tickets/:id/assign` with `assigneeId` from `listTechnicianLookups`; optional note as `reason`; reload ticket for trail/facts.
 - PM signup approval = Users `e` on existing PATCH — sync FE `ROLES` matrix with `DEFAULT_ROLE_PERMS`.
 
 ## Frontend ticket API skills (Phase 16+)
@@ -154,7 +155,7 @@ Inspect existing code
 
 - Use `QrScannerModal` + `html5-qrcode`; stop the camera on close.
 - Gate camera with `canScanWithCamera(user)` — any signed-in user.
-- Resolve scans through `services/devices.resolveScan` → live `GET /api/devices/scan?q=` (404 → null).
+- Resolve scans through `services/devices.resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy PD/QR/slot → `GET /api/devices/scan?q=` (404 → null). Never call SmartPark from the browser.
 - Site attendant Raise: map scan fields; block create when `openTicketId` is set; create via `createTicket` + issue UUIDs from `listIssueCategories`.
 - Raise open-ticket primary **Update Ticket** → `/tickets/update?ticketId=` (+ `qr` state); secondary Open → Detail.
 - Update Ticket page: live `resolveScan` or entry `ticketId`; gate with `getTicket` (open + assignee); show `TicketAddUpdateForm` on the page; free → Raise (+ `qr`).

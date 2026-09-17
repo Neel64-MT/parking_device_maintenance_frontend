@@ -70,8 +70,8 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 3. Raise ticket — scan/manual device via live scan API; open ticket → Detail update; else problem form + live `POST /api/tickets`; PhotoPicker upload on submit; Cancel / Raise in page flow
 4. Update ticket — live scan/manual find device; open ticket → Detail Add Update; free device → Raise; miss/error states
 5. Close ticket — mobile-first: final issue, resolution, cost, photos (upload on confirm), confirm
-6. Ticket detail — record header, work history timeline, classification, assignment trail; Add Update modal with PhotoPicker
-7. Work report — Day/Week/Month/Range, team strip, per-person panels
+6. Ticket detail — record header, work history timeline, classification, assignment trail; live Assign/Reassign; Add Update modal with PhotoPicker
+7. Work report — Day/Week/Month/Range via live `GET /api/reports/work`; team strip + per-person panels; Export CSV; Person/Road from lookups
 8. Device list — tiles (click → `status` filter on same page), filters, table (Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location); Sync Devices (Phase 26)
 9. Device history — record, life stats, split ticket/resolution table, parts, timeline
 10. Add device — identity, location, installation form
@@ -450,7 +450,7 @@ Table columns → Slot Id, Slot Label, Slot Identifier, QR Number, Parking Locat
 | Device table shows only the five sync columns | Pass |
 | List API maps `slotId` / `slotLabel` / `slotIdentifier` / `qrNumber` / `parkingLocation` | Pass |
 | Pagination 10/25/50/100 preserved; refresh keeps current page/filters | Pass |
-| Gated on Device list `c` (Admin/PM); no new npm deps | Pass |
+| Gated on Device list `c` (Admin/PM/Technician/Engineer); no new npm deps | Pass |
 | Lint on touched files + production build | Pass |
 
 ### Phase 26b — Ticket Slot Id + live Device history
@@ -471,19 +471,22 @@ Device history → GET /api/devices/:id → same layout, data by route id
 ### Phase 27 — QR scan → device → raise / update
 
 ```text
-QR / typed code → GET /api/devices/scan?q=
-  → openTicketId? → Ticket Detail (Add Update)
+QR / typed / sticker → resolveScan
+  → qr_token → POST /api/devices/slot-mac
+  → else → GET /api/devices/scan?q=
+  → openTicketId? → Update / Detail
   → else → Raise form → POST /api/tickets
 ```
 
 | Criterion | Result |
 |-----------|--------|
-| Live `resolveScan` via `GET /api/devices/scan?q=` | Pass |
+| Live `resolveScan`: sticker → `/slot-mac`; legacy → `/scan` | Pass |
 | Device facts show QR / Slot Id / Slot Label / Slot Identifier / Parking Location | Pass |
 | No open ticket → Raise create via `POST /api/tickets` | Pass |
-| Open ticket → no second create; Update → `/tickets/:id` | Pass |
+| Open ticket → no second create; Update → `/tickets/:id` (later → `/tickets/update`) | Pass |
 | `409 OPEN_TICKET_EXISTS` guides to existing ticket | Pass |
 | Scan API failure does not assume free device | Pass |
+| No SmartPark calls from the browser | Pass |
 | No new QR library; existing `QrScannerModal` reused | Pass |
 | Lint + production build | Pass |
 
@@ -510,7 +513,7 @@ Raise/Update QR → openTicketId? → Update Ticket (/tickets/update) → getTic
 | Criterion | Result |
 |-----------|--------|
 | Raise/Update support typed QR Number + existing camera scanner | Pass |
-| Lookup reuses `resolveScan` (`GET /api/devices/scan`); no duplicate scanner/API | Pass |
+| Lookup reuses `resolveScan` (slot-mac / scan); no duplicate scanner/API | Pass |
 | Raise: no open ticket → existing create flow unchanged | Pass |
 | Raise: open ticket → no second create; primary **Update Ticket** → `/tickets/update` with `ticketId` | Pass |
 | Update: open + assigned to me → ready for update handoff | Pass |
@@ -535,6 +538,59 @@ Update Ticket → /tickets/update?ticketId= → assignee gate → TicketAddUpdat
 | Detail trail / Open {id} unchanged | Pass |
 | Refresh with `?ticketId=` reloads when assignee | Pass |
 | Lint + production build | Pass |
+
+### Phase 30 — Work Report API
+
+```text
+Work report → GET /api/reports/work → people UI; Export → /work/export CSV
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Mock `REPORT` / `data/workReport.js` removed | Pass |
+| Loads from `GET /api/reports/work` with view / person / road | Pass |
+| From/To sent only for Date range view | Pass |
+| Person from technicians lookup; Road from road lookups | Pass |
+| Export downloads CSV via `/api/reports/work/export` | Pass |
+| Page gated with Work report `v` | Pass |
+| Loading / empty / error states wired | Pass |
+| Layout unchanged (team strip + person panels) | Pass |
+| Lint + production build | Pass |
+
+### Phase 31 — Ticket Detail assign / reassign
+
+```text
+Assign / Reassign → Hand to (technicians UUID) + note → POST /api/tickets/:id/assign → reload trail
+```
+
+| Criterion | Result |
+|-----------|--------|
+| `assignTicket` service wired | Pass |
+| Hand to from `GET /api/lookups/technicians` (not TEAM) | Pass |
+| Optional note sent as `reason` | Pass |
+| Validation when no worker selected | Pass |
+| Success reloads assignee + assignment trail | Pass |
+| Cancel does not call API | Pass |
+| Empty trail shows `No assignment history.` | Pass |
+| UI gated with All tickets `a` | Pass |
+| Layout unchanged | Pass |
+
+### Phase 33 FE — SmartPark sticker `qr_token`
+
+```text
+Camera/typed → extractQrToken?
+  → yes → POST /api/devices/slot-mac { qrToken }
+  → no  → GET /api/devices/scan?q=
+```
+
+| Criterion | Result |
+|-----------|--------|
+| `extractQrToken` + `resolveScan` wired (no page UI change) | Pass |
+| Sticker / `?qr_token=` → POST `/api/devices/slot-mac` | Pass |
+| Legacy PD/QR/slot → GET `/api/devices/scan` | Pass |
+| 404 → miss UX (null); other errors rethrown | Pass |
+| No SmartPark host calls from the browser | Pass |
+| Raise/Update still branch on `openTicketId` | Pass |
 
 ### Device list status tiles → filter
 

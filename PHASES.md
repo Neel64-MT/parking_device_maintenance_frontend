@@ -662,10 +662,53 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 30: Work Report API (static → dynamic)
+
+**Objective:** Replace mock `REPORT` on `/tickets/report` with live backend Work report APIs while preserving existing UI.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Add `services/reports.js` — `getWorkReport`, `exportWorkReport` (CSV blob).
+2. Add `listTechnicianLookups` for Person filter; reuse `listRoadLookups` for Road.
+3. Wire `WorkReport.jsx`: auth gate, fetch on filters, loading/empty/error, Export.
+4. Remove `data/workReport.js`.
+5. Docs: MEMORY / PHASES / RULES / ARCHITECTURE / PR / DESIGN / SKILL.
+
+**Out of scope:** Backend changes; UI redesign; client pagination (API returns full people set); Close ticket create API.
+
+**Verification:** Day/Week/Month/Range load from API; range dates; person/road filters; empty period; Export CSV; Technician redirected; layout unchanged.
+
+**Completion:** PR.md Phase 30 criteria pass.
+
+---
+
+## Phase 31: Ticket Detail assign / reassign API
+
+**Objective:** Wire Detail Assign/Reassign Save to live backend assign; Hand to from technicians lookup; refresh assignee + trail.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Add `assignTicket` in `services/tickets.js` → `POST /api/tickets/:id/assign`.
+2. TicketDetail: technicians select (UUID), controlled note, validation, busy Save, Cancel reset.
+3. On success: toast + `reloadTicket()` for facts/trail.
+4. Docs update.
+
+**Out of scope:** TicketList assignee filter live options; Raise-time assign; UI redesign; backend changes.
+
+**Verification:** First assign + note; reassign; Cancel; empty trail; 403 toast; Closed hides Assign; layout unchanged.
+
+**Completion:** PR.md Phase 31 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 25 ──► Phase 26 ──► Phase 26b ──► Phase 27 ──► Phase 27b ──► Phase 28 ──► Phase 29
+Phase 0 ──► … ──► Phase 28 ──► Phase 29 ──► Phase 30 ──► Phase 31
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

@@ -252,12 +252,15 @@ cost table with ticket total, “was the device tested?”, multiple photos.
 
 ### Work report
 
-Person-centric daily work report, not a ticket dump.
+Person-centric daily work report from `GET /api/reports/work` (not a ticket dump).
 
 - Views: Day, Week, Month, Date range
+- Filters: Person (lookups), Road (lookups); From/To when Date range
 - Team strip: days worked, visits, tickets worked, closed, still open,
-  close rate, load
+  close rate (client from closed/worked), load
 - Per person: every ticket they touched, what they did, closed vs in progress
+- Export: CSV via `/api/reports/work/export`
+- Requires Work report view permission
 - Week/month aggregate utilisation (day-by-day or week-by-week)
 - A ticket is “touched” if a visit, handover, or note was logged that period
 - Close rate is not performance by itself (spares vs technician)

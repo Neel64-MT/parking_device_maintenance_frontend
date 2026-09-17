@@ -50,7 +50,7 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **Signup approval:** `POST /api/auth/signup` creates `status=Pending` (default role Site attendant). **Admin or Project Manager** (Users `e`) reviews on Users, may PATCH details/role, then `PATCH { status: 'Active' }`. Login rejects Pending with `PENDING_APPROVAL`.
 - **Ticket visibility (backend):** Admin / Project manager keep city-wide access. Everyone else: SQL `(assignee_id = me OR raised_by_user_id = me)` via `lib/ticket-access.ts` on list/export/detail. **Ticket list/export do not AND `assigned_roads`** — that hid tickets a Site attendant raised on other roads. Detail: raiser/assignee pass before road check. Assign uses road scope only (so Control room can assign). Dashboard open-ticket queries use the same visibility fragment.
 - **Ticket UI (Phase 16):** TicketList, Dashboard, and TicketDetail call live APIs and render whatever the backend returns. Frontend does not filter tickets for security. Close ticket page remains design preview; photo files upload on submit via `uploadImages`. Detail Add Update is live (Phase 21): `addTicketUpdate` → optional `uploadImages` → `attachTicketUpdatePhotos`. Raise create is live (Phase 27). Update Ticket is a live find-device step (Phase 27b).
-- **QR scan (Phase 17 + 27 / 27b):** `QrScannerModal` opens the device camera for **any signed-in user**. Scans resolve via live `GET /api/devices/scan?q=` (`resolveScan`). Raise / Scan / Update Ticket show device facts and branch on `openTicketId`. Open ticket → Ticket Detail (live Add Update). Free device on Update → Raise CTA. Mock TK-1042 inspection panels removed from `/tickets/update`.
+- **QR scan (Phase 17 + 27 / 27b + 33):** `QrScannerModal` opens the device camera for **any signed-in user**. Scans resolve via `resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy codes → `GET /api/devices/scan?q=`. Raise / Scan / Update Ticket show device facts and branch on `openTicketId`. Open ticket → Ticket Detail (live Add Update). Free device on Update → Raise CTA. Mock TK-1042 inspection panels removed from `/tickets/update`.
 - **Home + Dashboard (Phase 18):** `homePathForUser` / `isDashboardRole` — only **Admin** and **Project manager** land on `/dashboard` after login (and see Dashboard in the sidebar). Other roles → `/tickets`. `HomeRedirect` for `/` and unknown routes; Dashboard page redirects others away.
 - **Ticket status (Phase 18):** Product statuses no longer include **New**; create/list display **Open**. FE `normalizeTicketStatus` + BE `displayStatus`; migration `007_ticket_status_open.sql` rewrites stored rows when run.
 - **Ticket list columns (Phase 18):** **Raised by** (`raisedBy` from API) immediately before **Assigned to**. Open tab label (route/query tab id remains `new`).
@@ -69,6 +69,8 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **Phase 27b — Update Ticket live scan:** `/tickets/update` uses the same `resolveScan`; miss/error empty states; mock TK-1042 form removed.
 - **Phase 28 — QR Update Ticket handoff:** Raise open-ticket primary **Update Ticket** → `/tickets/update` with `ticketId`; assignee gate via `getTicket`.
 - **Phase 29 — Update form on `/tickets/update`:** Shared `TicketAddUpdateForm`; Update Ticket stays on `/tickets/update?ticketId=` and shows the form in-page (no Detail `openUpdate` redirect). Detail keeps Modal Add Update for ops/assignee trail viewing. Scan QR / Raise / Detail field CTA use the same Update URL.
+- **Phase 30 — Work report API:** `/tickets/report` loads `GET /api/reports/work`; Export → `/api/reports/work/export` (CSV); Person from `/api/lookups/technicians`; Road from `/api/lookups/roads`; page gated with Work report `v`. Mock `data/workReport.js` removed.
+- **Phase 31 — Ticket Detail assign:** Assign/Reassign Save → `POST /api/tickets/:id/assign` (`assigneeId` UUID + optional `reason`). Hand to from `listTechnicianLookups`. Reloads detail for assignee fact + `assignmentTrail`. UI gated with All tickets `a`; backend remains authoritative.
 - **Forgot/reset:** Backend token email flow (SHA-256, 1h TTL); FE `/forgot-password`, `/reset-password`. Role gate as Phase 25.
 - **Admin change password:** Reuse `PATCH /api/users/:id` with `password` (requires Users edit). Increments `password_version` (invalidates JWTs).
 - **Self-service Settings (Phase 13):**
@@ -105,9 +107,11 @@ frontend/
     ├── services/
     │   ├── api.js
     │   ├── auth.js             # login, me, updateProfile, changePassword, logout, …
-    │   ├── users.js            # Users admin + canPerm + homePathForUser / isDashboardRole
-    │   ├── tickets.js          # list/get + createTicket + addTicketUpdate + attachTicketUpdatePhotos
+    │   ├── users.js            # Users admin + canPerm + homePathForUser / listTechnicianLookups
+    │   ├── tickets.js          # list/get + create + assignTicket + updates/photos
     │   ├── dashboard.js
+    │   ├── reports.js          # getWorkReport + exportWorkReport (CSV)
+    │   ├── roads.js            # listRoadLookups
     │   ├── devices.js          # listDevices + device-sync + resolveScan → GET /api/devices/scan
     │   ├── issues.js           # listIssueCategories (Raise UUID selects)
     │   └── uploads.js          # validateImageFile + uploadImage / uploadImages (submit-time)
