@@ -61,14 +61,14 @@ Non–Admin/PM users only see tickets they raised or are assigned to (assignee_i
 Admin and Project manager keep existing city-wide ticket visibility.
 Do not AND ticket list/export with assigned_roads in a way that hides tickets the user raised on other roads (Phase 18). Device lists may still use road scope.
 Detail access: raiser and assignee always allowed, even outside user_roads; then road check; otherwise forbid.
-Assign (All tickets a) uses road access only — do not apply ownership filter on assign (Control room must assign others’ tickets).
+Assign (All tickets a) uses road access only — do not apply ownership filter on assign (Control room must assign others’ tickets). Detail Save → `POST /api/tickets/:id/assign` with `assigneeId` (UUID) from technicians lookup; optional note as `reason`.
 Project Manager signup approval reuses PATCH /api/users/:id + Users e (PM seeded vce...); do not duplicate Admin logic.
 Do not invent a separate role hierarchy unless product asks; avoid unnecessary queries and abstractions.
 Frontend ticket rendering (Phase 16+)
 TicketList / Dashboard / TicketDetail must consume scoped APIs; never download all tickets and filter in React for authorization.
 Reuse canPerm and Users loading/empty/error patterns; do not add a second role store.
 Preserve existing layout; only bind live data.
-Raise create POST is live (Phase 27). Update Ticket shows the Add Update form on `/tickets/update` after assignee gate (Phase 29). Work report is live via `GET /api/reports/work` (+ CSV export) with Work report `v` (Phase 30). Leave Close page create POST until that API is wired (photo files may still upload on submit via uploadImages; Detail Add Update is live as of Phase 21).
+Raise create POST is live (Phase 27). Update Ticket shows the Add Update form on `/tickets/update` after assignee gate (Phase 29). Work report is live via `GET /api/reports/work` (+ CSV export) with Work report `v` (Phase 30). Detail Assign/Reassign Save is live via `POST /api/tickets/:id/assign` with Hand to from `GET /api/lookups/technicians` (Phase 31). Leave Close page create POST until that API is wired (photo files may still upload on submit via uploadImages; Detail Add Update is live as of Phase 21).
 Ticket list / detail UI (Phase 19+)
 Open tab (new) must not show the Updates column; Assigned keeps it.
 Closed tab (cls) shows Days After Close, not Days open.

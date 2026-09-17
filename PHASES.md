@@ -684,10 +684,31 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 31: Ticket Detail assign / reassign API
+
+**Objective:** Wire Detail Assign/Reassign Save to live backend assign; Hand to from technicians lookup; refresh assignee + trail.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Add `assignTicket` in `services/tickets.js` → `POST /api/tickets/:id/assign`.
+2. TicketDetail: technicians select (UUID), controlled note, validation, busy Save, Cancel reset.
+3. On success: toast + `reloadTicket()` for facts/trail.
+4. Docs update.
+
+**Out of scope:** TicketList assignee filter live options; Raise-time assign; UI redesign; backend changes.
+
+**Verification:** First assign + note; reassign; Cancel; empty trail; 403 toast; Closed hides Assign; layout unchanged.
+
+**Completion:** PR.md Phase 31 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 25 ──► Phase 26 ──► Phase 26b ──► Phase 27 ──► Phase 27b ──► Phase 28 ──► Phase 29 ──► Phase 30
+Phase 0 ──► … ──► Phase 28 ──► Phase 29 ──► Phase 30 ──► Phase 31
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

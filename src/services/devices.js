@@ -84,7 +84,8 @@ export function extractQrToken(raw) {
  * Resolve a scanned / typed code to device payload.
  * Sticker token (URL ?id= / qr_token, or opaque) → POST /api/devices/slot-mac.
  * Legacy codes → GET /api/devices/scan?q= (includes openTicketId).
- * Returns null on 404 / empty code; rethrows other API errors.
+ * Slot-mac failures rethrow so callers can show the API message (e.g. NO_DEVICE_AT_SLOT).
+ * Legacy scan 404 / empty code → null.
  *
  * @param {string} raw
  * @returns {Promise<import('../data/scanDevice').ScanDevice | null>}
@@ -92,15 +93,11 @@ export function extractQrToken(raw) {
 export async function resolveScan(raw) {
   const qrToken = extractQrToken(raw)
   if (qrToken) {
-    try {
-      return await api('/api/devices/slot-mac', {
-        method: 'POST',
-        body: { qr_token: qrToken },
-      })
-    } catch (err) {
-      if (err instanceof ApiRequestError && err.status === 404) return null
-      throw err
-    }
+    // Do not swallow 404 — surface "No device available at the given Slot"
+    return await api('/api/devices/slot-mac', {
+      method: 'POST',
+      body: { qr_token: qrToken },
+    })
   }
 
   const code = normalizeScanCode(raw)

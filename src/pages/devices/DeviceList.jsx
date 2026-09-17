@@ -115,7 +115,13 @@ export default function DeviceList() {
 
   const [syncing, setSyncing] = useState(false)
   const [syncRunId, setSyncRunId] = useState(null)
+  const syncingRef = useRef(false)
   const syncHandledRef = useRef(null)
+
+  function setSyncBusy(busy) {
+    syncingRef.current = busy
+    setSyncing(busy)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -177,14 +183,14 @@ export default function DeviceList() {
   }, [canView, applied, page, limit, reloadToken])
 
   const finishSync = useCallback((run) => {
-    if (!run?.id || syncHandledRef.current === run.id) return
-    syncHandledRef.current = run.id
-    setSyncing(false)
+    if (run?.id && syncHandledRef.current === run.id) return
+    if (run?.id) syncHandledRef.current = run.id
+    setSyncBusy(false)
     setSyncRunId(null)
-    if (run.status === 'completed') {
+    if (run?.status === 'completed') {
       toast(syncCompletedMessage(run.stats), 'success')
       setReloadToken((n) => n + 1)
-    } else if (run.status === 'failed') {
+    } else if (run?.status === 'failed') {
       toast(run.errorMessage || 'Device sync failed.', 'error')
     }
   }, [])
@@ -199,7 +205,7 @@ export default function DeviceList() {
         const latest = await getLatestDeviceSync()
         if (cancelled || !latest) return
         if (latest.status === 'started') {
-          setSyncing(true)
+          setSyncBusy(true)
           setSyncRunId(latest.id)
         }
       } catch {
@@ -226,7 +232,7 @@ export default function DeviceList() {
         finishSync(run)
       } catch (err) {
         if (cancelled) return
-        setSyncing(false)
+        setSyncBusy(false)
         setSyncRunId(null)
         toast(
           err instanceof ApiRequestError ? err.message : 'Could not check sync status.',
@@ -244,8 +250,8 @@ export default function DeviceList() {
   }, [syncing, syncRunId, finishSync])
 
   async function handleSync() {
-    if (syncing) return
-    setSyncing(true)
+    if (syncingRef.current) return
+    setSyncBusy(true)
     syncHandledRef.current = null
     try {
       const { run, message } = await startDeviceSync()
@@ -258,7 +264,7 @@ export default function DeviceList() {
         finishSync(run)
         return
       }
-      setSyncing(false)
+      setSyncBusy(false)
     } catch (err) {
       if (err instanceof ApiRequestError && err.code === 'SYNC_IN_PROGRESS') {
         const runId = err.details?.runId
@@ -267,10 +273,10 @@ export default function DeviceList() {
           setSyncRunId(runId)
           return
         }
-        setSyncing(false)
+        setSyncBusy(false)
         return
       }
-      setSyncing(false)
+      setSyncBusy(false)
       toast(
         err instanceof ApiRequestError ? err.message : 'Could not start device sync.',
         'error',
