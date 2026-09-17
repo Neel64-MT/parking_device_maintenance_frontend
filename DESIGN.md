@@ -368,6 +368,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Update Ticket (`/tickets/update`) | Live scan or `?ticketId=`; assignee gate; **Add Update form on page**; free → Raise (+ `qr`) |
 | Manual QR Number | Raise/Update: scan or type QR Number only (no Road/Slot selects); Find device → `resolveScan` |
 | Detail actions | Ops **or** assignee → **Add update** (Modal); field non-assignee → QR **Update Ticket** → `/tickets/update` |
+| Assign / Reassign | Inline Hand to (technicians lookup UUID) + optional note → `POST /api/tickets/:id/assign`; reload trail |
 
 ## Phase 28 — QR lookup → Update Ticket
 

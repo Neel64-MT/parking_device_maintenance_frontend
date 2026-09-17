@@ -126,3 +126,26 @@ export async function attachTicketUpdatePhotos(ticketId, eventId, photos) {
     },
   )
 }
+
+/**
+ * Assign / reassign a ticket (POST /api/tickets/:id/assign).
+ * Requires All tickets `a` + Admin / PM / Control room (backend enforces).
+ * @param {string} ticketId
+ * @param {{ assigneeId: string, reason?: string, isFirstAssign?: boolean }} body
+ * @returns {Promise<{
+ *   id: string,
+ *   assigneeId: string,
+ *   assigneeName: string,
+ *   assignmentTrail: { when: string, title: string, body?: string }[],
+ * }>}
+ */
+export async function assignTicket(ticketId, { assigneeId, reason, isFirstAssign = false } = {}) {
+  const payload = { assigneeId }
+  const note = typeof reason === 'string' ? reason.trim() : ''
+  // Backend defaults empty reason; send Assigned vs Reassigned for clear trail copy.
+  payload.reason = note || (isFirstAssign ? 'Assigned' : 'Reassigned')
+  return api(`/api/tickets/${encodeURIComponent(ticketId)}/assign`, {
+    method: 'POST',
+    body: payload,
+  })
+}
