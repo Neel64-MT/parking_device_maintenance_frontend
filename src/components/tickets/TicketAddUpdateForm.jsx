@@ -11,6 +11,15 @@ import { IssueSelects } from '../ui/IssueSelects'
 import { PartChips } from '../ui/PartChips'
 import { PhotoPicker } from '../ui/PhotoPicker'
 
+/** Local calendar date as YYYY-MM-DD (avoids UTC shift from toISOString). */
+function todayLocalIso() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 /**
  * Shared Add Update form (Detail modal + /tickets/update page).
  * Submit order: update → upload photos → attach URLs.
@@ -180,7 +189,12 @@ export function TicketAddUpdateForm({
           )}
         </Field>
         <Field label="Date and time">
-          <input type="date" defaultValue={new Date().toISOString().slice(0, 10)} disabled={updSubmitting} />
+          <input
+            type="date"
+            defaultValue={todayLocalIso()}
+            max={todayLocalIso()}
+            disabled={updSubmitting}
+          />
         </Field>
       </div>
 
@@ -201,6 +215,7 @@ export function TicketAddUpdateForm({
             placeholder="0"
             value={updCost}
             onChange={(e) => setUpdCost(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
             min="0"
             disabled={updSubmitting}
           />

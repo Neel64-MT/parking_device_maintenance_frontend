@@ -67,6 +67,17 @@ export async function updatePart(id, body) {
 }
 
 /**
+ * Hard-delete a part (`DELETE /api/parts/:id`). Issue master `d`.
+ * 409 IN_USE when referenced on ticket visits — caller should deactivate instead.
+ * @param {string} id
+ */
+export async function deletePart(id) {
+  const row = await api(`/api/parts/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  clearPartsCache()
+  return row
+}
+
+/**
  * Display-only sum of master amounts for selected ids (not authoritative visit cost).
  * @param {PartMasterItem[]} items
  * @param {string[]} selectedIds

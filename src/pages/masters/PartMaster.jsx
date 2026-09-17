@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { ApiRequestError } from '../../services/api'
-import { createPart, listParts, updatePart } from '../../services/parts'
+import { createPart, deletePart, listParts, updatePart } from '../../services/parts'
 import { canPerm, homePathForUser } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/FilterBar'
@@ -15,6 +15,26 @@ function formatAmount(amount) {
   return `₹ ${Number(amount || 0).toLocaleString('en-IN')}`
 }
 
+function EditIcon() {
+  return (
+    <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  )
+}
+
 export default function PartMaster() {
   const { user } = useAuth()
   const canView = user?.role !== 'Site attendant'
@@ -22,7 +42,10 @@ export default function PartMaster() {
     canPerm(user, 'Issue master', 'c') || user?.role === 'Technician'
   const canUpdate =
     canPerm(user, 'Issue master', 'e') || user?.role === 'Technician'
-  const canDeactivate = canPerm(user, 'Issue master', 'e')
+  const canDelete = canPerm(user, 'Issue master', 'd')
+  // Soft-deactivate uses PATCH — backend allows Issue master `e` or Technician.
+  const canDeactivate =
+    canPerm(user, 'Issue master', 'e') || user?.role === 'Technician'
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(() => canView)
@@ -38,8 +61,10 @@ export default function PartMaster() {
   const [editId, setEditId] = useState(null)
   const [editName, setEditName] = useState('')
   const [editAmount, setEditAmount] = useState('')
+  const [editActive, setEditActive] = useState(true)
   const [savingEdit, setSavingEdit] = useState(false)
-  const [deactivatingId, setDeactivatingId] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   const refresh = useCallback(async () => {
     setLoadError('')
@@ -117,6 +142,7 @@ export default function PartMaster() {
     setEditId(row.id)
     setEditName(row.name)
     setEditAmount(String(row.amount ?? 0))
+    setEditActive(row.active !== false)
   }
 
   async function saveEdit(e) {
@@ -134,8 +160,14 @@ export default function PartMaster() {
     }
     setSavingEdit(true)
     try {
-      await updatePart(editId, { name: trimmed, amount: amt })
-      toastApiSuccess('Part updated.')
+      await updatePart(editId, {
+        name: trimmed,
+        amount: amt,
+        active: editActive,
+      })
+      toastApiSuccess(
+        editActive ? 'Part updated.' : 'Part updated and deactivated.',
+      )
       setEditId(null)
       await refresh()
     } catch (err) {
@@ -145,17 +177,33 @@ export default function PartMaster() {
     }
   }
 
-  async function deactivate(id) {
-    if (!canDeactivate || deactivatingId) return
-    setDeactivatingId(id)
+  async function confirmDelete() {
+    if (!canDelete || !deleteTarget || deleting) return
+    setDeleting(true)
+    const { id, name: partName } = deleteTarget
     try {
-      await updatePart(id, { active: false })
-      toastApiSuccess('Part made inactive.')
+      try {
+        await deletePart(id)
+        toastApiSuccess(`“${partName}” deleted.`)
+      } catch (err) {
+        if (err instanceof ApiRequestError && err.code === 'IN_USE') {
+          if (canDeactivate) {
+            await updatePart(id, { active: false })
+            toastApiSuccess(`“${partName}” is in use — deactivated instead.`)
+          } else {
+            toastApiError(err, 'Part is in use and cannot be deleted.')
+            return
+          }
+        } else {
+          throw err
+        }
+      }
+      setDeleteTarget(null)
       await refresh()
     } catch (err) {
-      toastApiError(err, 'Could not deactivate part.')
+      toastApiError(err, 'Could not delete part.')
     } finally {
-      setDeactivatingId(null)
+      setDeleting(false)
     }
   }
 
@@ -172,7 +220,7 @@ export default function PartMaster() {
           <div>
             <b>These parts appear on Update ticket and Add update.</b> Amounts are taken from this
             list when a visit is saved — technicians pick parts; the server calculates visit cost.
-            Make a part inactive instead of deleting it so past visits keep their snapshot.
+            Unused parts can be deleted; parts used on visits can only be made inactive.
           </div>
         </div>
 
@@ -289,24 +337,33 @@ export default function PartMaster() {
                           <td>{row.name}</td>
                           <td className="num">{formatAmount(row.amount)}</td>
                           <td className="act">
-                            {canUpdate || canDeactivate ? (
-                              <>
+                            {canUpdate || canDelete ? (
+                              <div className="act-row">
                                 {canUpdate ? (
-                                  <Button size="sm" onClick={() => openEdit(row)}>
-                                    Edit
-                                  </Button>
-                                ) : null}
-                                {canUpdate && canDeactivate ? ' ' : null}
-                                {canDeactivate ? (
                                   <Button
                                     size="sm"
-                                    disabled={!!deactivatingId}
-                                    onClick={() => deactivate(row.id)}
+                                    className="btn-icon"
+                                    title="Edit"
+                                    aria-label={`Edit ${row.name}`}
+                                    onClick={() => openEdit(row)}
                                   >
-                                    {deactivatingId === row.id ? '…' : 'Deactivate'}
+                                    <EditIcon />
                                   </Button>
                                 ) : null}
-                              </>
+                                {canDelete ? (
+                                  <Button
+                                    size="sm"
+                                    variant="danger"
+                                    className="btn-icon"
+                                    title="Delete"
+                                    aria-label={`Delete ${row.name}`}
+                                    disabled={deleting}
+                                    onClick={() => setDeleteTarget(row)}
+                                  >
+                                    <TrashIcon />
+                                  </Button>
+                                ) : null}
+                              </div>
                             ) : (
                               <span className="muted">—</span>
                             )}
@@ -320,9 +377,9 @@ export default function PartMaster() {
           </div>
 
           <div className="foot-note">
-            Deactivated parts drop off ticket pickers but stay on past visit history. Technicians can
-            create and update parts; deactivate needs Issue edit permission. Site attendants cannot
-            open this page.
+            Unused parts can be hard-deleted. Parts used on visits stay in history and can only be
+            made inactive from Edit. Technicians can create and update; delete needs Issue master
+            delete permission. Site attendants cannot open this page.
           </div>
         </section>
       </main>
@@ -330,7 +387,7 @@ export default function PartMaster() {
       <Modal
         open={!!editId}
         title="Edit part"
-        subtitle="Name and amount used on the next ticket update"
+        subtitle="Name, amount, and status used on the next ticket update"
         closeDisabled={savingEdit}
         onClose={() => {
           if (savingEdit) return
@@ -357,6 +414,26 @@ export default function PartMaster() {
                 disabled={savingEdit}
               />
             </Field>
+            {canDeactivate || canUpdate ? (
+              <Field label="Status">
+                <div className="status-switch">
+                  <button
+                    type="button"
+                    className={`status-switch-track${editActive ? ' is-on' : ''}`}
+                    role="switch"
+                    aria-checked={editActive}
+                    aria-label={editActive ? 'Active' : 'Inactive'}
+                    disabled={savingEdit || !canDeactivate}
+                    onClick={() => setEditActive((v) => !v)}
+                  >
+                    <span className="status-switch-knob" />
+                  </button>
+                  <span className="status-switch-label">
+                    {editActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+              </Field>
+            ) : null}
           </div>
           <div className="modal-actions">
             <Button type="submit" variant="primary" disabled={savingEdit}>
@@ -367,6 +444,39 @@ export default function PartMaster() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(deleteTarget)}
+        title="Delete part?"
+        subtitle="Unused parts are removed. Parts used on visits are deactivated instead."
+        closeDisabled={deleting}
+        onClose={() => {
+          if (deleting) return
+          setDeleteTarget(null)
+        }}
+      >
+        <p className="muted" style={{ marginBottom: 16 }}>
+          Delete <b>{deleteTarget?.name}</b>
+          {deleteTarget ? ` (${formatAmount(deleteTarget.amount)})` : ''}?
+        </p>
+        <div className="modal-actions">
+          <Button
+            type="button"
+            disabled={deleting}
+            onClick={() => setDeleteTarget(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            disabled={deleting}
+            onClick={confirmDelete}
+          >
+            {deleting ? 'Deleting…' : 'Delete'}
+          </Button>
+        </div>
       </Modal>
     </>
   )

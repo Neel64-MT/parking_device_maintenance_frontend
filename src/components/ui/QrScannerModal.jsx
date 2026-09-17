@@ -95,6 +95,31 @@ function cameraStartErrorMessage(err) {
   return 'Camera could not be started. Check browser permissions or type the QR Number instead.'
 }
 
+/** Html5QrcodeScannerState — stop() throws unless scanning or paused. */
+const SCANNER_STATE_NOT_STARTED = 1
+
+/**
+ * Stop + clear without throwing when the camera never started or already stopped.
+ * html5-qrcode throws a string synchronously: "Cannot stop, scanner is not running or paused."
+ * @param {Html5Qrcode | null | undefined} scanner
+ */
+async function safeStopScanner(scanner) {
+  if (!scanner) return
+  try {
+    const state = typeof scanner.getState === 'function' ? scanner.getState() : null
+    if (state != null && state !== SCANNER_STATE_NOT_STARTED) {
+      await scanner.stop()
+    }
+  } catch {
+    /* already stopped / never started */
+  }
+  try {
+    scanner.clear()
+  } catch {
+    /* mount node may already be gone */
+  }
+}
+
 /**
  * Camera QR scanner dialog. Starts on open; stops on close / successful decode.
  * Tries rear camera, then front, then the first listed device (desktop-friendly).
@@ -208,12 +233,7 @@ export function QrScannerModal({
       cancelled = true
       const active = scannerRef.current
       scannerRef.current = null
-      if (active) {
-        active
-          .stop()
-          .then(() => active.clear())
-          .catch(() => {})
-      }
+      void safeStopScanner(active)
     }
   }, [open, readerId])
 

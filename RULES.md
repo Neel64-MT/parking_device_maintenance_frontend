@@ -78,9 +78,9 @@ Add Update must reuse the existing form fields; present it in Modal only.
 Add Update submit (Phase 21+): POST /api/tickets/:id/updates first (photos may be empty), then uploadImages, then PATCH …/updates/:eventId/photos. Do not upload photos before the update is accepted. Toast success only when all required steps succeed; reload work history from GET ticket.
 Show Add Update for ops roles (Admin / Project manager / Control room) via `isOpsTicketUpdater`, **or** for the current ticket assignee (`ticket.assigneeId === user.id`), when Update ticket `v` is set and status is not Closed. Show QR **Update Ticket** (→ `/tickets/update`) for field roles (`isFieldTicketUpdater`) who are **not** the assignee. Backend remains the authority for mutations.
 Work history displays oldest → newest (new entries at the bottom); keep the trail always visible.
-Show **View Update** on every work-history row; open a Modal with mapped trail fields only (when, actor, title, status, body, cost, next visit, parts). Do **not** put images, thumbnails, or ImagePreviewModal inside View Update.
+Show **View Update** on every work-history row; open a Modal with mapped trail fields only (when, actor, title, status, body, parts, cost, next visit). Do **not** put images, thumbnails, or ImagePreviewModal inside View Update.
 Show **View Image** only when event photos is non-empty; gallery reuses Modal (main + thumbnails). Keep View Image separate from View Update.
-ImagePreviewModal zoom/rotate/pan (Phase 24+): CSS `transform` only on the viewed image; do not modify or re-upload the original file; reset zoom/rotation/pan when the active thumbnail changes; when zoom > 1, allow pointer-move and drag pan inside `.img-preview-main` (overflow hidden) so the user can explore clipped regions; keep the modal layout from breaking.
+ImagePreviewModal zoom/rotate/pan (Phase 24+ / 32): CSS `transform` only on the viewed image; do not modify or re-upload the original file; reset zoom/rotation/pan when the active thumbnail changes or via Reset. Desktop: hover zooms toward the pointer (Amazon-style explore). Mobile: pinch-to-zoom + drag pan. Keep `.img-preview-main` overflow hidden so the modal layout does not break.
 Do not add image/modal libraries; do not invent duplicate optimistic trail rows; do not add a second GET for View Update when trail data is already loaded.
 List → detail must pass state.from = /tickets?tab=…; Back to tickets / crumb must use that path so the active tab is preserved (do not hard-code /tickets when from is present).
 Raise ticket Cancel / All tickets / crumb must use the same state.from tab return when opened from All tickets (JumpLinks already passes from; list Raise button must pass it too).
@@ -111,7 +111,7 @@ Photo attachments (Phase 20 — Image attachment in ticket)
 Reuse one PhotoPicker for folder and camera. Validate client-side (image/*, 8 MB); keep local File + object-URL preview until form submit, then uploadImages (POST /api/uploads). Do not upload on every add.
 Camera capture uses CameraCaptureModal — not QrScannerModal; no extra camera library.
 Flip front/rear with the overlay icon on the live preview (`.camera-flip-btn`), not a text button in the bottom action row. Camera step actions stay Cancel + Take photo in one row.
-After Take photo: crop/review → Upload (confirm File into picker) or Recapture. Crop preview must be full modal width (`.camera-crop-image` width 100%); do not reintroduce a dark letterbox stage behind portrait shots.
+After Take photo: crop/review → Upload (confirm File into picker) or Recapture. Crop preview must fit the viewport (`.camera-crop-image` max-height with `dvh`/`object-fit: contain`); keep stage transparent — no black letterbox. Review actions stay sticky and reachable on mobile; enlarge crop handles on narrow screens.
 Default max is 5 photos; toast when over limit; hide Add when at limit.
 Keep the compact photo tile (do not full-bleed Add photo).
 Field / PhotoPicker / modal (Phase 21+)
@@ -142,7 +142,7 @@ Submit parts as UUID arrays; cost on update/close is labour / other charges only
 Do not treat client-displayed part amounts or a client sum as authoritative Cost of Visit.
 Do not invent edit-update-parts APIs; trail shows snapshots from workHistory after create.
 Masters submenu labels are Issue / Road / Parts (keep group title Masters). Permission screen keys remain Issue master / Road master until backend renames.
-Technicians may create and update parts (`POST` / `PATCH /api/parts`); deactivate in the UI still needs Issue master edit. Do not grant Technicians Issue master create/edit solely for this — backend allows Technician role on parts create/update only.
+Technicians may create and update parts (`POST` / `PATCH /api/parts`); soft-deactivate via `PATCH { active: false }` (Edit modal toggle or after `IN_USE`). Hard-delete unused parts via `DELETE /api/parts/:id` (Issue master `d`); used → `409 IN_USE` then deactivate. Issue Master is live for list/create/edit/delete: create category/sub needs Issue master `c`; subcategory and category hard-delete need `d` (`409 IN_USE` → deactivate — category deactivate needs `e`). Do not grant Technicians Issue master create/edit solely for parts — backend allows Technician role on parts create/update only.
 Parts nav icon must be interlocking gears — not a bolt and not the Settings single gear.
 What to avoid
 No redesign, modernization, or “AI default” aesthetic.

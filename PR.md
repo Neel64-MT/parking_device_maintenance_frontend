@@ -575,6 +575,43 @@ Assign / Reassign → Hand to (technicians UUID) + note → POST /api/tickets/:i
 | UI gated with All tickets `a` | Pass |
 | Layout unchanged | Pass |
 
+### Phase 32 — Master delete + image zoom/crop
+
+```text
+Parts → confirm → PATCH active:false
+Issues → live GET → Delete unused / Deactivate used (d) → refresh
+ImagePreview → hover pointer zoom + pinch/pan
+Camera crop → dvh stage + sticky actions + larger handles
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Part deactivate confirm Modal + busy state | Pass |
+| Part deactivate gated Issue `e` or Technician | Pass |
+| IssueMaster loads `GET /api/issues` | Pass |
+| Sub Delete / Deactivate via Issue master `d` | Pass |
+| 409 IN_USE → deactivate instead | Pass |
+| Image hover/pinch zoom without new libs | Pass |
+| Crop sticky actions + mobile handles | Pass |
+| Lint | Pass |
+
+### Phase 34 — Issue Master create + category hard delete
+
+```text
+IssueMaster → POST /categories | POST /subcategories (c)
+           → DELETE /categories/:id (d) → 409 IN_USE → PATCH active:false (e)
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Create category via `POST /api/issues/categories` | Pass |
+| Create subcategory via `POST /api/issues/subcategories` | Pass |
+| Validation (min 2 chars) + busy + toastApi | Pass |
+| Category hard delete gated Issue master `d` | Pass |
+| 409 IN_USE → deactivate when `e`; else error toast | Pass |
+| Sub delete/edit unchanged; list refresh without full reload | Pass |
+| Raise Ticket still uses live `listIssueCategories` (cache cleared) | Pass |
+
 ### Phase 33 FE — SmartPark sticker `qr_token`
 
 ```text

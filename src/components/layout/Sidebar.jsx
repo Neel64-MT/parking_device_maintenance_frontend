@@ -129,7 +129,7 @@ export function Sidebar({
 
       <div className="rail-bottom">
         <div
-          className={`nav-item${isMenuItemOn(SETTINGS, pageId) ? ' active' : ''}`}
+          className={`rail-foot nav-item${isMenuItemOn(SETTINGS, pageId) ? ' active' : ''}`}
         >
           <Link
             to={SETTINGS.path}
@@ -140,13 +140,6 @@ export function Sidebar({
             <NavIcon name={SETTINGS.icon} />
             <span className="nav-label">{SETTINGS.label}</span>
           </Link>
-        </div>
-        <div className="rail-foot">
-          <span className="rail-foot-text">
-            {APP.footerLines[0]}
-            <br />
-            {APP.footerLines[1]}
-          </span>
         </div>
       </div>
     </aside>

@@ -169,7 +169,7 @@ Inspect existing code
 - Tiles come from API; Open not attended equals Open tab; assigned+Open may appear as Under repair via backend `listStatus`.
 - Add Update: open existing form in `Modal`; keep toast submit until POST is wired.
 - Work history: reverse mapped events for chronological display; pass `photos`, `actor`, `parts` through.
-- Gallery: `ImagePreviewModal` on `Modal` — main image + thumbnail row; Zoom in / Zoom out / Rotate via CSS `transform` only; when zoomed, move/drag to pan (explore clipped areas); reset transform on thumbnail change; no new deps.
+- Gallery: `ImagePreviewModal` on `Modal` — main image + thumbnail row; Zoom in / Zoom out / Reset / Rotate via CSS `transform` only; desktop hover zooms toward pointer; pinch + drag pan on touch; reset on thumbnail change; no new deps.
 - Trail: **View Update** (Modal, details only — never images) on every row; **View Image** only when photos exist — keep them separate.
 
 ## Photo attachment skills (Phase 20+)
@@ -190,6 +190,13 @@ Inspect existing code
 - Use `listParts()` from `services/parts.js` (session cache); do not fetch per chip click.
 - `PartChips` selects by UUID; submit `parts: id[]` and labour-only `cost`.
 - Display backend `cost` / `partsCost` after save; never send a client-calculated visit total as authoritative.
+
+## Issue Master (Phase 32 / 34+)
+
+- Use `listIssueCategories()` from `services/issues.js` (session cache); pass `{ force: true }` after mutations.
+- Create: `createIssueCategory` / `createIssueSubcategory` (`Issue master` `c`); hard delete unused via `deleteIssueCategory` / `deleteIssueSubcategory` (`d`); on `409 IN_USE` deactivate (category needs `e` for PATCH).
+- Keep master-detail (category pick-list + subcategory table); do not hardcode category lists on Issue Master.
+- Raise Ticket already loads live categories; do not invent a second Issue list API for Master.
 
 ## Device Sync skills (Phase 26+)
 
