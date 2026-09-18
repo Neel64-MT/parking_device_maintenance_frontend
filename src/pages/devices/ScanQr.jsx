@@ -5,6 +5,7 @@ import { PageMeta } from '../../context/PageMetaContext'
 import { toast, toastApiError } from '../../context/ToastContext'
 import { scanDeviceFacts, scanStatusTone } from '../../data/scanDevice'
 import { canScanWithCamera, resolveScan } from '../../services/devices'
+import { canPerm } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Field } from '../../components/ui/FilterBar'
@@ -16,7 +17,7 @@ import { QrScannerModal } from '../../components/ui/QrScannerModal'
 export default function ScanQr() {
   const { user } = useAuth()
   const location = useLocation()
-  const canScan = canScanWithCamera(user)
+  const canScan = canPerm(user, 'Scan QR', 'v') && canScanWithCamera(user)
   const resolveGen = useRef(0)
 
   const [manual, setManual] = useState('')

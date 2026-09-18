@@ -63,7 +63,11 @@ Do not AND ticket list/export with assigned_roads in a way that hides tickets th
 Detail access: raiser and assignee always allowed, even outside user_roads; then road check; otherwise forbid.
 Assign (All tickets a) uses road access only — do not apply ownership filter on assign (Control room must assign others’ tickets). Detail Save → `POST /api/tickets/:id/assign` with `assigneeId` (UUID) from technicians lookup; optional note as `reason`.
 Project Manager signup approval reuses PATCH /api/users/:id + Users e (PM seeded vce...); do not duplicate Admin logic.
-Do not invent a separate role hierarchy unless product asks; avoid unnecessary queries and abstractions.
+User create/edit role dropdowns must filter to same-or-below the actor using `ROLE_HIERARCHY` / `filterAssignableRoles` in `services/users.js` (mirrors backend Phase 36). Users `c`/`e` still gate the forms. Omit `roleId` on PATCH when unchanged. Backend remains authoritative for higher-role attempts (`403`).
+
+Roles & permissions matrix is live: load/save via `/api/roles*`. Gate with Roles & permissions `v`/`c`/`e` (PM seed is view-only). Editing a selected role also requires `canManageRolePermissions` (same-or-below hierarchy; mirrors backend Phase 39). Admin has full access and no Permissions editor (`permissionsLocked`). Seeded roles can **Reset to defaults** (`POST …/permissions/reset`). Route access uses `RequirePerm` + page `canPerm`; UI checks remain advisory vs backend `authorize`. Sidebar visibility is matrix View only (`filterMenuByView` + `canPerm`) — no `hideForRoles` / Dashboard role-name overrides.
+
+`/dashboard` requires Dashboard `v` via `RequirePerm`. `/masters/parts` requires Update ticket `v` (aligned with `GET /api/parts`).
 Frontend ticket rendering (Phase 16+)
 TicketList / Dashboard / TicketDetail must consume scoped APIs; never download all tickets and filter in React for authorization.
 Reuse canPerm and Users loading/empty/error patterns; do not add a second role store.
@@ -85,10 +89,10 @@ Do not add image/modal libraries; do not invent duplicate optimistic trail rows;
 List → detail must pass state.from = /tickets?tab=…; Back to tickets / crumb must use that path so the active tab is preserved (do not hard-code /tickets when from is present).
 Raise ticket Cancel / All tickets / crumb must use the same state.from tab return when opened from All tickets (JumpLinks already passes from; list Raise button must pass it too).
 Home & Dashboard access (Phase 18+)
-Only Admin and Project manager may open Dashboard (isDashboardRole / homePathForUser).
-After login (and GuestOnly / / / catch-all), non–ops-lead roles go to /tickets.
-Hide Dashboard in the sidebar for other roles even if permissions still list Dashboard v.
-For Site attendant and Technician, show All tickets as a top-level sidebar item (not under a Tickets submenu) when it is the only visible Tickets child.
+Only roles with Dashboard View may open Dashboard / land on `/dashboard` (`canPerm` / `homePathForUser`).
+After login (and GuestOnly / / / catch-all), roles without Dashboard View go to /tickets.
+Sidebar items are gated by permission matrix View only — do not hardcode role names in `Sidebar` / `filterMenuByView` (`hideForRoles` removed).
+When Tickets has only All tickets visible, promote it to a top-level sidebar item (permission-driven, not role-name).
 Unauthorized Users redirect uses homePathForUser, not a hard-coded /dashboard.
 Ticket status & list columns (Phase 18+)
 Do not show ticket status New; use Open (normalize legacy API/DB values).

@@ -173,21 +173,19 @@
 
 ## Currently working on
 
-- **Phase:** Phase 34 — Issue Master create + category hard delete
-- **Task:** Complete — live create category/sub; category DELETE + IN_USE→deactivate; docs
-- **File:** `IssueMaster.jsx`, `issues.js`, docs
+- **Phase:** Phase 36 — Live Roles matrix + route permission guards
+- **Task:** Complete — matrix Save/Create wired; RequirePerm on routes; action gates
+- **File:** `Users.jsx`, `users.js`, `AuthContext.jsx`, `routes.jsx`, ticket/device/road pages, docs
 
 ## Pending
 
 - Wire Close create API; Ticket Close page still design preview (Detail Add Update is live)
 - External inspection package (`PROJECT_PATH` — deferred until path provided)
-- Roles tab on Users still mostly preview matrix
 - Real Settings preferences beyond profile/password
 - TicketList assignee filter still hardcoded names (Detail assign is live)
 - TicketList / Add Update / Close still use static `ISSUE_MASTER` for some selects (Raise is live)
 - Run migration `007_ticket_status_open.sql` / `009_parts_amount.sql` / `010_device_sync.sql` / `015_issue_master_delete_field_roles.sql` on environments that need them
 - Finish / verify remaining Phase 23 Parts criteria if still Pending in PR.md
-
 ## Important decisions
 
 1–15. Prior phases (auth, sidebar, Settings, Raise, ticket visibility API).
@@ -196,6 +194,9 @@
 18. Phase 31: Detail Assign Save → `POST /api/tickets/:id/assign` with `assigneeId` from `GET /api/lookups/technicians`; optional note → `reason`; reload detail for trail/facts.
 19. Phase 32: Parts “delete” = soft `PATCH { active: false }` (no hard DELETE). Issue sub delete = `DELETE` + 409→deactivate; UI gated with Issue master `d`/`e`. Image hover/pinch zoom without new libs. Crop uses `dvh` + sticky actions + larger mobile handles.
 19b. Phase 34: Issue create category/sub via `POST` (`c`); category hard-delete via `DELETE` (`d`) with 409→`PATCH active:false` when `e`. Cache clear so Raise picks up new rows.
+19c. Phase 35: Users create/edit role dropdown filters to same-or-below (`ROLE_HIERARCHY` in `users.js`); Users `c`/`e` still required; backend `403` remains authority; edit omits unchanged `roleId`.
+19d. Phase 36: Roles matrix live (`GET/POST /api/roles`, `PATCH …/permissions`); `RequirePerm` on routes; action gates reuse `canPerm`; hierarchy unchanged; UI still advisory vs backend `authorize`.
+19e. Phase 39: Roles matrix hierarchy (`canManageRolePermissions`); `RequirePerm` on dashboard + parts; Engineer Parts create/update parity.
 19. Sidebar MENU items carry `screen` keys matching `user.permissions`; hide when no view (`v`); Settings stays always visible (no perm screen); unauthorized `/users` redirects via `homePathForUser` (not always `/dashboard`).
 20. Update Ticket uses live scan (Phase 27b); open ticket → Detail Add Update; free → Raise.
 21. Phase 18: only Admin / Project manager land on and open Dashboard; other roles home to All tickets.
@@ -261,6 +262,27 @@
 - Sub edit/delete unchanged; Raise Ticket benefits from cache clear
 - Status: Complete
 
+### Phase 35 — Users role hierarchy UI (complete)
+
+- `ROLE_HIERARCHY` + `filterAssignableRoles` in `services/users.js` (mirrors backend)
+- Users create/edit role selects show same-or-below only; create disabled when none
+- Edit PATCH omits `roleId` when unchanged
+- Status: Complete
+
+### Phase 36 — Live Roles matrix + route guards (complete)
+
+- Roles tab: live list + controlled checkboxes + Save (`updateRolePermissions`) + Create role
+- `RequirePerm` wraps routes; Raise/Update/Close/Scan/Roads action gates via `canPerm`
+- After saving own role matrix, `AuthContext.refresh()` reloads `/me`
+- Status: Complete
+
+### Phase 39 — Roles hierarchy + route holes (complete)
+
+- `canManageRolePermissions` — Save/checkboxes only for same-or-below roles
+- `RequirePerm` on `/dashboard` (Dashboard `v`) and `/masters/parts` (Update ticket `v`)
+- Parts nav uses Update ticket `v`; PartMaster Engineer create/update parity with Technician
+- Status: Complete
+
 ## Important decisions (detail)
 
 1–11. Prior phases (filters UI-only, static detail samples, responsive, Phase 10 JWT).
@@ -295,7 +317,7 @@
 | Domain screens | Close create still mock; Raise create + Detail Add Update + Work report are live |
 | Manual Raise slots | Static `SLOTS` may 404 against live DB — surface miss; no full device-list fetch |
 | Inspection package | `PROJECT_PATH` deferred until product supplies path |
-| Roles tab | Permission matrix save still toast/preview |
+| Roles tab | Live matrix via `/api/roles` (Phase 36); PM remains view-only without Roles `e` |
 | Forgot SMTP | Dev logs reset URL when SMTP unset |
 | Status migration | Environments that never ran `007` may still store `New` (API/FE normalize display) |
 | Backend restart | Restart backend after Phase 17 scan shape, Phase 18 visibility, Phase 19 `tabForStatus` / `listStatus` / `daysAfterClose`, Phase 21 update/photos attach routes, and Phase 26 list field mapping / device-sync |

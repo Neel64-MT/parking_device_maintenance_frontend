@@ -6,7 +6,8 @@
 Browser
   → React Router
   → /login|/signup|/forgot-password|/reset-password (AuthLayout, no rail)
-      OR  RequireAuth → AppLayout
+      OR  RequireAuth → RequirePerm(screen) → AppLayout page
+          GuestOnly → AuthLayout (login/signup)
   → Page component (Dashboard, TicketList, Settings, …)
   → Page-local UI + shared components
   → data/ mock modules (most screens)
@@ -46,12 +47,13 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 ### Authentication / authorization
 
 - **Original:** Hardcoded user chip; permission matrix is UI-only on Users → Roles.
+- **Now (Phase 36):** Matrix is live against role_permissions; user chip + `user.permissions` from `/api/auth/me`.
 - **React (Phase 10–11):** Login with email or mobile + password against `../backend`. JWT Bearer token.
 - **Signup approval:** `POST /api/auth/signup` creates `status=Pending` (default role Site attendant). **Admin or Project Manager** (Users `e`) reviews on Users, may PATCH details/role, then `PATCH { status: 'Active' }`. Login rejects Pending with `PENDING_APPROVAL`.
 - **Ticket visibility (backend):** Admin / Project manager keep city-wide access. Everyone else: SQL `(assignee_id = me OR raised_by_user_id = me)` via `lib/ticket-access.ts` on list/export/detail. **Ticket list/export do not AND `assigned_roads`** — that hid tickets a Site attendant raised on other roads. Detail: raiser/assignee pass before road check. Assign uses road scope only (so Control room can assign). Dashboard open-ticket queries use the same visibility fragment.
 - **Ticket UI (Phase 16):** TicketList, Dashboard, and TicketDetail call live APIs and render whatever the backend returns. Frontend does not filter tickets for security. Close ticket page remains design preview; photo files upload on submit via `uploadImages`. Detail Add Update is live (Phase 21): `addTicketUpdate` → optional `uploadImages` → `attachTicketUpdatePhotos`. Raise create is live (Phase 27). Update Ticket is a live find-device step (Phase 27b).
 - **QR scan (Phase 17 + 27 / 27b + 33):** `QrScannerModal` opens the device camera for **any signed-in user**. Scans resolve via `resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy codes → `GET /api/devices/scan?q=`. Raise / Scan / Update Ticket show device facts and branch on `openTicketId`. Open ticket → Ticket Detail (live Add Update). Free device on Update → Raise CTA. Mock TK-1042 inspection panels removed from `/tickets/update`.
-- **Home + Dashboard (Phase 18):** `homePathForUser` / `isDashboardRole` — only **Admin** and **Project manager** land on `/dashboard` after login (and see Dashboard in the sidebar). Other roles → `/tickets`. `HomeRedirect` for `/` and unknown routes; Dashboard page redirects others away.
+- **Home + Dashboard:** `homePathForUser` uses Dashboard View (`canPerm`). Sidebar uses `filterMenuByView` + `canPerm(…, 'v')` only — no role-name hide rules.
 - **Ticket status (Phase 18):** Product statuses no longer include **New**; create/list display **Open**. FE `normalizeTicketStatus` + BE `displayStatus`; migration `007_ticket_status_open.sql` rewrites stored rows when run.
 - **Ticket list columns (Phase 18):** **Raised by** (`raisedBy` from API) immediately before **Assigned to**. Open tab label (route/query tab id remains `new`).
 - **Ticket list / detail UX (Phase 19):** Open tab hides **Updates**; Closed shows **Days After Close** (`daysAfterClose`) instead of Days open; Assigned keeps Updates + Days open. TicketDetail Add Update uses `Modal`; work history oldest→newest; trail → **View Update** (details only, no photos) and, when photos exist, **View Image** → `ImagePreviewModal` gallery. List→detail passes `state.from = /tickets?tab=…`; Back to tickets / crumb use `backToTickets` so the active tab is restored.
@@ -63,6 +65,9 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **Phase 24 / 32 — Image viewer zoom/rotate + Trail View Update:** `ImagePreviewModal` gallery; Zoom in/out / Rotate / Reset via CSS `transform` only. Desktop **hover** zooms toward pointer; mobile **pinch** + drag pan. Thumbnail change resets transform. Trail: **View Update** vs **View Image**. No new image libraries.
 - **Phase 32 — Master delete:** Parts soft-deactivate with confirm (`PATCH active:false`). Issue Master live list + subcategory delete/deactivate (`Issue master` `d`). Category soft-deactivate via PATCH `e`.
 - **Phase 34 — Issue Master create + category hard delete:** `POST /api/issues/categories` + `POST /api/issues/subcategories` from inline forms (`c`). Category trash → `DELETE /api/issues/categories/:id` (`d`); `409 IN_USE` → `PATCH { active: false }` when `e`. Service helpers clear session cache so Raise Ticket picks up new rows.
+- **Phase 35 — Users role hierarchy UI:** Create/edit role `<select>` filtered to same-or-below via `ROLE_HIERARCHY` in `services/users.js` (Admin → … → AMC officer). Users `c`/`e` unchanged; edit omits unchanged `roleId`.
+- **Phase 36 — Live Roles matrix + route guards:** Users Roles tab uses `GET/POST /api/roles` and `PATCH /api/roles/:id/permissions`. `RequirePerm` in AuthContext wraps feature routes; pages reuse `canPerm` for actions. Sidebar `filterMenuByView` remains; Settings always visible. Backend `authorize` stays authoritative.
+- **Phase 39 — Hierarchy on Roles edit + route holes:** `canManageRolePermissions` disables Save/checkboxes for higher roles. `RequirePerm` on `/dashboard` and `/masters/parts` (Update ticket `v`). Parts create/update UI includes Engineer with Technician.
 - **Phase 25 — Forgot password role gate + 404:** `POST /forgot-password` and `POST /reset-password` allow only **Admin** / **Project manager**. Other Active roles → `403` / `FORGOT_PASSWORD_ROLE_DENIED` (explicit message). Unknown / Pending / Inactive → generic 200 (no email). FE Forgot page notes Admin/PM-only and shows API errors. Unknown routes → `NotFound` + `GearLoader` (CSS gears, theme tokens, no black panel, no styled-components). Catch-all is a top-level `*` (not silent `HomeRedirect`).
 - **Phase 26 — Device Sync frontend:** Device list JumpLinks action **Sync Devices** (`canPerm` Device list `c`) → `POST /api/device-sync` → toast + button **Syncing...** (disabled). Poll `GET /api/device-sync/:id` every 2s until `completed` / `failed`; on complete toast may include `devicesCreated` / `devicesUpdated` / `devicesSkipped` from `run.stats`, then bump `reloadToken` to refetch `GET /api/devices` with current page/filters (no page reset). Mount resumes via `GET /api/device-sync/latest` if status is `started`. Slot/MAC validation and Slot-ID upserts are backend source of truth — FE never invents devices or processes the external dataset. Never call SmartPark from the browser. Device table columns: Slot Id, Slot Label, Slot Identifier, QR Number (link to history), Parking Location. List row also keeps legacy `id`/`qr`/`road`/`slot` for other consumers.
 - **Device list status tiles:** Working / Under repair / Not working / Total devices are on-page filter controls (`selectStatus` → draft + `applied.status`, `page=1`); reuse existing `listDevices({ status })`. They do **not** navigate to `/tickets`.
@@ -109,7 +114,7 @@ frontend/
     ├── services/
     │   ├── api.js
     │   ├── auth.js             # login, me, updateProfile, changePassword, logout, …
-    │   ├── users.js            # Users admin + canPerm + homePathForUser / listTechnicianLookups
+    │   ├── users.js            # Users/roles admin + canPerm + ROLE_HIERARCHY + createRole/updateRolePermissions
     │   ├── tickets.js          # list/get + create + assignTicket + updates/photos
     │   ├── dashboard.js
     │   ├── reports.js          # getWorkReport + exportWorkReport (CSV)
@@ -204,8 +209,8 @@ aside.rail[.collapsed]
 | Mobile drawer | `railOpen` in AppLayout; CSS ≤820px transform |
 | Desktop icon-rail | `railCollapsed` in AppLayout; `html.rail-narrow` sets `--rail` to `--rail-collapsed` |
 | Active item | `PageMeta` `pageId` + `isMenuItemOn` |
-| View permission | `filterMenuByView` + `canPerm(…, 'v')` |
-| Dashboard item | Extra `isDashboardRole` (Admin / Project manager only) |
+| View permission | `filterMenuByView` + `canPerm(…, 'v')` + `RequirePerm` on routes |
+| Dashboard item | Dashboard View (`canPerm`) only — no role-name override |
 | Collapsed groups | Click expands rail then opens group (no flyout) |
 | Collapsed labels | CSS opacity/max-width; native `title` tooltips |
 | Persistence | None |

@@ -221,27 +221,29 @@ export const PERM_SCREENS = [
 export const PERM_FLAGS = ['v', 'c', 'e', 'a', 'x', 'd']
 
 /**
- * Role permission codes — ported exactly from users.html ROLES.
- * Each screen string is 6 chars; char at index i equals the flag letter when allowed.
+ * Role permission defaults — mirror backend `DEFAULT_ROLE_PERMS` for Reset UI.
+ * Admin is full access and is not editable in the Roles matrix.
  */
-export const ROLES = {
+export const DEFAULT_ROLE_PERMS = {
   Admin: {
-    note: 'Full control. At least one admin must always exist.',
-    p: {
-      Dashboard: 'v.....',
-      'Raise ticket': 'vc....',
-      'Update ticket': 'vce.x.',
-      'All tickets': 'vceaxd',
-      'Work report': 'v.....',
-      'Device list': 'vce..d',
-      'Add device': 'vc....',
-      'Device history': 'v.....',
-      'Scan QR': 'v.....',
-      'Issue master': 'vce..d',
-      'Road master': 'vce..d',
-      Users: 'vce..d',
-      'Roles & permissions': 'vce..d',
-    },
+    note: 'Full control. Permissions are fixed and cannot be edited.',
+    p: Object.fromEntries(
+      [
+        'Dashboard',
+        'Raise ticket',
+        'Update ticket',
+        'All tickets',
+        'Work report',
+        'Device list',
+        'Add device',
+        'Device history',
+        'Scan QR',
+        'Issue master',
+        'Road master',
+        'Users',
+        'Roles & permissions',
+      ].map((s) => [s, 'vceaxd']),
+    ),
   },
   'Project manager': {
     note: 'City-wide ops; can manage users and approve signups; can hard-delete unused Issue sub-categories.',
@@ -353,9 +355,20 @@ export const ROLES = {
   },
 }
 
+/** @deprecated Use DEFAULT_ROLE_PERMS — kept for any legacy imports. */
+export const ROLES = DEFAULT_ROLE_PERMS
+
 /** Whether a permission flag is on for a screen code string */
 export function permOn(code, flagIndex) {
   const flags = PERM_FLAGS
   const c = (code || '......').charAt(flagIndex)
   return c === flags[flagIndex]
+}
+
+/** Flip one permission flag in a 6-char screen code (local preview edits). */
+export function togglePermFlag(code, flagIndex) {
+  const flags = PERM_FLAGS
+  const chars = (code || '......').padEnd(6, '.').slice(0, 6).split('')
+  chars[flagIndex] = chars[flagIndex] === flags[flagIndex] ? '.' : flags[flagIndex]
+  return chars.join('')
 }

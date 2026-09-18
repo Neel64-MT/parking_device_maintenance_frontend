@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
 import { toast } from '../../context/ToastContext'
@@ -12,7 +12,7 @@ import {
   startDeviceSync,
 } from '../../services/devices'
 import { listRoadLookups } from '../../services/roads'
-import { canPerm } from '../../services/users'
+import { canPerm, homePathForUser } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { CopyTextButton } from '../../components/ui/CopyTextButton'
 import { Field, FilterBar } from '../../components/ui/FilterBar'
@@ -357,6 +357,10 @@ export default function DeviceList() {
         ) : null}
       </>
     ) : null
+
+  if (!canView) {
+    return <Navigate to={homePathForUser(user)} replace />
+  }
 
   return (
     <>

@@ -185,7 +185,14 @@ Inspect existing code
 - Honor `prefers-reduced-motion` via CSS (no shimmer).
 - Live create/update buttons: disable + busy label (`Saving…` / `Creating…`) while the request runs; gate Cancel/modal close the same way (Users create/edit/password/approve).
 
-## Parts Master / visit cost (Phase 23+)
+## Users role hierarchy (Phase 35+)
+
+- Use `ROLE_HIERARCHY` / `filterAssignableRoles` from `services/users.js` (same order as backend Phase 36).
+- Create and edit role dropdowns: same-or-below only; still require Users `c` / `e`.
+- On edit PATCH, omit `roleId` when unchanged so non-role edits on higher-role users do not hit hierarchy `403`.
+- Do not hardcode per-role `if` chains; do not invent an `allowedTargetRoles` API unless backend adds one.
+- Roles & permissions matrix is live (`listRoles` / `createRole` / `updateRolePermissions`); gate with Roles & permissions `v`/`c`/`e`.
+- Protect routes with `RequirePerm` (inside `RequireAuth`); do not rely on sidebar hide alone.
 
 - Use `listParts()` from `services/parts.js` (session cache); do not fetch per chip click.
 - `PartChips` selects by UUID; submit `parts: id[]` and labour-only `cost`.

@@ -37,15 +37,21 @@ function TrashIcon() {
 
 export default function PartMaster() {
   const { user } = useAuth()
-  const canView = user?.role !== 'Site attendant'
+  const canView = canPerm(user, 'Update ticket', 'v')
   const canCreate =
-    canPerm(user, 'Issue master', 'c') || user?.role === 'Technician'
+    canPerm(user, 'Issue master', 'c') ||
+    user?.role === 'Technician' ||
+    user?.role === 'Engineer'
   const canUpdate =
-    canPerm(user, 'Issue master', 'e') || user?.role === 'Technician'
+    canPerm(user, 'Issue master', 'e') ||
+    user?.role === 'Technician' ||
+    user?.role === 'Engineer'
   const canDelete = canPerm(user, 'Issue master', 'd')
-  // Soft-deactivate uses PATCH — backend allows Issue master `e` or Technician.
+  // Soft-deactivate uses PATCH — backend allows Issue master `e` or Technician/Engineer.
   const canDeactivate =
-    canPerm(user, 'Issue master', 'e') || user?.role === 'Technician'
+    canPerm(user, 'Issue master', 'e') ||
+    user?.role === 'Technician' ||
+    user?.role === 'Engineer'
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(() => canView)
@@ -378,7 +384,7 @@ export default function PartMaster() {
 
           <div className="foot-note">
             Unused parts can be hard-deleted. Parts used on visits stay in history and can only be
-            made inactive from Edit. Technicians can create and update; delete needs Issue master
+            made inactive from Edit. Technicians and Engineers can create and update; delete needs Issue master
             delete permission. Site attendants cannot open this page.
           </div>
         </section>

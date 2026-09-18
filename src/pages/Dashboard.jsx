@@ -4,7 +4,7 @@ import { PageMeta } from '../context/PageMetaContext'
 import { useAuth } from '../context/AuthContext'
 import { ApiRequestError } from '../services/api'
 import { getDashboard } from '../services/dashboard'
-import { canPerm, homePathForUser, isDashboardRole, isFieldTicketUpdater } from '../services/users'
+import { canPerm, homePathForUser, isFieldTicketUpdater } from '../services/users'
 import { JumpLinks } from '../components/ui/JumpLinks'
 import { Panel } from '../components/ui/Panel'
 import { DashboardSkeleton } from '../components/ui/Skeleton'
@@ -51,8 +51,7 @@ function DashboardFilters({ road, from, to, onRoad, onFrom, onTo }) {
 export default function Dashboard() {
   const { user } = useAuth()
   const showUpdateTicketLink = isFieldTicketUpdater(user)
-  const allowed = isDashboardRole(user)
-  const canView = canPerm(user, 'Dashboard', 'v') && allowed
+  const canView = canPerm(user, 'Dashboard', 'v')
 
   const [road, setRoad] = useState('All roads')
   const [from, setFrom] = useState('2026-08-01')
@@ -105,7 +104,7 @@ export default function Dashboard() {
     }
   }, [canView, road, from, to])
 
-  if (!allowed) {
+  if (!canView) {
     return <Navigate to={homePathForUser(user)} replace />
   }
 
