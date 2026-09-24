@@ -53,7 +53,7 @@ export const MENU = [
     label: 'Devices',
     icon: 'device',
     path: '/devices',
-    match: ['device-add', 'device-detail', 'scan-qr'],
+    match: ['device-add', 'device-detail'],
     screen: 'Device list',
   },
   {

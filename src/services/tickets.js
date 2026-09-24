@@ -64,34 +64,61 @@ export async function getTicket(ticketId) {
 }
 
 /**
- * Raise a new ticket (POST /api/tickets). No assignee — Admin/control assigns later.
- * On conflict the API returns 409 OPEN_TICKET_EXISTS / REOPEN_SAME_TICKET with details.
+ * Raise a new ticket (POST /api/tickets). Prefer `issues[]`; legacy single pair still accepted by BE.
+ * Prefer photos: [] here, then uploadImages, then attachTicketRaisePhotos — so the
+ * ticket lands before slow uploads (same order as Add Update).
  * @param {{
  *   deviceId: string,
- *   categoryId: string,
- *   subCategoryId: string,
+ *   issues?: { categoryId: string, subCategoryId: string }[],
+ *   categoryId?: string,
+ *   subCategoryId?: string,
  *   description?: string,
  *   photos?: string[],
  * }} body
- * @returns {Promise<{ id: string, uuid: string, status: string }>}
+ * @returns {Promise<{ id: string, uuid: string, eventId: string, status: string }>}
  */
 export async function createTicket(body) {
+  const payload = {
+    deviceId: body.deviceId,
+    description: body.description || undefined,
+    photos: body.photos || [],
+  }
+  if (Array.isArray(body.issues) && body.issues.length) {
+    payload.issues = body.issues.map((i) => ({
+      categoryId: i.categoryId,
+      subCategoryId: i.subCategoryId,
+    }))
+  } else if (body.categoryId && body.subCategoryId) {
+    payload.categoryId = body.categoryId
+    payload.subCategoryId = body.subCategoryId
+  }
   return api('/api/tickets', {
     method: 'POST',
-    body: {
-      deviceId: body.deviceId,
-      categoryId: body.categoryId,
-      subCategoryId: body.subCategoryId,
-      description: body.description || undefined,
-      photos: body.photos || [],
-    },
+    body: payload,
   })
+}
+
+/**
+ * Attach uploaded photo URLs to the raised event created by createTicket.
+ * @param {string} ticketId
+ * @param {string} eventId
+ * @param {string[]} photos
+ */
+export async function attachTicketRaisePhotos(ticketId, eventId, photos) {
+  return api(
+    `/api/tickets/${encodeURIComponent(ticketId)}/raised/${encodeURIComponent(eventId)}/photos`,
+    {
+      method: 'PATCH',
+      body: { photos },
+    },
+  )
 }
 
 /**
  * Add a site update / visit note. Body matches POST /api/tickets/:id/updates.
  * Prefer photos: [] here, then upload, then attachTicketUpdatePhotos — so uploads
  * only run after the update is accepted.
+ * Optional `issues[]` replaces found-role issues (send full list when editing).
  * @param {string} ticketId
  * @param {{
  *   updateType: string,
@@ -99,6 +126,7 @@ export async function createTicket(body) {
  *   cost?: number,
  *   parts?: string[],
  *   photos?: string[],
+ *   issues?: { categoryId: string, subCategoryId: string }[],
  *   categoryId?: string,
  *   subCategoryId?: string,
  * }} body

@@ -84,7 +84,6 @@ export default function DeviceList() {
   const canView = canPerm(user, 'Device list', 'v')
   const canSync = canPerm(user, 'Device list', 'c')
   const canAdd = canPerm(user, 'Add device', 'c')
-  const canScan = canPerm(user, 'Scan QR', 'v')
 
   const [query, setQuery] = useState('')
   const [road, setRoad] = useState(FILTER_DEFAULTS.road)
@@ -366,7 +365,6 @@ export default function DeviceList() {
         <JumpLinks
           links={[
             ...(canAdd ? [{ to: '/devices/add', label: 'Add device' }] : []),
-            ...(canScan ? [{ to: '/devices/scan', label: 'Scan QR' }] : []),
             { to: '/masters/roads', label: 'Road' },
             { to: '/tickets', label: 'All tickets' },
           ]}

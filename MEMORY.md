@@ -70,7 +70,7 @@
 - Camera live: overlay flip icon (front/rear); **Cancel** + **Take photo** in one row
 - Camera flow: Take photo → crop/review (full-width image, no black letterbox) → Upload (confirm local File) or Recapture
 - Validate `image/*` ≤8 MB; max **5** photos; object-URL thumbs until submit
-- **Deferred upload:** parents call `uploadImages` on Raise / Update / Close / Detail Add Update submit (not on each add)
+- **Deferred upload:** parents call `uploadImages` on Raise / Update / Close / Detail Add Update submit (not on each add); Raise/Update attach after ticket/update is accepted (Phase 38 / 21)
 - Wired on Raise, Ticket Update (fixed + not-fixed), Ticket Close, Detail Add Update
 - Ticket create/update/close POST still toast; photo URLs prepared after upload for future APIs
 - Compact tile preserved; no new npm deps; QrScanner not reused for photos
@@ -173,19 +173,18 @@
 
 ## Currently working on
 
-- **Phase:** Phase 34 — Issue Master create + category hard delete
-- **Task:** Complete — live create category/sub; category DELETE + IN_USE→deactivate; docs
-- **File:** `IssueMaster.jsx`, `issues.js`, docs
+- **Phase:** Phase 38 — Raise create → upload → attach photos
+- **Task:** Complete — Raise matches Add Update photo order
+- **File:** `TicketRaise.jsx`, `tickets.js`, backend `tickets.ts` raised photos PATCH, docs
 
 ## Pending
 
 - Wire Close create API; Ticket Close page still design preview (Detail Add Update is live)
 - External inspection package (`PROJECT_PATH` — deferred until path provided)
-- Roles tab on Users still mostly preview matrix
 - Real Settings preferences beyond profile/password
 - TicketList assignee filter still hardcoded names (Detail assign is live)
-- TicketList / Add Update / Close still use static `ISSUE_MASTER` for some selects (Raise is live)
-- Run migration `007_ticket_status_open.sql` / `009_parts_amount.sql` / `010_device_sync.sql` / `015_issue_master_delete_field_roles.sql` on environments that need them
+- TicketList / Close still use static `ISSUE_MASTER` for some selects (Raise + Add Update use live categories)
+- Run migration `007` / `009` / `010` / `015` / **`017_ticket_issues`** / **`018_site_attendant_device_sync_issue_master`** on environments that need them
 - Finish / verify remaining Phase 23 Parts criteria if still Pending in PR.md
 
 ## Important decisions
@@ -196,8 +195,8 @@
 18. Phase 31: Detail Assign Save → `POST /api/tickets/:id/assign` with `assigneeId` from `GET /api/lookups/technicians`; optional note → `reason`; reload detail for trail/facts.
 19. Phase 32: Parts “delete” = soft `PATCH { active: false }` (no hard DELETE). Issue sub delete = `DELETE` + 409→deactivate; UI gated with Issue master `d`/`e`. Image hover/pinch zoom without new libs. Crop uses `dvh` + sticky actions + larger mobile handles.
 19b. Phase 34: Issue create category/sub via `POST` (`c`); category hard-delete via `DELETE` (`d`) with 409→`PATCH active:false` when `e`. Cache clear so Raise picks up new rows.
-19. Sidebar MENU items carry `screen` keys matching `user.permissions`; hide when no view (`v`); Settings stays always visible (no perm screen); unauthorized `/users` redirects via `homePathForUser` (not always `/dashboard`).
-20. Update Ticket uses live scan (Phase 27b); open ticket → Detail Add Update; free → Raise.
+19c. Phase 37: Raise/Update send `issues[]`; Detail uses `issuesReported`/`issuesFound`; Site attendant Device Sync + Issue Master via BE 018 + existing `canPerm` (no role hardcode).
+19. Sidebar MENU items carry `screen` keys matching `user.permissions`; hide when no view (`v`); Settings stays always visible (no perm screen); unauthorized `/users` redirects via `homePathForUser` (not always `/dashboard`).20. Update Ticket uses live scan (Phase 27b); open ticket → Detail Add Update; free → Raise.
 21. Phase 18: only Admin / Project manager land on and open Dashboard; other roles home to All tickets.
 22. Ticket workflow status labels: Open / Under repair / Waiting for spare / Closed — never display **New**.
 23. Ticket list visibility is raiser OR assignee for non–Admin/PM; do not hide a user’s own raised tickets because the device road is outside `user_roads`.
@@ -261,6 +260,18 @@
 - Sub edit/delete unchanged; Raise Ticket benefits from cache clear
 - Status: Complete
 
+### Phase 37 — Multi-issue + Site attendant Sync / Issue Master (complete)
+
+- `TicketIssueRows` + Raise/Update send `issues[]`; Detail shows `issuesReported` / `issuesFound`
+- Site attendant preview ROLES: Device list `vc....`, Issue master `vce..d` (BE 018); Sync/CRUD via existing `canPerm`
+- Status: Complete
+
+### Phase 38 — Raise create → upload → attach photos (complete)
+
+- Backend: raise response includes `eventId`; `PATCH /api/tickets/:id/raised/:eventId/photos`
+- FE: `createTicket` (`photos: []`) → `uploadImages` → `attachTicketRaisePhotos`; partial photo fail still opens ticket
+- Status: Complete
+
 ## Important decisions (detail)
 
 1–11. Prior phases (filters UI-only, static detail samples, responsive, Phase 10 JWT).
@@ -287,6 +298,7 @@
 32. Backend `tabForStatus`: Closed → `cls`; `!assignee_id` → `new`; else → `asg` (do not put status Open with assignee on Open tab).
 33. Backend `listStatus` (list + tiles only): assignee + Open/New → Under repair for pills/tile counts; no DB rewrite. Open over 3 days = all non-closed with daysOpen > 3.
 34. Detail Add Update network order: updates first, then uploads, then attach photo URLs — avoids orphan uploads on 403.
+35. Raise network order (Phase 38): create ticket first (`photos: []`), then uploads, then `PATCH …/raised/:eventId/photos` — same rationale as Add Update; photo failure after create still navigates to the ticket.
 
 ## Known issues / gaps
 

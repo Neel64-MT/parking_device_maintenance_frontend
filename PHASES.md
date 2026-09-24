@@ -749,10 +749,53 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 37: Multi-issue tickets + Site attendant Sync / Issue Master (FE)
+
+**Objective:** Wire Raise/Update/Detail to backend Phase 41 `issues[]` + `issuesReported`/`issuesFound`; Site attendant Device Sync and Issue Master CRUD via existing `canPerm` after BE migration 018.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `TicketIssueRows` — one category per row, multi-select sub-categories (chips); used categories hidden on Add another; client validation.
+2. Raise submits `issues[]` via `createTicket`.
+3. Add Update loads live categories, seeds from found/reported, posts full `issues[]` when rows complete.
+4. Detail displays `issuesReported` / `issuesFound` (classification fallback).
+5. Align preview `ROLES['Site attendant']` Device list `vc....`, Issue master `vce..d`.
+6. Docs.
+
+**Out of scope:** Close ticket live API; inventing new Sync/Issue Master pages; Ctrl/Cmd multi-select (rows used instead).
+
+**Verification:** Raise N issues; Update replace found set; Detail lists; attendant Sync + Issue Master after `/me` refresh (migrations 017/018).
+
+**Completion:** PR.md Phase 37 criteria pass.
+
+---
+
+## Phase 38: Raise ticket — create first, then photos
+
+**Objective:** Align Raise photo order with Add Update: create ticket → upload images → attach URLs to the raised event (better under concurrent load; avoids orphan uploads when create fails).
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Backend: `POST /api/tickets` returns `eventId` for the raised event; `PATCH /api/tickets/:id/raised/:eventId/photos` attaches URLs (`Raise ticket` `c`).
+2. Frontend: `createTicket` with `photos: []` → `uploadImages` → `attachTicketRaisePhotos`; partial photo failure still navigates to the new ticket with a warning toast.
+3. Docs (RULES / ARCHITECTURE / DESIGN / MEMORY / PR).
+
+**Out of scope:** Close ticket photo attach; changing Update attach path.
+
+**Verification:** Raise with photos shows images on Detail trail; Raise without photos still succeeds; create failure does not upload; photo failure after create still opens the ticket.
+
+**Completion:** PR.md Phase 38 criteria pass.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 28 ──► Phase 29 ──► Phase 30 ──► Phase 31 ──► Phase 32 ──► Phase 34
+Phase 0 ──► … ──► Phase 34 ──► Phase 37 ──► Phase 38
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

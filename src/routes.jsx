@@ -13,7 +13,6 @@ import ResetPassword from './pages/auth/ResetPassword'
 import DeviceList from './pages/devices/DeviceList'
 import DeviceDetail from './pages/devices/DeviceDetail'
 import DeviceAdd from './pages/devices/DeviceAdd'
-import ScanQr from './pages/devices/ScanQr'
 import IssueMaster from './pages/masters/IssueMaster'
 import RoadList from './pages/masters/RoadList'
 import RoadAdd from './pages/masters/RoadAdd'
@@ -65,7 +64,6 @@ export function AppRoutes() {
 
         <Route path="devices" element={<DeviceList />} />
         <Route path="devices/add" element={<DeviceAdd />} />
-        <Route path="devices/scan" element={<ScanQr />} />
         <Route path="devices/:deviceId" element={<DeviceDetail />} />
 
         <Route path="masters/issues" element={<IssueMaster />} />

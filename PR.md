@@ -612,6 +612,39 @@ IssueMaster → POST /categories | POST /subcategories (c)
 | Sub delete/edit unchanged; list refresh without full reload | Pass |
 | Raise Ticket still uses live `listIssueCategories` (cache cleared) | Pass |
 
+### Phase 37 — Multi-issue tickets + Site attendant Sync / Issue Master
+
+```text
+Raise/Update → issues[{ categoryId, subCategoryId }, …]
+Detail → issuesReported / issuesFound (+ classification fallback)
+Site attendant → Device list c (Sync) + Issue master vce..d via /me + canPerm
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Raise multi-row issues → `POST /api/tickets` `issues[]` | Pass |
+| Client duplicate sub toast; incomplete row blocked | Pass |
+| Add Update live categories + full `issues[]` on submit | Pass |
+| Detail lists reported/found arrays | Pass |
+| Site attendant ROLES preview matches BE seed | Pass |
+| Sync / Issue Master reuse existing `canPerm` UI | Pass |
+| No new Sync or Issue Master page | Pass |
+
+### Phase 38 — Raise create → upload → attach photos
+
+```text
+Raise → POST /api/tickets (photos []) → uploadImages → PATCH …/raised/:eventId/photos
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Create returns `eventId` for raised event | Pass |
+| Photos upload only after create succeeds | Pass |
+| `attachTicketRaisePhotos` patches raised event | Pass |
+| Photo fail after create still opens the new ticket | Pass |
+| Raise without photos still succeeds | Pass |
+| Same network order pattern as Add Update | Pass |
+
 ### Phase 33 FE — SmartPark sticker `qr_token`
 
 ```text

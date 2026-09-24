@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 
 /**
  * “Go to” pill strip — .jump
- * Optional `actions` render on the right (e.g. Scan QR / Add device).
+ * Optional `actions` render on the right (e.g. Sync / Add device).
  * Links pass `state.from` so destination Cancel can return here.
  */
 export function JumpLinks({ label = 'Go to', links, actions = null }) {

@@ -6,7 +6,7 @@ import { toast, toastApiError } from '../../context/ToastContext'
 import { scanDeviceFacts } from '../../data/scanDevice'
 import { canScanWithCamera, resolveScan } from '../../services/devices'
 import { getTicket } from '../../services/tickets'
-import { isDashboardRole } from '../../services/users'
+import { canPerm, isDashboardRole } from '../../services/users'
 import { TicketAddUpdateForm } from '../../components/tickets/TicketAddUpdateForm'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
@@ -54,6 +54,7 @@ async function gateAssigneeUpdate(ticketId, userId) {
 export default function TicketUpdate() {
   const { user } = useAuth()
   const canScan = canScanWithCamera(user)
+  const canSubmitUpdate = canPerm(user, 'Update ticket', 'e')
   const pickVisitedBy = isDashboardRole(user)
   const location = useLocation()
   const navigate = useNavigate()
@@ -219,6 +220,21 @@ export default function TicketUpdate() {
   const raiseQr = qrInput.trim() || device?.scan?.qrNumber || device?.scan?.qr || ''
   const header = activeTicket?.header
   const formReady = Boolean(activeTicket?.header?.id)
+  const initialUpdateIssues = useMemo(() => {
+    const found = activeTicket?.issuesFound
+    const reported = activeTicket?.issuesReported
+    const source =
+      Array.isArray(found) && found.length
+        ? found
+        : Array.isArray(reported) && reported.length
+          ? reported
+          : null
+    if (!source) return null
+    return source.map((i) => ({
+      categoryId: i.categoryId || '',
+      subCategoryId: i.subCategoryId || '',
+    }))
+  }, [activeTicket])
 
   return (
     <>
@@ -321,7 +337,8 @@ export default function TicketUpdate() {
                   formId="ticket-update-page-form"
                   photoPickerKey={`upd-page-${header.id}`}
                   hideActions
-                  canSubmit
+                  canSubmit={canSubmitUpdate}
+                  initialIssues={initialUpdateIssues}
                   onBusyChange={setFormBusy}
                   onSuccess={() => {
                     navigate(backTo)
@@ -454,7 +471,7 @@ export default function TicketUpdate() {
                 type="submit"
                 variant="primary"
                 form="ticket-update-page-form"
-                disabled={formBusy || busy}
+                disabled={!canSubmitUpdate || formBusy || busy}
               >
                 {formBusy ? 'Saving…' : 'Save update'}
               </Button>
