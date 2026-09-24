@@ -76,6 +76,8 @@ Open tab (new) = unassigned non-closed only; Assigned (asg) = has assignee; Clos
 Tile Open, not attended must match Open tab; assigned rows still stored as Open/New must listStatus as Under repair for pills and Under repair tile (DB unchanged).
 Add Update must reuse the existing form fields; present it in Modal only.
 Add Update submit (Phase 21+): POST /api/tickets/:id/updates first (photos may be empty), then uploadImages, then PATCH …/updates/:eventId/photos. Do not upload photos before the update is accepted. Toast success only when all required steps succeed; reload work history from GET ticket.
+
+Raise submit (Phase 38): POST /api/tickets first (photos may be empty), then uploadImages, then PATCH …/raised/:eventId/photos. Do not upload photos before the ticket is accepted. If create succeeds but photos fail, warn and still open the new ticket (do not re-create).
 Show Add Update for ops roles (Admin / Project manager / Control room) via `isOpsTicketUpdater`, **or** for the current ticket assignee (`ticket.assigneeId === user.id`), when Update ticket `v` is set and status is not Closed. Show QR **Update Ticket** (→ `/tickets/update`) for field roles (`isFieldTicketUpdater`) who are **not** the assignee. Backend remains the authority for mutations.
 Work history displays oldest → newest (new entries at the bottom); keep the trail always visible.
 Show **View Update** on every work-history row; open a Modal with mapped trail fields only (when, actor, title, status, body, parts, cost, next visit). Do **not** put images, thumbnails, or ImagePreviewModal inside View Update.
@@ -89,6 +91,8 @@ Only Admin and Project manager may open Dashboard (isDashboardRole / homePathFor
 After login (and GuestOnly / / / catch-all), non–ops-lead roles go to /tickets.
 Hide Dashboard in the sidebar for other roles even if permissions still list Dashboard v.
 For Site attendant and Technician, show All tickets as a top-level sidebar item (not under a Tickets submenu) when it is the only visible Tickets child.
+
+Raise and Update ticket forms may collect multiple Category → Sub pairs as `issues[]` (backend Phase 41). Do not invent alternate field names. Site attendant Device Sync and Issue Master actions use `canPerm` only — no `if (role === 'Site attendant')` for those features.
 Unauthorized Users redirect uses homePathForUser, not a hard-coded /dashboard.
 Ticket status & list columns (Phase 18+)
 Do not show ticket status New; use Open (normalize legacy API/DB values).
@@ -99,7 +103,7 @@ Camera Scan is available to any signed-in user (`canScanWithCamera` = Boolean(us
 Resolve scans with live `resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy PD/QR/slot → `GET /api/devices/scan?q=`. Do not call SmartPark from the browser. Do not invent /devices/by-qr or /tickets/by-slot.
 Open ticket = status ≠ Closed; at most one open ticket per device / Slot Id. FE must not offer Create new ticket when openTicketId is set; backend remains authoritative (409 OPEN_TICKET_EXISTS).
 Do not proceed to raise when device lookup fails or returns miss. Do not assume no open ticket when the scan API errors.
-Raise create: POST /api/tickets with scan deviceId (not QR alone) + category/subCategory UUIDs from GET /api/issues + optional photos. On OPEN_TICKET_EXISTS / REOPEN_SAME_TICKET, guide to Update Ticket / existing ticket.
+Raise create: POST /api/tickets with scan deviceId (not QR alone) + issues[] (or category/subCategory UUIDs) from GET /api/issues; photos via create → upload → PATCH …/raised/:eventId/photos (Phase 38). On OPEN_TICKET_EXISTS / REOPEN_SAME_TICKET, guide to Update Ticket / existing ticket.
 Raise open-ticket primary CTA is **Update Ticket** → `/tickets/update?ticketId=` (+ optional `qr` / `from` state). Secondary Open → `/tickets/:id`. Never offer Raise create when `openTicketId` is set.
 `/tickets/update` is the Update Ticket experience: QR find-device (or entry `ticketId`), assignee gate via `getTicket` (open + `assigneeId === user.id`), then render shared `TicketAddUpdateForm` on the page. Do **not** redirect Update Ticket actions to `/tickets/:id`. Not assigned / closed → toast; do not show the form.
 Reuse existing QrScannerModal and resolveScan. Assignee is not on the scan payload — use getTicket.assigneeId. Backend remains final authorization on POST update.

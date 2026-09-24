@@ -3160,6 +3160,57 @@ a.rank-row:hover .name {
   cursor: pointer;
 }
 
+.ticket-issue-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ticket-issue-row {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--panel, #fff);
+}
+
+.ticket-issue-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ticket-issue-rows-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.issue-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.issue-group + .issue-group {
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.issue-list {
+  margin: 4px 0 0;
+  padding-left: 1.15em;
+  list-style: disc;
+}
+
+.issue-list li {
+  margin: 2px 0;
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.35;
+}
+
 .perm tbody tr:hover {
   background: var(--hover);
 }

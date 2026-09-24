@@ -33,8 +33,8 @@ export const ROLE_HELP = [
   },
   {
     role: 'Site attendant',
-    can: 'Scan QR and raise a ticket for devices on their own road',
-    cannot: 'Assign or close tickets',
+    can: 'Scan QR, raise tickets, Device Sync, and manage Issue master',
+    cannot: 'Assign or close tickets; Update ticket',
   },
   {
     role: 'AMC officer',
@@ -316,18 +316,18 @@ export const ROLES = {
     },
   },
   'Site attendant': {
-    note: 'Can report a problem and nothing else. Cannot see cost, reports or other roads.',
+    note: 'Can scan and raise on any road; Device Sync and Issue master CRUD. Cannot update, assign, or close tickets.',
     p: {
       Dashboard: '......',
       'Raise ticket': 'vc....',
       'Update ticket': '......',
       'All tickets': 'v.....',
       'Work report': '......',
-      'Device list': 'v.....',
+      'Device list': 'vc....',
       'Add device': '......',
       'Device history': '......',
       'Scan QR': 'v.....',
-      'Issue master': 'v.....',
+      'Issue master': 'vce..d',
       'Road master': '......',
       Users: '......',
       'Roles & permissions': '......',

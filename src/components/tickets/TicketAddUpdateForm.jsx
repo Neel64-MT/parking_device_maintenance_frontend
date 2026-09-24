@@ -1,13 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { TEAM } from '../../data/team'
 import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { ApiRequestError } from '../../services/api'
+import { listIssueCategories } from '../../services/issues'
 import { listParts, sumSelectedPartsAmount } from '../../services/parts'
 import { addTicketUpdate, attachTicketUpdatePhotos } from '../../services/tickets'
 import { uploadImages } from '../../services/uploads'
+import {
+  hasDuplicateSubCategories,
+  hasIncompleteIssueRows,
+  issuesToRows,
+  rowsToIssuePairs,
+} from './ticketIssueRowsHelpers'
+import { TicketIssueRows } from './TicketIssueRows'
 import { Button } from '../ui/Button'
 import { Field } from '../ui/FilterBar'
-import { IssueSelects } from '../ui/IssueSelects'
 import { PartChips } from '../ui/PartChips'
 import { PhotoPicker } from '../ui/PhotoPicker'
 
@@ -23,6 +30,7 @@ function todayLocalIso() {
 /**
  * Shared Add Update form (Detail modal + /tickets/update page).
  * Submit order: update → upload photos → attach URLs.
+ * `initialIssues` seeds found/reported pairs from ticket detail (full list on submit).
  */
 export function TicketAddUpdateForm({
   ticketId,
@@ -37,10 +45,10 @@ export function TicketAddUpdateForm({
   onSuccess,
   onBusyChange,
   canSubmit = true,
+  initialIssues = null,
 }) {
   const [updType, setUpdType] = useState('Site visit — not resolved')
-  const [updCat, setUpdCat] = useState('')
-  const [updSub, setUpdSub] = useState('')
+  const [issueRows, setIssueRows] = useState(() => issuesToRows(initialIssues))
   const [updPhotos, setUpdPhotos] = useState([])
   const [updWorkDone, setUpdWorkDone] = useState('')
   const [updCost, setUpdCost] = useState('')
@@ -50,11 +58,12 @@ export function TicketAddUpdateForm({
   const [partsItems, setPartsItems] = useState([])
   const [partsLoading, setPartsLoading] = useState(true)
   const [partsError, setPartsError] = useState('')
+  const [issueCategories, setIssueCategories] = useState([])
+  const [issuesLoading, setIssuesLoading] = useState(true)
 
   function resetUpdateForm() {
     setUpdType('Site visit — not resolved')
-    setUpdCat('')
-    setUpdSub('')
+    setIssueRows(issuesToRows(initialIssues))
     setUpdPhotos([])
     setUpdWorkDone('')
     setUpdCost('')
@@ -62,9 +71,23 @@ export function TicketAddUpdateForm({
     setUpdVisitedBy(pickVisitedBy ? '' : user?.name || '')
   }
 
+  const issueSeedKey = useMemo(() => {
+    if (!Array.isArray(initialIssues) || !initialIssues.length) return ''
+    return initialIssues.map((i) => `${i.categoryId || ''}:${i.subCategoryId || ''}`).join('|')
+  }, [initialIssues])
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setIssueRows(issuesToRows(initialIssues))
+    }, 0)
+    return () => window.clearTimeout(id)
+  }, [ticketId, issueSeedKey]) // eslint-disable-line react-hooks/exhaustive-deps -- seed from ticket only
+
   useEffect(() => {
     let cancelled = false
-    setPartsLoading(true)
+    const id = window.setTimeout(() => {
+      if (!cancelled) setPartsLoading(true)
+    }, 0)
     listParts()
       .then((list) => {
         if (!cancelled) {
@@ -83,6 +106,31 @@ export function TicketAddUpdateForm({
       })
     return () => {
       cancelled = true
+      window.clearTimeout(id)
+    }
+  }, [ticketId])
+
+  useEffect(() => {
+    let cancelled = false
+    const id = window.setTimeout(() => {
+      if (!cancelled) setIssuesLoading(true)
+    }, 0)
+    listIssueCategories()
+      .then((cats) => {
+        if (!cancelled) setIssueCategories(cats)
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          toastApiError(err, 'Could not load issue categories.')
+          setIssueCategories([])
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIssuesLoading(false)
+      })
+    return () => {
+      cancelled = true
+      window.clearTimeout(id)
     }
   }, [ticketId])
 
@@ -101,16 +149,32 @@ export function TicketAddUpdateForm({
       toast('Select who visited.', 'error')
       return
     }
+
+    const issues = rowsToIssuePairs(issueRows)
+    if (hasIncompleteIssueRows(issueRows)) {
+      toast('Select at least one sub-category for each chosen category.', 'error')
+      return
+    }
+    if (hasDuplicateSubCategories(issueRows)) {
+      toast('Each issue can only be selected once.', 'error')
+      return
+    }
+
     setUpdSubmitting(true)
     onBusyChange?.(true)
     try {
-      const saved = await addTicketUpdate(ticketId, {
+      const body = {
         updateType: updType,
         workDone: updWorkDone.trim() || undefined,
         cost: updCost === '' ? 0 : Number(updCost) || 0,
         parts: [...new Set(updPartIds)],
         photos: [],
-      })
+      }
+      if (issues.length) {
+        body.issues = issues
+      }
+
+      const saved = await addTicketUpdate(ticketId, body)
 
       if (updPhotos.length) {
         if (!saved?.eventId) {
@@ -198,14 +262,23 @@ export function TicketAddUpdateForm({
         </Field>
       </div>
 
+      <div style={{ marginTop: 12 }}>
+        {issuesLoading ? (
+          <p className="muted">Loading issue categories…</p>
+        ) : (
+          <TicketIssueRows
+            rows={issueRows}
+            onChange={setIssueRows}
+            categories={issueCategories}
+            disabled={updSubmitting}
+            minRows={1}
+            categoryLabel="Issue category found"
+            addLabel="Add another found issue"
+          />
+        )}
+      </div>
+
       <div className="row" style={{ marginTop: 12 }}>
-        <IssueSelects
-          category={updCat}
-          subCategory={updSub}
-          onCategoryChange={setUpdCat}
-          onSubCategoryChange={setUpdSub}
-          categoryLabel="Issue category found"
-        />
         <Field
           label="Labour / other charges"
           hintAfter="Part prices come from Parts and are added by the server."

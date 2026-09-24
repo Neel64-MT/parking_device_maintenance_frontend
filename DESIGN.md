@@ -178,6 +178,14 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Action chrome | Transparent background; no full-bleed white footer / top border / shadow |
 | Shared on | Raise, Update, Close ticket pages |
 
+## Phase 37 — Multi-issue rows
+
+| Item | Pattern |
+|------|---------|
+| Issue rows | One category per row; multi-select sub-categories as chips; used categories hidden on Add another |
+| Detail multi | Group by category under As reported / As found (category header + sub list from `issuesReported` / `issuesFound`) |
+| Site attendant | Sync + Issue Master via permissions; Parts still role-hidden |
+
 ## Phase 15 — Ticket visibility (UX notes)
 
 | Item | Behavior |
@@ -202,11 +210,11 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Scan button | Opens `QrScannerModal` for any signed-in user |
 | Device card after scan | QR Number, Slot Id, Slot Label, Slot Identifier, Parking Location, Status, Open ticket (+ lat/lng when present) |
 | Raise with open ticket | `.reclass` banner; disable Raise; Open / Update existing ticket → `/tickets/:id` |
-| Free device Raise | Step 2 problem form; issue UUID selects; live `POST /api/tickets` |
+| Free device Raise | Step 2 problem form; issue UUID selects; live `POST /api/tickets` then optional photo attach |
 | Loading | “Fetching device…” while `resolveScan` runs; Raise disabled while resolving/submitting |
 | Scan API error | Toast + clear device; do not offer Raise |
 | Update after scan | Live resolveScan; open ticket → Detail CTAs; free → Raise CTA; miss/error EmptyState |
-| Scan QR page | Live camera when role allows; miss / error empty panels; no simulate-mock buttons |
+| Scan QR page | Removed — use Raise / Update Ticket camera or typed QR instead |
 
 ## Phase 18 — Home, status, Raised by
 
@@ -250,7 +258,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Crop layout | Image fits viewport (`max-height` + `object-fit: contain`); transparent stage — **no black letterbox**; larger handles on mobile |
 | Preview thumbs | Local object-URL in `.photo-thumb.has-img`; × removes one; count `N of 5` |
 | Cap | Max **5** photos; Add tile hidden at limit |
-| Upload timing | Parent `uploadImages` on form submit — not per-file on add |
+| Upload timing | Parent `uploadImages` on form submit — not per-file on add; Raise/Update attach after create/update succeeds |
 | CSS | `.photo-source-menu`, `.camera-capture-*`, `.camera-flip-*`, `.camera-crop-*` in `index.css` |
 
 ## Phase 21 — Sidebar alignment, pagination, PhotoPicker/modal, live Add Update
@@ -266,6 +274,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | TicketList pager | `.table-pagination` Card Minimal right: Page X of Y + N per page left; Previous / Next right; one row at all widths (≤560: tighter gap, Prev short label, content-sized select) |
 | Limit options | 10 / 25 / 50 / 100 (default 25) |
 | PhotoPicker in modal | Source menu + camera portaled to `body`; hidden folder input; Add photo leftmost when empty |
+| Raise save | `POST /api/tickets` (photos `[]`) → `uploadImages` → `PATCH …/raised/:eventId/photos` |
 | Add Update save | `POST /updates` → `uploadImages` → `PATCH …/photos`; button needs Update-ticket `e` |
 
 ## Phase 22 — Responsive skeleton loaders
@@ -379,7 +388,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 |------|---------|
 | Scan resolve | `resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy → `GET /api/devices/scan?q=`; “Fetching device…” while in flight |
 | Device facts | QR Number, Slot Id, Slot Label, Slot Identifier, Parking Location, Status, Open ticket |
-| No open ticket | Raise step 2; issue UUID selects; Raise → upload → `POST /api/tickets` |
+| No open ticket | Raise step 2; issue UUID selects; Raise → `POST /api/tickets` → upload → `PATCH …/raised/:eventId/photos` |
 | Open ticket | `.reclass`; no Create; primary **Update Ticket** → `/tickets/update` (`ticketId` + `qr`); secondary Open → Detail |
 | Create conflict | Toast + refresh blocked state / navigate via `details.openTicketId` |
 | Scan miss / error | EmptyState; error does not allow Raise |

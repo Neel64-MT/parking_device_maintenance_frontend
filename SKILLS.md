@@ -156,9 +156,11 @@ Inspect existing code
 - Use `QrScannerModal` + `html5-qrcode`; stop the camera on close.
 - Gate camera with `canScanWithCamera(user)` — any signed-in user.
 - Resolve scans through `services/devices.resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy PD/QR/slot → `GET /api/devices/scan?q=` (404 → null). Never call SmartPark from the browser.
-- Site attendant Raise: map scan fields; block create when `openTicketId` is set; create via `createTicket` + issue UUIDs from `listIssueCategories`.
+- Site attendant Raise: map scan fields; block create when `openTicketId` is set; create via `createTicket` (`photos: []`) + `issues[]` from `TicketIssueRows` / `listIssueCategories`, then optional `uploadImages` → `attachTicketRaisePhotos`.
 - Raise open-ticket primary **Update Ticket** → `/tickets/update?ticketId=` (+ `qr` state); secondary Open → Detail.
-- Update Ticket page: live `resolveScan` or entry `ticketId`; gate with `getTicket` (open + assignee); show `TicketAddUpdateForm` on the page; free → Raise (+ `qr`).
+- Update Ticket page: live `resolveScan` or entry `ticketId`; gate with `getTicket` (open + assignee); show `TicketAddUpdateForm` with seeded `issuesFound`/`issuesReported`; free → Raise (+ `qr`).
+- Multi-issue: reuse `TicketIssueRows` + `IssueSelects`; send full `issues[]` on update when editing found issues; Detail prefers `issuesReported` / `issuesFound`.
+- Site attendant Sync / Issue Master: rely on `/api/auth/me` permissions after migration 018; do not hardcode the role.
 - Detail header: ops **or** assignee → Add update Modal (shared form); field non-assignee → QR Update Ticket link.
 
 ## Ticket detail / list UI skills (Phase 19+)

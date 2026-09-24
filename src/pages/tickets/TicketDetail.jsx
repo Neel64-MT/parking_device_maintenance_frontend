@@ -13,6 +13,7 @@ import {
   listTechnicianLookups,
 } from '../../services/users'
 import { TicketAddUpdateForm } from '../../components/tickets/TicketAddUpdateForm'
+import { groupIssuesForDisplay } from '../../components/tickets/ticketIssueRowsHelpers'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/FilterBar'
 import { ImagePreviewModal } from '../../components/ui/ImagePreviewModal'
@@ -33,6 +34,32 @@ function ScanQrIcon() {
       <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
       <path d="M4 12h16" />
     </svg>
+  )
+}
+
+function IssueClassificationList({ issues, emptyBig = '—', emptySub = '—' }) {
+  const groups = groupIssuesForDisplay(issues)
+  if (!groups.length) {
+    return (
+      <>
+        <div className="big">{emptyBig}</div>
+        <div className="sub2">{emptySub}</div>
+      </>
+    )
+  }
+  return (
+    <div className="issue-groups">
+      {groups.map((g) => (
+        <div key={g.key} className="issue-group">
+          <div className="big">{g.category}</div>
+          <ul className="issue-list">
+            {g.subs.map((s) => (
+              <li key={s.key}>{s.label}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -394,6 +421,40 @@ export default function TicketDetail() {
 
   const header = ticket?.header
   const classification = ticket?.classification
+  const issuesReported = ticket?.issuesReported
+  const issuesFound = ticket?.issuesFound
+
+  const reportedIssues = useMemo(() => {
+    if (Array.isArray(issuesReported) && issuesReported.length) {
+      return issuesReported
+    }
+    const r = classification?.reported
+    if (r?.category || r?.sub) return [r]
+    return []
+  }, [issuesReported, classification])
+
+  const foundIssues = useMemo(() => {
+    if (Array.isArray(issuesFound) && issuesFound.length) {
+      return issuesFound
+    }
+    const f = classification?.found
+    if (f?.category || f?.sub) return [f]
+    return []
+  }, [issuesFound, classification])
+
+  const initialUpdateIssues = useMemo(() => {
+    const source =
+      Array.isArray(issuesFound) && issuesFound.length
+        ? issuesFound
+        : Array.isArray(issuesReported) && issuesReported.length
+          ? issuesReported
+          : null
+    if (!source) return null
+    return source.map((i) => ({
+      categoryId: i.categoryId || '',
+      subCategoryId: i.subCategoryId || '',
+    }))
+  }, [issuesFound, issuesReported])
   const workHistory = useMemo(() => mapWorkHistory(ticket?.workHistory), [ticket])
   const assignmentTrail = ticket?.assignmentTrail || []
   const devicePreviousTickets = ticket?.devicePreviousTickets || []
@@ -511,13 +572,15 @@ export default function TicketDetail() {
     }
   }
 
-  const reportedLabel = classification?.reported
-    ? [classification.reported.category, classification.reported.sub].filter(Boolean).join(' › ')
-    : null
-  const foundLabel = classification?.found
-    ? [classification.found.category, classification.found.sub].filter(Boolean).join(' › ')
-    : null
-  const showReclass = reportedLabel && foundLabel && reportedLabel !== foundLabel
+  const reportedLabel = reportedIssues
+    .map((i) => [i.category, i.sub].filter(Boolean).join(' › '))
+    .filter(Boolean)
+    .join('; ')
+  const foundLabel = foundIssues
+    .map((i) => [i.category, i.sub].filter(Boolean).join(' › '))
+    .filter(Boolean)
+    .join('; ')
+  const showReclass = Boolean(reportedLabel && foundLabel && reportedLabel !== foundLabel)
 
   return (
     <>
@@ -623,7 +686,7 @@ export default function TicketDetail() {
                         key={`${item.when}-${item.title}`}
                         className={`tl-item${item.tone ? ` ${item.tone}` : ''}`}
                       >
-                        <div className="when">{item.when}</div>
+                        <div className="when">{formatRaisedOn(item.when)}</div>
                         <h4>
                           {item.title}
                           {item.status ? (
@@ -681,13 +744,15 @@ export default function TicketDetail() {
                   <div className="class-pair">
                     <div>
                       <small>As reported</small>
-                      <div className="big">{classification?.reported?.sub || '—'}</div>
-                      <div className="sub2">{classification?.reported?.category || '—'}</div>
+                      <IssueClassificationList issues={reportedIssues} />
                     </div>
                     <div>
                       <small>As found</small>
-                      <div className="big">{classification?.found?.sub || 'Not inspected yet'}</div>
-                      <div className="sub2">{classification?.found?.category || '—'}</div>
+                      <IssueClassificationList
+                        issues={foundIssues}
+                        emptyBig="Not inspected yet"
+                        emptySub="—"
+                      />
                     </div>
                   </div>
                   <div className="foot-note">
@@ -799,6 +864,7 @@ export default function TicketDetail() {
             pickVisitedBy={pickVisitedBy}
             photoPickerKey="upd-photos-open"
             canSubmit={showAddUpdate}
+            initialIssues={initialUpdateIssues}
             onCancel={() => setUpdOpen(false)}
             onSuccess={async () => {
               setUpdOpen(false)
