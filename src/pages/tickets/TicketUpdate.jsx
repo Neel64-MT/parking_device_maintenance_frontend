@@ -220,21 +220,6 @@ export default function TicketUpdate() {
   const raiseQr = qrInput.trim() || device?.scan?.qrNumber || device?.scan?.qr || ''
   const header = activeTicket?.header
   const formReady = Boolean(activeTicket?.header?.id)
-  const initialUpdateIssues = useMemo(() => {
-    const found = activeTicket?.issuesFound
-    const reported = activeTicket?.issuesReported
-    const source =
-      Array.isArray(found) && found.length
-        ? found
-        : Array.isArray(reported) && reported.length
-          ? reported
-          : null
-    if (!source) return null
-    return source.map((i) => ({
-      categoryId: i.categoryId || '',
-      subCategoryId: i.subCategoryId || '',
-    }))
-  }, [activeTicket])
 
   return (
     <>
@@ -338,7 +323,6 @@ export default function TicketUpdate() {
                   photoPickerKey={`upd-page-${header.id}`}
                   hideActions
                   canSubmit={canSubmitUpdate}
-                  initialIssues={initialUpdateIssues}
                   onBusyChange={setFormBusy}
                   onSuccess={() => {
                     navigate(backTo)

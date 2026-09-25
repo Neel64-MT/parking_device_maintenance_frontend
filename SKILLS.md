@@ -158,8 +158,8 @@ Inspect existing code
 - Resolve scans through `services/devices.resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy PD/QR/slot → `GET /api/devices/scan?q=` (404 → null). Never call SmartPark from the browser.
 - Site attendant Raise: map scan fields; block create when `openTicketId` is set; create via `createTicket` (`photos: []`) + `issues[]` from `TicketIssueRows` / `listIssueCategories`, then optional `uploadImages` → `attachTicketRaisePhotos`.
 - Raise open-ticket primary **Update Ticket** → `/tickets/update?ticketId=` (+ `qr` state); secondary Open → Detail.
-- Update Ticket page: live `resolveScan` or entry `ticketId`; gate with `getTicket` (open + assignee); show `TicketAddUpdateForm` with seeded `issuesFound`/`issuesReported`; free → Raise (+ `qr`).
-- Multi-issue: reuse `TicketIssueRows` + `IssueSelects`; send full `issues[]` on update when editing found issues; Detail prefers `issuesReported` / `issuesFound`.
+- Update Ticket page: live `resolveScan` or entry `ticketId`; gate with `getTicket` (open + assignee); show `TicketAddUpdateForm` with a blank issue row for user selection; free → Raise (+ `qr`).
+- Multi-issue: reuse `TicketIssueRows` + `IssueSelects`; Update starts blank and sends the selected `issues[]`; Sub-category is stacked below category; Detail prefers `issuesReported` / `issuesFound`. Parts were changed uses one radio with a single Yes option; order the searchable PartChips dropdown, removable selected tags, Labour / other charges, then the Parts Total / optional Labour / Total Amount summary. Reject negative labour; do not add a payload field.
 - Site attendant Sync / Issue Master: rely on `/api/auth/me` permissions after migration 018; do not hardcode the role.
 - Detail header: ops **or** assignee → Add update Modal (shared form); field non-assignee → QR Update Ticket link.
 
@@ -192,6 +192,7 @@ Inspect existing code
 - Use `listParts()` from `services/parts.js` (session cache); do not fetch per chip click.
 - `PartChips` selects by UUID; submit `parts: id[]` and labour-only `cost`.
 - Display backend `cost` / `partsCost` after save; never send a client-calculated visit total as authoritative.
+- Ticket list `updates` is backend-counted from Update Ticket event types only; include `reclassified`, exclude raised/assigned/closed, and do not filter by role.
 
 ## Issue Master (Phase 32 / 34+)
 
@@ -211,6 +212,20 @@ Inspect existing code
 - On complete, toast `devicesCreated` / `devicesUpdated` / `devicesSkipped` from `run.stats` when numeric; do not invent other stats fields.
 - Backend owns skip/upsert validation; FE never creates devices from sync payloads.
 - Device list status tiles filter via `listDevices({ status })` on the same page; do not route Under repair / Not working to `/tickets`.
+
+## Notification skills (Phase 39+)
+
+- Consume `services/notifications.js` and the existing backend `/api/notifications` endpoints; preserve backend pagination with `apiEnvelope`.
+- Keep one `useTicketNotifications` owner in `AppLayout`; pass its count to `Topbar` and `Sidebar` so the bell and both ticket badges cannot drift.
+- Gate the UX with the existing role names plus `canPerm(user, 'All tickets', 'v')`; never use client state as authorization.
+- Use `public/sw.js` for `push` and `notificationclick`; the page handles protected mark-read requests because the JWT is in `localStorage`.
+- Play `public/sounds/elevenlabs-achievement-unlock.mp3` for a new push or unread-count increase, including an open background tab; debounce duplicate events and ignore autoplay rejection.
+- Permission is opt-in and user-triggered. Reconcile existing subscriptions through the backend push-config/subscription APIs; do not prompt on load or add a second SW.
+- Use backend `data.url`/`canOpen` with the existing ticket route; rely on TicketDetail for 403/404 handling.
+- Fall back to visible-page polling/focus refresh because the backend has no WebSocket/SSE transport.
+- In TicketDetail View Update, use structured reported/found issue arrays, group by category, show all sub-categories, and fall back to scalar fields for older events; hide the issue section when no issue data exists.
+
+---
 
 ## Definition of done (per page)
 

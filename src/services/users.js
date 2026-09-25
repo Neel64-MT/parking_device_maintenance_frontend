@@ -43,6 +43,17 @@ export function canPerm(user, screen, flag) {
   return idx >= 0 && code[idx] === flag
 }
 
+/**
+ * New-ticket notifications are produced by the backend for these roles only.
+ * This is a presentation guard; the backend remains the authorization source.
+ */
+export function canReceiveTicketNotifications(user) {
+  return (
+    canPerm(user, 'All tickets', 'v') &&
+    ['Admin', 'Project manager', 'Control room'].includes(user?.role)
+  )
+}
+
 /** Dashboard is the home screen only for Admin and Project manager. */
 export function isDashboardRole(user) {
   return user?.role === 'Admin' || user?.role === 'Project manager'

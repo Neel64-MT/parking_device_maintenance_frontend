@@ -29,6 +29,19 @@ npm run dev      # http://localhost:5000
 | Email | `alkesh.patel@pdm.local` |
 | Password | `Password123` |
 
+## Browser notifications
+
+The frontend consumes the backend's existing `ticket.raised` notification and VAPID Web Push APIs. Browser push is opt-in:
+
+1. Sign in as an eligible `Admin`, `Project manager`, or `Control room` user with **All tickets → View** access.
+2. Open the bell in the topbar and choose **Enable** under Browser notifications.
+3. Approve the browser's native permission prompt.
+4. The frontend registers the browser subscription through the backend; the same backend unread count appears on the bell, Tickets, and All tickets.
+
+`default` permission is never requested on page load. `denied` permission shows browser-settings guidance without repeatedly prompting. If VAPID is not configured, in-app notifications and unread badges remain available but background browser push is disabled. Web Push requires a secure context (`https://` or localhost) and a supported browser.
+
+Notification clicks use the existing `/tickets/:ticketId` route. Opening a notification marks its notification record read through the backend; the existing ticket authorization/404 handling still applies. When a new notification arrives, the page attempts to play `public/sounds/elevenlabs-achievement-unlock.mp3`, including when the app tab is open in the background; browser autoplay policy may require a prior user interaction.
+
 ## Routes
 
 | Path | Screen |

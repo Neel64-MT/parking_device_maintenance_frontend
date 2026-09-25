@@ -114,6 +114,14 @@ const PATHS = {
       <path d="M17.5 6.5l-11 11" />
     </>
   ),
+  /* Notifications — bell */
+  bell: (
+    <>
+      <path d="M18.5 9.8a6.5 6.5 0 0 0-13 0c0 7-2.5 7-2.5 8.2h18c0-1.2-2.5-1.2-2.5-8.2Z" />
+      <path d="M9.7 21h4.6" />
+    </>
+  ),
+
   /* Log out — door with arrow */
   logout: (
     <>

@@ -70,7 +70,7 @@ Reuse canPerm and Users loading/empty/error patterns; do not add a second role s
 Preserve existing layout; only bind live data.
 Raise create POST is live (Phase 27). Update Ticket shows the Add Update form on `/tickets/update` after assignee gate (Phase 29). Work report is live via `GET /api/reports/work` (+ CSV export) with Work report `v` (Phase 30). Detail Assign/Reassign Save is live via `POST /api/tickets/:id/assign` with Hand to from `GET /api/lookups/technicians` (Phase 31). Leave Close page create POST until that API is wired (photo files may still upload on submit via uploadImages; Detail Add Update is live as of Phase 21).
 Ticket list / detail UI (Phase 19+)
-Open tab (new) must not show the Updates column; Assigned keeps it.
+Open tab (new) must not show the Updates column; Assigned keeps it. The backend Updates count includes only update-flow events (`visit_open`, `visit_resolved`, `waiting_spare`, `reclassified`) from any permitted actor; do not count raised, assigned, or closed events.
 Closed tab (cls) shows Days After Close, not Days open.
 Open tab (new) = unassigned non-closed only; Assigned (asg) = has assignee; Closed unchanged — enforce in backend tabForStatus (not React row filters).
 Tile Open, not attended must match Open tab; assigned rows still stored as Open/New must listStatus as Under repair for pills and Under repair tile (DB unchanged).
@@ -81,6 +81,7 @@ Raise submit (Phase 38): POST /api/tickets first (photos may be empty), then upl
 Show Add Update for ops roles (Admin / Project manager / Control room) via `isOpsTicketUpdater`, **or** for the current ticket assignee (`ticket.assigneeId === user.id`), when Update ticket `v` is set and status is not Closed. Show QR **Update Ticket** (→ `/tickets/update`) for field roles (`isFieldTicketUpdater`) who are **not** the assignee. Backend remains the authority for mutations.
 Work history displays oldest → newest (new entries at the bottom); keep the trail always visible.
 Show **View Update** on every work-history row; open a Modal with mapped trail fields only (when, actor, title, status, body, parts, cost, next visit). Do **not** put images, thumbnails, or ImagePreviewModal inside View Update.
+View Update must render structured `issuesReported` / `issuesFound` when present: group each issue category, list every sub-category beneath it, show clear counts, and fall back to legacy scalar fields for older events. If no issue data exists, hide the issue section rather than showing an empty issue card.
 Show **View Image** only when event photos is non-empty; gallery reuses Modal (main + thumbnails). Keep View Image separate from View Update.
 ImagePreviewModal zoom/rotate/pan (Phase 24+ / 32): CSS `transform` only on the viewed image; do not modify or re-upload the original file; reset zoom/rotation/pan when the active thumbnail changes or via Reset. Desktop: hover zooms toward the pointer (Amazon-style explore). Mobile: pinch-to-zoom + drag pan. Keep `.img-preview-main` overflow hidden so the modal layout does not break.
 Do not add image/modal libraries; do not invent duplicate optimistic trail rows; do not add a second GET for View Update when trail data is already loaded.
@@ -92,7 +93,7 @@ After login (and GuestOnly / / / catch-all), non–ops-lead roles go to /tickets
 Hide Dashboard in the sidebar for other roles even if permissions still list Dashboard v.
 For Site attendant and Technician, show All tickets as a top-level sidebar item (not under a Tickets submenu) when it is the only visible Tickets child.
 
-Raise and Update ticket forms may collect multiple Category → Sub pairs as `issues[]` (backend Phase 41). Do not invent alternate field names. Site attendant Device Sync and Issue Master actions use `canPerm` only — no `if (role === 'Site attendant')` for those features.
+Raise and Update ticket forms may collect multiple Category → Sub pairs as `issues[]` (backend Phase 41). Update starts with a blank issue row; do not prefill it from reported/found ticket data. Do not invent alternate field names. Site attendant Device Sync and Issue Master actions use `canPerm` only — no `if (role === 'Site attendant')` for those features.
 Unauthorized Users redirect uses homePathForUser, not a hard-coded /dashboard.
 Ticket status & list columns (Phase 18+)
 Do not show ticket status New; use Open (normalize legacy API/DB values).
@@ -131,7 +132,7 @@ Fleet legend secondary status notes belong in Tooltip, not inline <em> copy.
 Panel .foot-note should sit at the bottom of equal-height grid cards (margin-top: auto).
 Field ticket flow rules (Phase 14+)
 Raise ticket has two steps (device + problem). Do not restore the “Who should attend” assign/priority panel unless product asks.
-Reported by is the signed-in user (read-only). Assignment stays with Admin / control room elsewhere.
+Raise ticket does not render a Reported by field; the backend continues to derive the reporter from the signed-in session. Assignment stays with Admin / control room elsewhere.
 Keep PhotoPicker as the original compact dashed tile — do not stretch Add photo full-width without product ask.
 Field action rows (.sticky-bar) must stay in document flow (position: static). Do not reintroduce viewport-fixed footers without product ask.
 Constrain action buttons with .sticky-bar-inner to the mobile form width (580px). Keep the bar background transparent (no full-bleed white strip).
@@ -141,7 +142,7 @@ Reuse Skeleton / SkeletonTiles / SkeletonTable; keep empty and error paths uncha
 Shimmer CSS must respect prefers-reduced-motion (animation: none).
 Do not add skeleton libraries.
 Parts & visit cost (Phase 23+)
-Live Parts changed must load from GET /api/parts (or lookups/parts) — do not hardcode part lists for live submits.
+Live Parts changed must load from GET /api/parts (or lookups/parts) — do not hardcode part lists for live submits. On Update, show one **Parts were changed** radio with a single **Yes** option; show the searchable PartChips dropdown, selected removable tags, Labour / other charges, then a cost summary with Parts Total, optional Labour / other charges, and Total Amount. Labour must be zero or positive; do not add a new request field.
 Submit parts as UUID arrays; cost on update/close is labour / other charges only — server adds master part amounts.
 Do not treat client-displayed part amounts or a client sum as authoritative Cost of Visit.
 Do not invent edit-update-parts APIs; trail shows snapshots from workHistory after create.
@@ -236,7 +237,21 @@ Device list table columns for this phase: Slot Id, Slot Label, Slot Identifier, 
 Device list status tiles (Working / Under repair / Not working / Total) must apply the existing `status` filter via `listDevices` and stay on `/devices`. Do not link Under repair / Not working to `/tickets`.
 Do not invent client-only sync locking as a replacement for backend single-flight.
 Do not modify unrelated Device Detail / Scan / Add flows when wiring sync.
-READ-ONLY SOURCE TREE
+## Notification rules (Phase 39+)
+
+- Consume the backend `/api/notifications` contract; do not add a second notification store or recreate ticket recipient rules in the browser.
+- The backend is authoritative for `ticket.raised` recipients, `All tickets v`, ticket visibility, notification ownership, and read state.
+- Show the notification UI only for the backend-supported recipient roles (`Admin`, `Project manager`, `Control room`) with `All tickets v`; this is a UX guard, not authorization.
+- Use one shared notification hook/state for the bell, Tickets parent badge, and All tickets child badge. Never sum the two badges or calculate unread state from the loaded page alone.
+- Request `Notification.requestPermission()` only from an explicit user action. Never prompt on every load, and provide non-repeating guidance for denied permission.
+- Register/reconcile push through the existing `GET /api/notifications/push-config` and `PUT/DELETE /api/notifications/push-subscriptions` endpoints.
+- Keep the service worker push-only: it may show/handle notifications, but protected API calls and JWT access remain in the authenticated page.
+- Play `public/sounds/elevenlabs-achievement-unlock.mp3` only for a newly received push or an increase in the backend unread count, including when an application tab is open in the background; debounce duplicate push/poll events and do not treat autoplay rejection as a notification failure.
+- Use the existing `/tickets/:ticketId` route for notification navigation. Treat `canOpen`/`url` as hints and let the existing 403/404 handling enforce access.
+- Preserve the current sidebar collapse, drawer, group expansion, responsive breakpoints, and role filtering.
+- Do not add WebSocket, Socket.IO, SSE, a second service worker, a notification library, or a new Notifications menu item.
+
+## READ-ONLY SOURCE TREE
 
 The following original source tree is READ-ONLY:
 

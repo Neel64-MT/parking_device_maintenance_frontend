@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { TEAM } from '../../data/team'
 import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { ApiRequestError } from '../../services/api'
@@ -9,7 +9,7 @@ import { uploadImages } from '../../services/uploads'
 import {
   hasDuplicateSubCategories,
   hasIncompleteIssueRows,
-  issuesToRows,
+  newIssueRow,
   rowsToIssuePairs,
 } from './ticketIssueRowsHelpers'
 import { TicketIssueRows } from './TicketIssueRows'
@@ -27,10 +27,14 @@ function todayLocalIso() {
   return `${y}-${m}-${day}`
 }
 
+function formatMoney(value) {
+  return `₹${Number(value || 0).toLocaleString('en-IN')}`
+}
+
 /**
  * Shared Add Update form (Detail modal + /tickets/update page).
  * Submit order: update → upload photos → attach URLs.
- * `initialIssues` seeds found/reported pairs from ticket detail (full list on submit).
+ * Issue rows intentionally start blank; the user selects the category and sub-category.
  */
 export function TicketAddUpdateForm({
   ticketId,
@@ -45,14 +49,14 @@ export function TicketAddUpdateForm({
   onSuccess,
   onBusyChange,
   canSubmit = true,
-  initialIssues = null,
 }) {
   const [updType, setUpdType] = useState('Site visit — not resolved')
-  const [issueRows, setIssueRows] = useState(() => issuesToRows(initialIssues))
+  const [issueRows, setIssueRows] = useState(() => [newIssueRow()])
   const [updPhotos, setUpdPhotos] = useState([])
   const [updWorkDone, setUpdWorkDone] = useState('')
   const [updCost, setUpdCost] = useState('')
   const [updPartIds, setUpdPartIds] = useState([])
+  const [updPartsChanged, setUpdPartsChanged] = useState(false)
   const [updVisitedBy, setUpdVisitedBy] = useState(() => (pickVisitedBy ? '' : user?.name || ''))
   const [updSubmitting, setUpdSubmitting] = useState(false)
   const [partsItems, setPartsItems] = useState([])
@@ -63,25 +67,38 @@ export function TicketAddUpdateForm({
 
   function resetUpdateForm() {
     setUpdType('Site visit — not resolved')
-    setIssueRows(issuesToRows(initialIssues))
+    setIssueRows([newIssueRow()])
     setUpdPhotos([])
     setUpdWorkDone('')
     setUpdCost('')
     setUpdPartIds([])
+    setUpdPartsChanged(false)
     setUpdVisitedBy(pickVisitedBy ? '' : user?.name || '')
   }
 
-  const issueSeedKey = useMemo(() => {
-    if (!Array.isArray(initialIssues) || !initialIssues.length) return ''
-    return initialIssues.map((i) => `${i.categoryId || ''}:${i.subCategoryId || ''}`).join('|')
-  }, [initialIssues])
+  function changePartsChanged(nextValue) {
+    setUpdPartsChanged(nextValue)
+    if (!nextValue) {
+      setUpdPartIds([])
+      setUpdCost('')
+    }
+  }
+
+  function changeLabourCost(value) {
+    if (value === '') {
+      setUpdCost('')
+      return
+    }
+    const numeric = Number(value)
+    if (Number.isFinite(numeric) && numeric >= 0) setUpdCost(value)
+  }
 
   useEffect(() => {
     const id = window.setTimeout(() => {
-      setIssueRows(issuesToRows(initialIssues))
+      setIssueRows([newIssueRow()])
     }, 0)
     return () => window.clearTimeout(id)
-  }, [ticketId, issueSeedKey]) // eslint-disable-line react-hooks/exhaustive-deps -- seed from ticket only
+  }, [ticketId])
 
   useEffect(() => {
     let cancelled = false
@@ -135,8 +152,12 @@ export function TicketAddUpdateForm({
   }, [ticketId])
 
   const partsHintTotal = sumSelectedPartsAmount(partsItems, updPartIds)
-  const labourHint = updCost === '' ? 0 : Number(updCost) || 0
+  const labourHint =
+    updPartsChanged && updCost !== '' && Number.isFinite(Number(updCost))
+      ? Math.max(0, Number(updCost))
+      : 0
   const visitHintTotal = partsHintTotal + labourHint
+  const hasCostSummary = updPartIds.length > 0 || labourHint > 0
 
   async function submitUpdate(e) {
     e.preventDefault()
@@ -166,8 +187,8 @@ export function TicketAddUpdateForm({
       const body = {
         updateType: updType,
         workDone: updWorkDone.trim() || undefined,
-        cost: updCost === '' ? 0 : Number(updCost) || 0,
-        parts: [...new Set(updPartIds)],
+        cost: labourHint,
+        parts: updPartsChanged ? [...new Set(updPartIds)] : [],
         photos: [],
       }
       if (issues.length) {
@@ -272,58 +293,97 @@ export function TicketAddUpdateForm({
             categories={issueCategories}
             disabled={updSubmitting}
             minRows={1}
-            categoryLabel="Issue category found"
-            addLabel="Add another found issue"
+            categoryLabel="Select issue category"
+            addLabel="Add another issue"
           />
         )}
       </div>
 
-      <div className="row" style={{ marginTop: 12 }}>
-        <Field
-          label="Labour / other charges"
-          hintAfter="Part prices come from Parts and are added by the server."
-        >
-          <input
-            type="number"
-            placeholder="0"
-            value={updCost}
-            onChange={(e) => setUpdCost(e.target.value)}
-            onWheel={(e) => e.currentTarget.blur()}
-            min="0"
-            disabled={updSubmitting}
-          />
-        </Field>
-      </div>
       <div style={{ marginTop: 12 }}>
         <Field
-          label="Parts changed"
-          hint="Tap every part you replaced. Leave blank if nothing was changed."
+          label="Parts were changed"
+          hint="Select Yes if a part was replaced during this visit."
         >
-          <PartChips
-            items={partsItems}
-            selected={updPartIds}
-            onChange={setUpdPartIds}
-            loading={partsLoading}
-            error={partsError}
-            disabled={updSubmitting}
-          />
-          {updPartIds.length > 0 ? (
-            <div className="parts-total" aria-live="polite">
-              <div className="parts-total-meta">
-                <strong>Parts total · {updPartIds.length} selected</strong>
-                <span>
-                  From Parts (display only). Server adds this to labour
-                  {labourHint > 0
-                    ? ` · est. visit ₹${visitHintTotal.toLocaleString('en-IN')}`
-                    : ''}
-                  .
-                </span>
-              </div>
-              <div className="parts-total-amount">₹{partsHintTotal.toLocaleString('en-IN')}</div>
-            </div>
-          ) : null}
+          <div className="update-parts-choice">
+            <label
+              className={`update-parts-choice-option${updPartsChanged ? ' is-selected' : ''}${updSubmitting ? ' is-disabled' : ''}`}
+            >
+              <input
+                type="radio"
+                checked={updPartsChanged}
+                onChange={() => changePartsChanged(true)}
+                disabled={updSubmitting}
+                aria-label="Parts were changed: Yes"
+              />
+              <span>Yes</span>
+            </label>
+          </div>
         </Field>
       </div>
+
+      {updPartsChanged ? (
+        <>
+          <div style={{ marginTop: 12 }}>
+            <Field
+              label="Select parts"
+              hint="Search and select every part you replaced during this visit."
+            >
+              <PartChips
+                searchable
+                items={partsItems}
+                selected={updPartIds}
+                onChange={setUpdPartIds}
+                loading={partsLoading}
+                error={partsError}
+                disabled={updSubmitting}
+              />
+            </Field>
+          </div>
+
+          <div className="row" style={{ marginTop: 12 }}>
+            <Field
+              label="Labour / other charges"
+              hintAfter="Part prices come from Parts and are added by the server."
+            >
+              <input
+                type="number"
+                placeholder="0"
+                value={updCost}
+                onChange={(e) => changeLabourCost(e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
+                min="0"
+                step="0.01"
+                disabled={updSubmitting}
+              />
+            </Field>
+          </div>
+
+          {hasCostSummary ? (
+            <div className="visit-cost-summary" aria-live="polite">
+              <div className="visit-cost-summary-head">
+                <strong>Cost summary</strong>
+                <span>Display only. Server calculates the final visit cost.</span>
+              </div>
+              {updPartIds.length > 0 ? (
+                <div className="visit-cost-row">
+                  <span>Parts Total</span>
+                  <strong>{formatMoney(partsHintTotal)}</strong>
+                </div>
+              ) : null}
+              {labourHint > 0 ? (
+                <div className="visit-cost-row">
+                  <span>Labour / other charges</span>
+                  <strong>{formatMoney(labourHint)}</strong>
+                </div>
+              ) : null}
+              <div className="visit-cost-row visit-cost-total">
+                <span>Total Amount</span>
+                <strong>{formatMoney(visitHintTotal)}</strong>
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : null}
       <div style={{ marginTop: 12 }}>
         <Field label="Photos">
           <PhotoPicker
