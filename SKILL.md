@@ -342,6 +342,19 @@ AMC officer, OEM.
 
 ---
 
+## Notification rules (Phase 39+)
+
+- Use the backend `ticket.raised` notification and VAPID Web Push contract; do not add a parallel realtime transport.
+- The bell, Tickets parent badge, and All tickets child badge share one backend unread count.
+- Browser permission is requested only from an explicit Enable action; denied, default, unsupported, and unavailable states are distinct.
+- View Update shows grouped reported/found issue categories with all sub-categories and a legacy scalar fallback when data exists; hide the section when no issue is recorded; it never embeds photos.
+- Notification clicks use the existing `/tickets/:ticketId` route and existing authorization/404 behavior.
+- The service worker handles push display/click only; authenticated read-state calls happen in the page.
+- Play the bundled achievement sound on a new push or unread-count increase, including when the app tab is open in the background, with duplicate-event debounce and graceful autoplay handling.
+- Preserve the existing sidebar, role filtering, responsive drawer/collapse, and menu structure.
+
+---
+
 ## 8. React implementation
 
 This repo is a Vite + React app. Implement the spec as React routes and

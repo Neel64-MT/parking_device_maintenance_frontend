@@ -171,7 +171,8 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Item | Pattern |
 |------|---------|
 | Raise steps | 1 device + 2 problem only; remove assign/priority panel |
-| Reported by | Read-only input from `useAuth().user.name` |
+| Reported by | Not displayed; backend derives the reporter from the signed-in session |
+| Problem field order | Photos first, then **What is happening** |
 | Photo add | Compact `.photo-add` 86×86 dashed tile (original preview) |
 | Action bar | `.sticky-bar { position: static }` — scrolls with page, not viewport-fixed |
 | Action width | `.sticky-bar-inner { max-width: 580px }` matches `.mobile` |
@@ -183,6 +184,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Item | Pattern |
 |------|---------|
 | Issue rows | One category per row; multi-select sub-categories as chips; used categories hidden on Add another |
+| Issue rows | Update starts with a blank selectable category/sub-category row; no reported/found prefill; Sub-category renders on a new line |
 | Detail multi | Group by category under As reported / As found (category header + sub list from `issuesReported` / `issuesFound`) |
 | Site attendant | Sync + Issue Master via permissions; Parts still role-hidden |
 
@@ -227,6 +229,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Ticket tabs | Labels **Open** / Assigned / Closed (tab id `new` unchanged) |
 | Status pill | Never show **New**; show **Open** (same tone as before) |
 | Table columns | … Issue found → **Raised by** → Assigned to → Updates … |
+| Updates count | Only `visit_open`, `visit_resolved`, `waiting_spare`, and `reclassified` events from Update Ticket; no actor-role filter |
 
 ## Phase 19 — List columns, Add Update modal, trail images
 
@@ -293,10 +296,13 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 
 | Item | Pattern |
 |------|---------|
-| PartChips | Multi-toggle by part `id`; label `Name · ₹amount` |
+| PartChips | Update uses a searchable dropdown; selected parts appear as removable tags with **×**; dropdown options remain multi-select |
+| Parts gate | One **Parts were changed** radio with a single **Yes** option; only selected reveals parts and labour fields |
+| Field order | Searchable parts dropdown → selected tags → **Labour / other charges** → Parts total |
 | Loading / empty / error | Muted line in chip row; no hardcoded live fallback |
 | Cost field | Label **Labour / other charges**; hint that part prices are server-added |
 | Selected parts hint | Optional display-only sum of master amounts (not sent as `cost`) |
+| Cost summary | **Parts Total** + optional **Labour / other charges** + **Total Amount**; labour cannot be negative |
 | After save | Toast uses backend `cost`; trail lists part snapshot names |
 | Masters nav | Child labels **Issue** / **Road** / **Parts** (group **Masters** unchanged) |
 | Parts icon | Interlocking gear cluster in `NavIcons` `parts` (not bolt; distinct from Settings) |
@@ -346,6 +352,33 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Gear animation | `.gearbox` transparent; gears `--navy-2`/`--navy-3`; hub ring `--teal`; no black panel |
 | Motion | Clockwise / counter-clockwise; paused under `prefers-reduced-motion` |
 | CTA | Primary button → `homePathForUser` or `/login` |
+
+## Phase 39 — New-ticket notifications
+
+| Item | Pattern |
+|------|---------|
+| Browser control | Inline bell in the topbar; stays visible when `.topbar-actions` is hidden on mobile |
+| Notification list | Small anchored popover with latest backend rows, unread dot, ticket reference, message, device/issue/raiser context, and time |
+| Permission state | Explicit Enable / Turn off action; denied and unavailable states explain browser/deployment limits without repeated prompts |
+| Sound | Play the bundled achievement MP3 on a new push/count increase, including an open background tab; debounce duplicates and tolerate autoplay blocking |
+| Sidebar count | Same backend unread count on Tickets parent and All tickets child; hidden at zero, capped visually at `99+` |
+| Read state | Mark one read from the item; Mark all read uses `PATCH /api/notifications/read-all` |
+| Navigation | Uses backend `data.url` only when `canOpen`; opens existing `/tickets/:ticketId` and preserves the Open tab return path |
+| Responsive | Popover becomes a fixed 14px-inset panel below the topbar at ≤820px |
+| Colors | Teal unread accents, `--info-bg` permission strip, existing danger badge for counts; no new palette |
+| Accessibility | Bell/menu labels include unread count; Escape/outside click close the popover; unread items expose state text |
+
+The notification UI is an authenticated-shell addition; it does not add a new menu destination or replace the existing Toast system.
+
+## View Update issue details
+
+| Item | Pattern |
+|------|---------|
+| Issue context | Show Reported issues / Issues found section only when the event has issue data |
+| Multiple issues | Group each issue category in its own bordered card; show all sub-categories as readable chips |
+| Summary | Show clear category/sub-category counts while keeping multiple issues grouped |
+| Empty/fallback | Hide the issue section when no issue exists; use legacy scalar category/sub-category fields for older events |
+| Scope | Details remain in View Update; photos remain in View Image |
 
 ## Phase 26 — Device Sync
 

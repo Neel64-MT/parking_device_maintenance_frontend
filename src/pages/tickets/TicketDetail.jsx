@@ -146,8 +146,75 @@ function normalizeParts(parts) {
     .filter(Boolean)
 }
 
+function normalizeViewUpdateIssues(issues) {
+  if (!Array.isArray(issues)) return []
+  return issues
+    .map((issue) => ({
+      ...issue,
+      category: issue?.category || issue?.categoryName || '—',
+      sub: issue?.sub || issue?.subcategory || issue?.subCategory || '—',
+    }))
+    .filter((issue) => issue.category !== '—' || issue.sub !== '—')
+}
+
+function ViewUpdateIssueList({ item, reportedIssues, foundIssues }) {
+  const isRaised = Boolean(item?.isRaisedEvent)
+  const hasEventIssue = Boolean(item?.issues?.length || item?.category || item?.subcategory)
+  const structured = item?.issues?.length
+    ? item.issues
+    : isRaised
+      ? reportedIssues
+      : hasEventIssue
+        ? foundIssues
+        : []
+  const fallback = item?.category || item?.subcategory
+    ? [{ category: item.category, sub: item.subcategory }]
+    : []
+  const issues = normalizeViewUpdateIssues(structured?.length ? structured : fallback)
+  const groups = groupIssuesForDisplay(issues)
+  const categoryCount = groups.length
+  const subcategoryCount = groups.reduce((total, group) => total + group.subs.length, 0)
+  const label = isRaised ? 'Reported issues' : 'Issues found'
+  const summary = `${categoryCount} ${categoryCount === 1 ? 'category' : 'categories'} · ${subcategoryCount} ${
+    subcategoryCount === 1 ? 'sub-category' : 'sub-categories'
+  }`
+
+  if (!groups.length) return null
+
+  return (
+    <div className="view-update-issues">
+      <div className="view-update-issues-head">
+        <div>
+          <small>{label}</small>
+          <strong>{summary}</strong>
+        </div>
+      </div>
+      <div className="view-update-issue-groups">
+        {groups.map((group) => (
+          <div className="view-update-issue-group" key={group.key}>
+            <div className="view-update-issue-category">
+              <span>Issue category</span>
+              <strong>{group.category}</strong>
+            </div>
+            <div className="view-update-issue-subs">
+              <span>Sub-categories</span>
+              <div className="view-update-sub-list">
+                {group.subs.map((sub) => (
+                  <span className="view-update-sub" key={sub.key}>
+                    {sub.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /** View Update details only — never includes photos / ImagePreviewModal. */
-function ViewUpdateDetails({ item }) {
+function ViewUpdateDetails({ item, reportedIssues, foundIssues }) {
   if (!item) return null
   const whenLabel = formatRaisedOn(item.when)
   const costLabel =
@@ -158,8 +225,6 @@ function ViewUpdateDetails({ item }) {
   const parts = item.parts || []
   const extraMeta = (item.meta || []).filter((m) => m.kind !== 'nextVisit' && m.kind !== 'cost')
   const isRaised = item.isRaisedEvent
-  const category = item.category || ''
-  const subcategory = item.subcategory || ''
   const rawBody = String(item.body || '').trim()
   const hasWhatHappening = Boolean(rawBody && !/^ticket\s+raised$/i.test(rawBody))
   const whatWasDone = !isRaised ? item.workDone || item.body || '' : ''
@@ -191,18 +256,7 @@ function ViewUpdateDetails({ item }) {
           <span>{item.status}</span>
         </div>
       ) : null}
-      {category ? (
-        <div>
-          <small>{isRaised ? 'Issue category' : 'Issue category found'}</small>
-          <span>{category}</span>
-        </div>
-      ) : null}
-      {subcategory ? (
-        <div>
-          <small>Sub-category</small>
-          <span>{subcategory}</span>
-        </div>
-      ) : null}
+      <ViewUpdateIssueList item={item} reportedIssues={reportedIssues} foundIssues={foundIssues} />
       {isRaised ? (
         <div>
           <small>What is happening</small>
@@ -307,6 +361,7 @@ function mapWorkHistory(events) {
       photos: normalizePhotos(e.photos),
       category: e.category || '',
       subcategory: e.subcategory || '',
+      issues: Array.isArray(e.issues) ? e.issues : [],
       workDone: e.workDone || '',
       note: e.note || '',
       isRaisedEvent,
@@ -442,19 +497,6 @@ export default function TicketDetail() {
     return []
   }, [issuesFound, classification])
 
-  const initialUpdateIssues = useMemo(() => {
-    const source =
-      Array.isArray(issuesFound) && issuesFound.length
-        ? issuesFound
-        : Array.isArray(issuesReported) && issuesReported.length
-          ? issuesReported
-          : null
-    if (!source) return null
-    return source.map((i) => ({
-      categoryId: i.categoryId || '',
-      subCategoryId: i.subCategoryId || '',
-    }))
-  }, [issuesFound, issuesReported])
   const workHistory = useMemo(() => mapWorkHistory(ticket?.workHistory), [ticket])
   const assignmentTrail = ticket?.assignmentTrail || []
   const devicePreviousTickets = ticket?.devicePreviousTickets || []
@@ -864,7 +906,6 @@ export default function TicketDetail() {
             pickVisitedBy={pickVisitedBy}
             photoPickerKey="upd-photos-open"
             canSubmit={showAddUpdate}
-            initialIssues={initialUpdateIssues}
             onCancel={() => setUpdOpen(false)}
             onSuccess={async () => {
               setUpdOpen(false)
@@ -953,7 +994,11 @@ export default function TicketDetail() {
         subtitle="Update details only — photos open from View Image"
         onClose={() => setViewingUpdate(null)}
       >
-        <ViewUpdateDetails item={viewingUpdate} />
+        <ViewUpdateDetails
+          item={viewingUpdate}
+          reportedIssues={reportedIssues}
+          foundIssues={foundIssues}
+        />
       </Modal>
 
       <ImagePreviewModal

@@ -225,8 +225,9 @@ Shell → page fills available width (no 1360px cap); panel foot notes bottom-al
 
 ```text
 Raise ticket → steps 1–2 only (device + problem)
-Reported by → signed-in user (read-only); assignment left to Admin / control room
+Reported by → not rendered; backend derives the reporter from the signed-in session; assignment left to Admin / control room
 PhotoPicker → original compact 86×86 dashed tile (not full-width strip)
+Problem fields → Photos first, then **What is happening**
 Action bar → .sticky-bar position:static; .sticky-bar-inner max-width 580px (match .mobile)
 No white full-bleed footer; transparent bar; Raise / Update / Close pages share pattern
 ```
@@ -234,7 +235,8 @@ No white full-bleed footer; transparent bar; Raise / Update / Close pages share 
 | Criterion | Result |
 |-----------|--------|
 | Raise has no “Who should attend” step | Pass |
-| Reported by shows session user name | Pass |
+| Reported by is not shown; reporter remains session-derived in the backend | Pass |
+| Photos appear before What is happening | Pass |
 | Add photo remains compact tile | Pass |
 | Cancel / primary actions not `position: fixed` | Pass |
 | Action row width matches mobile form (`580px`) | Pass |
@@ -305,6 +307,8 @@ List → detail → Back to tickets → same tab via state.from = /tickets?tab=�
 | Open tab (`new`) hides Updates column | Pass |
 | Closed tab shows Days After Close (not Days open) | Pass |
 | Assigned tab keeps Updates + Days open | Pass |
+| Updates count includes Update Ticket events only (`visit_open`, `visit_resolved`, `waiting_spare`, `reclassified`) for all permitted roles | Pass |
+| Raised, assigned, and closed events do not increment Updates | Pass |
 | Open tab shows only unassigned non-closed tickets | Pass |
 | Tile “Open, not attended” matches Open tab count | Pass |
 | Assigned + stored Open/New list as Under repair (tiles/pills; no DB rewrite) | Pass |
@@ -680,4 +684,72 @@ Camera/typed → extractQrToken?
 | Incomplete/skip/MAC upsert rules stay on backend; FE refreshes list only | Pass |
 | Non-blocking sync, 409 handling, page/filters preserved | Pass |
 | Lint + production build | Pass |
+
+### Phase 39 — New-ticket notifications
+
+```text
+POST /api/tickets
+  → backend persists ticket.raised notifications
+  → VAPID Web Push → public/sw.js → notification bell + shared unread badges
+  → page plays public/sounds/elevenlabs-achievement-unlock.mp3 for a new event, including an open background tab
+  → service worker shows a non-silent, interaction-required Chrome notification
+  → click → existing /tickets/:ticketId route
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Existing backend notification API consumed without a second notification domain | Pass — `src/services/notifications.js` |
+| Admin / Project manager / Control room with All tickets `v` see the notification UX | Pass — `canReceiveTicketNotifications` |
+| Browser permission requested only from explicit Enable action | Pass |
+| granted / default / denied / unsupported / unavailable states shown | Pass |
+| Existing subscription reconciled through push-config + push-subscriptions APIs | Pass |
+| Push click uses backend data and existing ticket route | Pass |
+| Notification ID marked read through backend API | Pass |
+| Supplied achievement MP3 plays on new push/count increase, including an open background tab; duplicate events are debounced and autoplay rejection is harmless | Pass |
+| Service-worker Chrome notification is non-silent and remains interaction-required until dismissed/clicked | Pass |
+| One shared unread count drives bell, Tickets parent, and All tickets child | Pass |
+| Sidebar collapse, drawer, labels, group behavior preserved | Pass |
+| Service worker handles push/click only; protected API calls stay in page | Pass |
+| No WebSocket, Socket.IO, SSE, duplicate service worker, or new library | Pass |
+| `npm run build` | Pass |
+| Full `npm run lint` | Pass |
+
+### Phase 40 — View Update issue details
+
+| Criterion | Result |
+|-----------|--------|
+| View Update shows Reported issues / Issues found context when issue data exists | Pass |
+| View Update hides the issue section when no issue is recorded | Pass |
+| Multiple categories render as separate grouped cards | Pass |
+| Every sub-category renders beneath its category | Pass |
+| Category/sub-category counts are visible | Pass |
+| Legacy scalar category/sub-category fallback remains | Pass |
+| Photos remain in View Image, not View Update | Pass |
+| Browser smoke test with 2 categories / 3 sub-categories | Pass |
+| `npm run lint` / `npm run build` | Pass |
+
+### Phase 41 — Update issue/parts clarity
+
+| Criterion | Result |
+|-----------|--------|
+| Update issue selection starts blank; user chooses category and sub-category | Pass |
+| Existing reported/found issues are not auto-filled into the update form | Pass |
+| One Parts were changed radio with a single Yes option controls whether parts were changed | Pass |
+| Parts use a searchable dropdown after Yes; multiple parts can be selected | Pass |
+| Selected parts tags render after the dropdown; cost summary renders after Labour / other charges | Pass |
+| Summary shows Parts Total, optional Labour / other charges, and Total Amount | Pass |
+| Labour input rejects negative values | Pass |
+| Labour / other charges appear after Parts were changed and only when Yes is selected | Pass |
+| No selection sends existing `parts: []` and `cost: 0`; no new request field | Pass |
+| `npm run lint` / `npm run build` | Pass |
+
+### Phase 42 — Update-only ticket count
+
+| Criterion | Result |
+|-----------|--------|
+| Updates count includes only Update Ticket flow event types | Pass |
+| `reclassified` events are included | Pass |
+| Raised, assigned, and closed events are excluded | Pass |
+| Count is independent of technician, engineer, admin, project manager, or control room role | Pass |
+| Backend TypeScript build | Pass |
 

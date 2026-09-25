@@ -75,7 +75,6 @@ export default function TicketRaise() {
   const [issueCategories, setIssueCategories] = useState([])
   const [issuesLoading, setIssuesLoading] = useState(true)
 
-  const reportedBy = user?.name || ''
   const fromHere = `${location.pathname}${location.search}`
   const blocked = Boolean(device?.dup)
   const backTo = raiseReturnPath(location.state?.from)
@@ -423,14 +422,6 @@ export default function TicketRaise() {
                   minRows={1}
                 />
               )}
-              <Field label="What is happening">
-                <textarea
-                  placeholder="e.g. Flap does not open after payment, two vehicles waiting"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  disabled={busy || !device}
-                />
-              </Field>
               <Field label="Photos">
                 <PhotoPicker
                   hint="Up to 5 photos — the slot, the flap, the display."
@@ -438,17 +429,12 @@ export default function TicketRaise() {
                   disabled={busy || !device}
                 />
               </Field>
-              <Field
-                label="Reported by"
-                hint="Taken from the signed-in account. Assignment is done by Admin / control room."
-                style={{ marginBottom: 0 }}
-              >
-                <input
-                  type="text"
-                  value={reportedBy}
-                  disabled
-                  readOnly
-                  aria-readonly="true"
+              <Field label="What is happening">
+                <textarea
+                  placeholder="e.g. Flap does not open after payment, two vehicles waiting"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={busy || !device}
                 />
               </Field>
             </div>

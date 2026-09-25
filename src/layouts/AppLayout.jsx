@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
+import { useTicketNotifications } from '../hooks/useTicketNotifications'
 import { Sidebar } from '../components/layout/Sidebar'
 import { Topbar } from '../components/layout/Topbar'
 
@@ -20,6 +21,7 @@ function prefersReducedMotion() {
 
 export function AppLayout() {
   const location = useLocation()
+  const notificationState = useTicketNotifications()
   const [railOpen, setRailOpen] = useState(false)
   const [railClosing, setRailClosing] = useState(false)
   const [railOpening, setRailOpening] = useState(false)
@@ -205,9 +207,14 @@ export function AppLayout() {
         onNavigate={closeRail}
         collapsed={collapsed}
         onCloseTransitionEnd={finishRailClose}
+        unreadCount={notificationState.eligible ? notificationState.unreadCount : 0}
       />
       <div className="shell">
-        <Topbar onMenuClick={onMenuClick} menuOpen={menuOpen} />
+        <Topbar
+          onMenuClick={onMenuClick}
+          menuOpen={menuOpen}
+          notificationState={notificationState}
+        />
         <Outlet key={location.pathname} />
       </div>
     </>

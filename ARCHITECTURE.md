@@ -53,13 +53,13 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **QR scan (Phase 17 + 27 / 27b + 33):** `QrScannerModal` opens the device camera for **any signed-in user** on Raise / Update Ticket. Scans resolve via `resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy codes → `GET /api/devices/scan?q=`. The standalone `/devices/scan` page was removed; Device list no longer links to Scan QR. Open ticket → Ticket Detail (live Add Update). Free device on Update → Raise CTA.
 - **Home + Dashboard (Phase 18):** `homePathForUser` / `isDashboardRole` — only **Admin** and **Project manager** land on `/dashboard` after login (and see Dashboard in the sidebar). Other roles → `/tickets`. `HomeRedirect` for `/` and unknown routes; Dashboard page redirects others away.
 - **Ticket status (Phase 18):** Product statuses no longer include **New**; create/list display **Open**. FE `normalizeTicketStatus` + BE `displayStatus`; migration `007_ticket_status_open.sql` rewrites stored rows when run.
-- **Ticket list columns (Phase 18):** **Raised by** (`raisedBy` from API) immediately before **Assigned to**. Open tab label (route/query tab id remains `new`).
+- **Ticket list columns (Phase 18):** **Raised by** (`raisedBy` from API) immediately before **Assigned to**. Open tab label (route/query tab id remains `new`). The `updates` value is backend-computed from update-flow event types (`visit_open`, `visit_resolved`, `waiting_spare`, `reclassified`); raised, assigned, and closed events do not increment it, and actor role does not filter it.
 - **Ticket list / detail UX (Phase 19):** Open tab hides **Updates**; Closed shows **Days After Close** (`daysAfterClose`) instead of Days open; Assigned keeps Updates + Days open. TicketDetail Add Update uses `Modal`; work history oldest→newest; trail → **View Update** (details only, no photos) and, when photos exist, **View Image** → `ImagePreviewModal` gallery. List→detail passes `state.from = /tickets?tab=…`; Back to tickets / crumb use `backToTickets` so the active tab is restored.
 - **Ticket list tabs & tiles (Phase 19 follow-up, backend `tickets.ts`):** `tabForStatus` — Closed → `cls`; no `assignee_id` → `new` (Open tab); else → `asg`. Tile **Open, not attended** = count of tab `new` (matches Open badge). `listStatus` (list/tiles only, no DB write): assignee + stored Open/New → display/count as **Under repair** so Under repair (+ Waiting for spare) aligns with Assigned; **Open over 3 days** = non-closed with daysOpen > 3.
 - **Photo attachments (Phase 20 — Image attachment in ticket):** Shared `PhotoPicker` — Choose from folder or Capture from camera (`CameraCaptureModal` via `getUserMedia`). Live preview: front/rear via overlay **flip icon** (`.camera-flip-btn`, camera + circular arrows SVG); bottom actions **Cancel** + **Take photo**. After capture: crop/review (drag box / corner handles) → **Upload** (confirm cropped JPEG `File`) or **Recapture**. Crop image is **full width** of the modal (`.camera-crop-image { width: 100% }`); stage background transparent — no black letterbox side bars. Both sources validate (`image/*`, ≤8 MB), keep local `File` + object-URL thumbs (max **5**). **`uploadImages` / `uploadImage` run on form submit** (Raise, Ticket Update, Ticket Close, Detail Add Update) — not when each photo is added. Raise (Phase 38): `POST /api/tickets` (photos `[]`) → `uploadImages` → `PATCH …/raised/:eventId/photos`. Detail Add Update (Phase 21): update → upload → attach. Do not use `QrScannerModal` for photos.
 - **Phase 21 — Sidebar, pagination, PhotoPicker/modal, live Add Update:** Collapsed desktop rail centered on 64px column; `TablePagination` + `listTickets({ page, limit })` (10/25/50/100, default 25). `Field` is `div.fld`. PhotoPicker: persistent hidden file input; folder menu + camera portaled to `document.body`; Modal `elevated` for camera over Add Update. Detail Add Update: `POST /api/tickets/:id/updates` (photos `[]`) → `uploadImages` → `PATCH …/updates/:eventId/photos`; button requires `Update ticket` `e`. Backend allows Admin/PM, holder, unassigned claim, or raiser for updates (close still holder-only).
 - **Phase 22 — Responsive skeleton loaders:** Shared `Skeleton` primitives replace plain `Loading…` on TicketList, TicketDetail, Dashboard, Users, and Auth boot. CSS shimmer uses existing tokens; `prefers-reduced-motion` disables animation. No new libraries.
-- **Phase 23 — Parts & visit cost (in progress):** `GET /api/parts` (session-cached) feeds `PartChips` (UUID multi-select, name + amount). Add Update / Ticket Update send `parts: UUID[]` and labour-only `cost`; backend returns `cost` / `partsCost` / `labourCost` / part snapshots. No client authoritative part totals. Parts CRUD page under Masters → Parts (`/masters/parts`); nav labels Issue / Road / Parts (group title remains Masters); Parts sidebar icon is interlocking gears (not bolt / not Settings gear). Permission `screen` keys stay `Issue master` / `Road master` for API gating.
+- **Phase 23 — Parts & visit cost (in progress):** `GET /api/parts` (session-cached) feeds `PartChips` (UUID multi-select, name + amount). Add Update / Ticket Update show one **Parts were changed** radio with a single **Yes** option; selecting it reveals a searchable parts dropdown, then removable selected-part tags, then **Labour / other charges**, then a display-only cost summary with **Parts Total**, optional **Labour / other charges**, and **Total Amount**. Labour accepts zero or positive values only; negative input is rejected. The UI still sends the existing `parts: UUID[]` and labour-only `cost` fields (`[]` / `0` when unselected); no new boolean is added to the request. Backend returns the authoritative `cost` / `partsCost` / `labourCost` / part snapshots. Parts CRUD page under Masters → Parts (`/masters/parts`); nav labels Issue / Road / Parts (group title remains Masters); Parts sidebar icon is interlocking gears (not bolt / not Settings gear). Permission `screen` keys stay `Issue master` / `Road master` for API gating.
 - **Phase 24 / 32 — Image viewer zoom/rotate + Trail View Update:** `ImagePreviewModal` gallery; Zoom in/out / Rotate / Reset via CSS `transform` only. Desktop **hover** zooms toward pointer; mobile **pinch** + drag pan. Thumbnail change resets transform. Trail: **View Update** vs **View Image**. No new image libraries.
 - **Phase 32 — Master delete:** Parts soft-deactivate with confirm (`PATCH active:false`). Issue Master live list + subcategory delete/deactivate (`Issue master` `d`). Category soft-deactivate via PATCH `e`.
 - **Phase 34 — Issue Master create + category hard delete:** `POST /api/issues/categories` + `POST /api/issues/subcategories` from inline forms (`c`). Category trash → `DELETE /api/issues/categories/:id` (`d`); `409 IN_USE` → `PATCH { active: false }` when `e`. Service helpers clear session cache so Raise Ticket picks up new rows.
@@ -81,7 +81,7 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **Logout:** Topbar logout icon → confirmation modal → `POST /api/auth/logout` + clear local token → `/login`.
 - **Existing users:** Migration adds `Pending` to status CHECK; seeded Active users unchanged.
 - **Menu gating:** Sidebar `filterMenuByView` + `canPerm` (`v`); Dashboard also requires Admin/PM; Settings always visible. Site attendant / Technician: All tickets promoted to a top-level link (no Tickets submenu) when Work report is not visible. Site attendant may Device Sync (Device list `c`) and Issue Master CRUD after BE 018 — same `canPerm` gates. Backend remains authoritative for data.
-- **Phase 37 — Multi-issue tickets:** Raise/Update send `issues[]`; Detail reads `issuesReported` / `issuesFound` via `TicketIssueRows` + existing `IssueSelects`.
+- **Phase 37 — Multi-issue tickets:** Raise sends selected `issues[]`; Update starts with a blank issue row and sends the user-selected `issues[]` (no automatic reported/found prefill). Detail reads `issuesReported` / `issuesFound` via `TicketIssueRows` + existing `IssueSelects`.
 - **Phase 38 — Raise photo order:** `createTicket` (photos `[]`, returns `eventId`) → `uploadImages` → `attachTicketRaisePhotos` (`PATCH …/raised/:eventId/photos`); mirrors Add Update attach pattern.
 
 ---
@@ -97,6 +97,7 @@ frontend/
 ├── vite.config.js            # /api + /uploads → localhost:5000
 ├── index.html
 ├── public/
+│   └── sounds/elevenlabs-achievement-unlock.mp3
 └── src/
     ├── main.jsx
     ├── App.jsx                 # BrowserRouter + Toast + Auth + PageMeta
@@ -113,6 +114,7 @@ frontend/
     │   ├── auth.js             # login, me, updateProfile, changePassword, logout, …
     │   ├── users.js            # Users admin + canPerm + homePathForUser / listTechnicianLookups
     │   ├── tickets.js          # list/get + create + raise/update photos attach + assignTicket
+    │   ├── notifications.js    # list/count/read + push-config/subscriptions
     │   ├── dashboard.js
     │   ├── reports.js          # getWorkReport + exportWorkReport (CSV)
     │   ├── roads.js            # listRoadLookups
@@ -126,8 +128,8 @@ frontend/
     │   ├── AppLayout.jsx       # railOpen (mobile) + railCollapsed (desktop) + shell
     │   └── AuthLayout.jsx      # login/signup chrome
     ├── components/
-    │   ├── layout/             # Sidebar (filterMenuByView + Dashboard role gate), Topbar
-    │   ├── icons/              # NavIcons (incl. logout)
+    │   ├── layout/             # Sidebar (filterMenuByView + Dashboard role gate), Topbar, NotificationBell
+    │   ├── icons/              # NavIcons (incl. bell, logout)
     │   └── ui/                 # Button, Panel, Field (div.fld), PhotoPicker, CameraCaptureModal, TablePagination, Skeleton, Modal, …
     ├── pages/
     │   ├── auth/               # Login (homePathForUser), Signup, Forgot, Reset
@@ -139,7 +141,8 @@ frontend/
     │   ├── devices/
     │   └── masters/
     └── hooks/
-        └── useTableSearch.js
+        ├── useTableSearch.js
+        └── useTicketNotifications.js # shared count/list/push lifecycle; no second transport
 ```
 
 ### Maintainability rule
@@ -279,3 +282,25 @@ DeviceList (canPerm Device list c)
 Mount: if latest run is `started`, resume poll. Do not call SmartPark from the browser.
 Slot/MAC validation and Slot-ID + MAC upserts are backend source of truth; FE only displays returned `stats` keys and refreshes the list.
 Table columns: Slot Id · Slot Label · Slot Identifier · QR Number · Parking Location.
+
+### New-ticket notifications (Phase 39)
+
+```text
+POST /api/tickets
+  → backend persists ticket.raised rows for eligible recipients
+  → backend schedules VAPID Web Push (when configured)
+  → public/sw.js shows the browser notification
+  → active page receives TICKET_NOTIFICATION_PUSH
+  → page plays public/sounds/elevenlabs-achievement-unlock.mp3 (2s dedupe; autoplay may block)
+  → useTicketNotifications refreshes the shared unread count
+  → NotificationBell renders the list / permission state
+  → Sidebar renders the same count on Tickets and All tickets
+```
+
+`AppLayout` creates one `useTicketNotifications()` instance and passes its state to `Topbar` and `Sidebar`; the two sidebar locations never maintain independent counts. The hook consumes the existing authenticated REST APIs, performs a 30-second fallback poll (subject to browser throttling when hidden), and refreshes on focus/visibility. A newly received push or an increase in the backend unread count attempts to play `public/sounds/elevenlabs-achievement-unlock.mp3`; a 2-second debounce prevents push/poll double playback, and browser autoplay rejection is handled without breaking notifications. The service worker shows a non-silent, interaction-required Chrome notification so it remains visible while the user works in another app. The service worker is the only push client and relays notification IDs to the page; it never reads the JWT from `localStorage` or calls protected APIs directly.
+
+Browser push is opt-in: permission is requested only from the notification dropdown's explicit Enable action. The backend remains authoritative for recipient roles (`Admin`, `Project manager`, `Control room`) and `All tickets v` access. Notification clicks use the existing `/tickets/:ticketId` route and return state `/tickets?tab=new`; the existing detail 403/404 handling remains authoritative.
+
+### View Update issue details
+
+The TicketDetail View Update modal uses the structured `issuesReported` / `issuesFound` arrays when available, groups sub-categories beneath each issue category, and falls back to the legacy scalar event fields for older records. The modal remains details-only; photos continue to open through View Image.
