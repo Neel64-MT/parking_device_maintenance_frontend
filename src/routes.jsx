@@ -127,14 +127,7 @@ export function AppRoutes() {
             </RequirePerm>
           }
         />
-        <Route
-          path="devices/scan"
-          element={
-            <RequirePerm screen="Scan QR">
-              <ScanQr />
-            </RequirePerm>
-          }
-        />
+        <Route path="devices/scan" element={<NotFound />} />
         <Route
           path="devices/:deviceId"
           element={
