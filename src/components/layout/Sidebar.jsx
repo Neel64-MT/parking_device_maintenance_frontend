@@ -5,7 +5,7 @@ import { NavIcon } from '../icons/NavIcons'
 import { BrandMark } from '../ui/BrandMark'
 import { useAuth } from '../../context/AuthContext'
 import { usePageMeta } from '../../context/PageMetaContext'
-import { canPerm, isDashboardRole } from '../../services/users'
+import { canPerm } from '../../services/users'
 
 function displayCount(value) {
   const count = Number(value) || 0
@@ -39,14 +39,7 @@ export function Sidebar({
   /** Manual open/close overrides; unset keys fall back to “child page is active”. */
   const [expanded, setExpanded] = useState({})
 
-  const menu = filterMenuByView(
-    MENU,
-    (screen) => {
-      if (screen === 'Dashboard' && !isDashboardRole(user)) return false
-      return canPerm(user, screen, 'v')
-    },
-    user?.role,
-  )
+  const menu = filterMenuByView(MENU, (screen) => canPerm(user, screen, 'v'))
 
   function isGroupOpen(index, item) {
     if (Object.prototype.hasOwnProperty.call(expanded, index)) {

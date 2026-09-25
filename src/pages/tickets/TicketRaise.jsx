@@ -15,6 +15,7 @@ import {
   newIssueRow,
   rowsToIssuePairs,
 } from '../../components/tickets/ticketIssueRowsHelpers'
+import { canPerm } from '../../services/users'
 import { TicketIssueRows } from '../../components/tickets/TicketIssueRows'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
@@ -57,6 +58,7 @@ export default function TicketRaise() {
   const { user } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const canCreate = canPerm(user, 'Raise ticket', 'c')
   const canScan = canScanWithCamera(user)
   const resolveGen = useRef(0)
   const prefillDone = useRef(false)
@@ -194,6 +196,10 @@ export default function TicketRaise() {
   }
 
   async function tryRaise() {
+    if (!canCreate) {
+      toast('You do not have permission to raise tickets.', 'error')
+      return
+    }
     if (!device?.scan) {
       toast('Scan or enter a QR number first.', 'error')
       return
@@ -453,7 +459,7 @@ export default function TicketRaise() {
             <Button
               variant="primary"
               onClick={tryRaise}
-              disabled={blocked || !device || busy || issuesLoading}
+              disabled={!canCreate || blocked || !device || busy || issuesLoading}
             >
               {submitting ? 'Raising…' : resolving ? 'Fetching device…' : 'Raise ticket'}
             </Button>

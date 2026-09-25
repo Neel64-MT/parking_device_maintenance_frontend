@@ -1,5 +1,5 @@
 import { Route, Routes } from 'react-router-dom'
-import { GuestOnly, HomeRedirect, RequireAuth } from './context/AuthContext'
+import { GuestOnly, HomeRedirect, RequireAuth, RequirePerm } from './context/AuthContext'
 import { AppLayout } from './layouts/AppLayout'
 import { AuthLayout } from './layouts/AuthLayout'
 import Dashboard from './pages/Dashboard'
@@ -52,26 +52,139 @@ export function AppRoutes() {
         }
       >
         <Route index element={<HomeRedirect />} />
-        <Route path="dashboard" element={<Dashboard />} />
+        <Route
+          path="dashboard"
+          element={
+            <RequirePerm screen="Dashboard">
+              <Dashboard />
+            </RequirePerm>
+          }
+        />
         <Route path="dev/ui" element={<UiKitDemoPage />} />
 
-        <Route path="tickets" element={<TicketList />} />
-        <Route path="tickets/raise" element={<TicketRaise />} />
-        <Route path="tickets/update" element={<TicketUpdate />} />
-        <Route path="tickets/close" element={<TicketClose />} />
-        <Route path="tickets/report" element={<WorkReport />} />
-        <Route path="tickets/:ticketId" element={<TicketDetail />} />
+        <Route
+          path="tickets"
+          element={
+            <RequirePerm screen="All tickets">
+              <TicketList />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="tickets/raise"
+          element={
+            <RequirePerm screen="Raise ticket">
+              <TicketRaise />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="tickets/update"
+          element={
+            <RequirePerm screen="Update ticket">
+              <TicketUpdate />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="tickets/close"
+          element={
+            <RequirePerm screen="Update ticket" flag="x">
+              <TicketClose />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="tickets/report"
+          element={
+            <RequirePerm screen="Work report">
+              <WorkReport />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="tickets/:ticketId"
+          element={
+            <RequirePerm screen="All tickets">
+              <TicketDetail />
+            </RequirePerm>
+          }
+        />
 
-        <Route path="devices" element={<DeviceList />} />
-        <Route path="devices/add" element={<DeviceAdd />} />
-        <Route path="devices/:deviceId" element={<DeviceDetail />} />
+        <Route
+          path="devices"
+          element={
+            <RequirePerm screen="Device list">
+              <DeviceList />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="devices/add"
+          element={
+            <RequirePerm screen="Add device" flag="c">
+              <DeviceAdd />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="devices/scan"
+          element={
+            <RequirePerm screen="Scan QR">
+              <ScanQr />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="devices/:deviceId"
+          element={
+            <RequirePerm screen="Device history">
+              <DeviceDetail />
+            </RequirePerm>
+          }
+        />
 
-        <Route path="masters/issues" element={<IssueMaster />} />
-        <Route path="masters/roads" element={<RoadList />} />
-        <Route path="masters/roads/add" element={<RoadAdd />} />
-        <Route path="masters/parts" element={<PartMaster />} />
+        <Route
+          path="masters/issues"
+          element={
+            <RequirePerm screen="Issue master">
+              <IssueMaster />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="masters/roads"
+          element={
+            <RequirePerm screen="Road master">
+              <RoadList />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="masters/roads/add"
+          element={
+            <RequirePerm screen="Road master" flag="c">
+              <RoadAdd />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="masters/parts"
+          element={
+            <RequirePerm screen="Update ticket">
+              <PartMaster />
+            </RequirePerm>
+          }
+        />
 
-        <Route path="users" element={<Users />} />
+        <Route
+          path="users"
+          element={
+            <RequirePerm screen="Users">
+              <Users />
+            </RequirePerm>
+          }
+        />
         <Route path="settings" element={<Settings />} />
       </Route>
 

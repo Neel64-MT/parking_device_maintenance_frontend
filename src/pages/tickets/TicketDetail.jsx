@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
 import { toastApiError, toastApiSuccess } from '../../context/ToastContext'
@@ -7,6 +7,7 @@ import { ApiRequestError } from '../../services/api'
 import { assignTicket, getTicket } from '../../services/tickets'
 import {
   canPerm,
+  homePathForUser,
   isDashboardRole,
   isFieldTicketUpdater,
   isOpsTicketUpdater,
@@ -379,6 +380,8 @@ export default function TicketDetail() {
   const canView = canPerm(user, 'All tickets', 'v')
   const canAssign = canPerm(user, 'All tickets', 'a')
   const canUpdateTicketView = canPerm(user, 'Update ticket', 'v')
+  const canUpdateTicketEdit = canPerm(user, 'Update ticket', 'e')
+  const canCloseTicket = canPerm(user, 'Update ticket', 'x')
   const pickVisitedBy = isDashboardRole(user)
   const backToTickets = ticketsListReturnPath(location.state?.from)
   const fromHere = `${location.pathname}${location.search}`
@@ -506,6 +509,7 @@ export default function TicketDetail() {
   const isTicketAssignee = Boolean(user?.id && ticket?.assigneeId === user.id)
   const showAddUpdate =
     canUpdateTicketView &&
+    canUpdateTicketEdit &&
     header?.status !== 'Closed' &&
     isAssigned &&
     (isOpsTicketUpdater(user) || isTicketAssignee)
@@ -624,6 +628,10 @@ export default function TicketDetail() {
     .join('; ')
   const showReclass = Boolean(reportedLabel && foundLabel && reportedLabel !== foundLabel)
 
+  if (!canView) {
+    return <Navigate to={homePathForUser(user)} replace />
+  }
+
   return (
     <>
       <PageMeta
@@ -685,9 +693,11 @@ export default function TicketDetail() {
                           Assign
                         </Button>
                       ) : null}
-                  <Link className="btn btn-primary" to="/tickets/close">
-                    Close ticket
-                  </Link>
+                  {canCloseTicket && header?.status !== 'Closed' ? (
+                    <Link className="btn btn-primary" to="/tickets/close">
+                      Close ticket
+                    </Link>
+                  ) : null}
                 </div>
               </div>
 

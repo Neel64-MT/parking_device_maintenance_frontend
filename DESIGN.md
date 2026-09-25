@@ -194,7 +194,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 |------|----------|
 | Ticket list (when API-wired) | Backend returns only authorized tickets; empty list uses existing empty-state |
 | Users Approve | Visible when session has Users `e` (Admin or Project Manager) |
-| Roles matrix preview | Mirror PM Users `vce...` to match backend seed |
+| Roles matrix | Live `GET/PATCH /api/roles`; PM Roles `v` only (no edit) |
 
 ## Phase 16 — FE ticket/dashboard API binding
 
@@ -340,6 +340,16 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Create subcategory | Inline form → `POST /api/issues/subcategories` `{ categoryId, name, severity }`; keep selected category |
 | Category delete | Trash icon → confirm → `DELETE /api/issues/categories/:id` (`d`); 409 → `PATCH active:false` if `e` |
 | Busy | Disable create/delete controls while request runs; toast via `toastApi*` |
+
+## Phase 35 — Users role hierarchy dropdown
+
+| Item | Pattern |
+|------|---------|
+| Hierarchy | Admin → Project manager → Control room → Engineer → Technician → Site attendant → AMC officer |
+| Create/Edit role select | `filterAssignableRoles(user.role, roles)` — same-or-below only |
+| Gates | Still require Users `c` / `e`; empty assignable disables create |
+| Edit PATCH | Omit `roleId` when unchanged (avoids 403 on higher-role rows) |
+| Matrix | Roles tab live via `/api/roles` (Phase 36); hierarchy dropdown unchanged |
 
 ## Phase 25 — Forgot password role gate + 404
 

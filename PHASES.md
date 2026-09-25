@@ -749,6 +749,49 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 35: Users role hierarchy UI
+
+**Objective:** Filter Users create/edit role dropdowns to same-or-below the logged-in user’s privilege rank (backend Phase 36 hierarchy), without redesigning Users or the Roles matrix.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `ROLE_HIERARCHY` / `roleRank` / `canAssignRole` / `filterAssignableRoles` in `services/users.js`.
+2. Users create/edit `<select>` use assignable roles; default first assignable; empty → muted message + disable create.
+3. Edit omits `roleId` when unchanged; keep current role option if outside assignable list.
+4. Docs update.
+
+**Out of scope:** Live Roles matrix API; new `allowedTargetRoles` backend endpoint; UI redesign.
+
+**Verification:** Admin sees all hierarchy roles; PM never sees Admin; 403 toast on tampered higher role; edit Admin user without role change succeeds for PM.
+
+**Completion:** PR.md Phase 35 criteria pass.
+
+---
+
+## Phase 36: Live Roles matrix + route permission guards
+
+**Objective:** Wire Users → Roles & permissions to live `/api/roles` (checkbox toggles + Save + Create role), and enforce `canPerm` at the router so direct URLs cannot open screens without the matching flag. Preserve Phase 35 user role hierarchy.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `createRole` / `updateRolePermissions` in `services/users.js`; Roles tab loads `GET /api/roles`.
+2. Controlled `permMap` checkboxes; Save → `PATCH /api/roles/:id/permissions`; Create role → `POST /api/roles`; gate with Roles & permissions `v`/`c`/`e`; `refresh()` when saving own role.
+3. `RequirePerm` in AuthContext; wrap feature routes in `routes.jsx` (screens match backend `authorize`).
+4. Action gates: Raise `c`, Update submit `e`, Close `x`, Scan QR `v`, Road Add `c`; harden list/detail Navigate when view missing.
+5. Docs update.
+
+**Out of scope:** Inventing View→Create flag dependencies; Settings always-visible; Parts role exceptions; Close ticket live API.
+
+**Verification:** Toggle + Save persists; PM cannot save matrix; Technician blocked from `/masters/roads` and `/tickets/raise` without `v`; hierarchy dropdown unchanged.
+
+**Completion:** PR.md Phase 36 criteria pass.
+
+---
+
 ## Phase 37: Multi-issue tickets + Site attendant Sync / Issue Master (FE)
 
 **Objective:** Wire Raise/Update/Detail to backend Phase 41 `issues[]` + `issuesReported`/`issuesFound`; Site attendant Device Sync and Issue Master CRUD via existing `canPerm` after BE migration 018.
@@ -871,7 +914,7 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 34 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42
+Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

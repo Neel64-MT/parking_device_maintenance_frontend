@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
 import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
@@ -9,7 +9,7 @@ import { ROAD_OPTIONS } from '../../data/slots'
 import { TICKET_TAB_META } from '../../data/tickets'
 import { ApiRequestError } from '../../services/api'
 import { assignTicket, listTickets } from '../../services/tickets'
-import { canPerm, isFieldTicketUpdater, listTechnicianLookups } from '../../services/users'
+import { canPerm, homePathForUser, isFieldTicketUpdater, listTechnicianLookups } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field, FilterBar } from '../../components/ui/FilterBar'
 import { JumpLinks } from '../../components/ui/JumpLinks'
@@ -48,8 +48,10 @@ export default function TicketList() {
   const { user } = useAuth()
   const canView = canPerm(user, 'All tickets', 'v')
   const canAssign = canPerm(user, 'All tickets', 'a')
+  const canRaise = canPerm(user, 'Raise ticket', 'v')
   const canViewWorkReport = canPerm(user, 'Work report', 'v')
-  const showUpdateTicketLink = isFieldTicketUpdater(user)
+  const showUpdateTicketLink =
+    isFieldTicketUpdater(user) && canPerm(user, 'Update ticket', 'v')
   const canFilterAssignee =
     user?.role === 'Admin' || user?.role === 'Project manager'
   const [searchParams, setSearchParams] = useSearchParams()
@@ -312,6 +314,10 @@ export default function TicketList() {
   const listReturn = `/tickets?tab=${tab}`
   const ticketLinkState = { from: listReturn }
 
+  if (!canView) {
+    return <Navigate to={homePathForUser(user)} replace />
+  }
+
   return (
     <>
       <PageMeta pageId="ticket-list" title="All tickets" crumb={crumb} />
@@ -319,7 +325,7 @@ export default function TicketList() {
       <main className="page">
         <JumpLinks
           links={[
-            { to: '/tickets/raise', label: 'Raise a ticket' },
+            ...(canRaise ? [{ to: '/tickets/raise', label: 'Raise a ticket' }] : []),
             ...(showUpdateTicketLink
               ? [{ to: '/tickets/update', label: 'Update a ticket' }]
               : []),

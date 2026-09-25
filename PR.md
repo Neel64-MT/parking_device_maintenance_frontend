@@ -616,6 +616,45 @@ IssueMaster → POST /categories | POST /subcategories (c)
 | Sub delete/edit unchanged; list refresh without full reload | Pass |
 | Raise Ticket still uses live `listIssueCategories` (cache cleared) | Pass |
 
+### Phase 35 — Users role hierarchy UI
+
+```text
+Users c/e → listRoles → filterAssignableRoles(actor.role)
+  → create/edit <select> same-or-below only
+  → edit PATCH omits roleId when unchanged
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Hierarchy mirrors backend (Admin → … → AMC officer) | Pass |
+| Create role dropdown same-or-below only | Pass |
+| Edit role dropdown same filter + keep current if higher | Pass |
+| Same-role option available | Pass |
+| Higher roles hidden (e.g. PM never sees Admin) | Pass |
+| Edit omits unchanged `roleId` | Pass |
+| Users `c`/`e` gates preserved; Roles matrix unchanged | Pass |
+| Backend 403 still shown via toastApiError | Pass |
+
+### Phase 36 — Live Roles matrix + route permission guards
+
+```text
+Roles v → GET /api/roles → matrix checkboxes (local permMap)
+Roles e → PATCH /api/roles/:id/permissions → refresh roles (+ /me if own role)
+RequireAuth → RequirePerm(screen, flag) → page
+canPerm → action visibility (Raise c, Update e, Close x, …)
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Checkbox toggle updates immediately (controlled state) | Pass |
+| Save persists via PATCH; create role via POST | Pass |
+| Roles `v`/`c`/`e` gate tab / create / edit matrix | Pass |
+| PM cannot save matrix without Roles `e` | Pass |
+| `RequirePerm` blocks direct URL without screen flag | Pass |
+| Raise/Update/Close/Scan/Road Add action gates | Pass |
+| Phase 35 hierarchy dropdown unchanged | Pass |
+| Backend remains authoritative (401/403 toasts) | Pass |
+
 ### Phase 37 — Multi-issue tickets + Site attendant Sync / Issue Master
 
 ```text
@@ -648,6 +687,23 @@ Raise → POST /api/tickets (photos []) → uploadImages → PATCH …/raised/:e
 | Photo fail after create still opens the new ticket | Pass |
 | Raise without photos still succeeds | Pass |
 | Same network order pattern as Add Update | Pass |
+
+### Phase 39 — Roles hierarchy + route holes
+
+```text
+Roles e + canManageRolePermissions(actor, target)
+  → Save / checkboxes enabled only for same-or-below
+RequirePerm Dashboard v → /dashboard
+RequirePerm Update ticket v → /masters/parts
+PartMaster: Technician | Engineer field-staff create/update
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Higher-role matrix is view-only even with Roles `e` | Pass |
+| `/dashboard` and `/masters/parts` use `RequirePerm` | Pass |
+| Parts nav gated by Update ticket `v` | Pass |
+| Engineer create/update Parts matches Technician | Pass |
 
 ### Phase 33 FE — SmartPark sticker `qr_token`
 
