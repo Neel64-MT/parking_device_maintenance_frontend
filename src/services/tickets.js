@@ -177,3 +177,34 @@ export async function assignTicket(ticketId, { assigneeId, reason, isFirstAssign
     body: payload,
   })
 }
+
+/**
+ * Close a ticket (POST /api/tickets/:id/close).
+ * Requires `Update ticket` `x`; backend then enforces ticket access + holder
+ * (Admin / PM / Control room bypass the holder check).
+ * `deviceTested` must not be a "not tested" value or the backend returns 400 NOT_TESTED.
+ * @param {string} ticketId
+ * @param {{
+ *   issues?: { categoryId: string, subCategoryId: string }[],
+ *   workDone: string,
+ *   parts?: string[],
+ *   photos?: string[],
+ *   cost?: number,
+ *   deviceTested: string,
+ * }} body
+ * @returns {Promise<{
+ *   id: string,
+ *   status: string,
+ *   cost: number,
+ *   partsCost: number,
+ *   labourCost: number,
+ *   parts: { id: string, name: string, amount: number }[],
+ *   issuesFound: { categoryId: string, subCategoryId: string, category: string, sub: string, severity: string }[],
+ * }>}
+ */
+export async function closeTicket(ticketId, body) {
+  return api(`/api/tickets/${encodeURIComponent(ticketId)}/close`, {
+    method: 'POST',
+    body,
+  })
+}

@@ -220,6 +220,7 @@ export default function TicketUpdate() {
   const raiseQr = qrInput.trim() || device?.scan?.qrNumber || device?.scan?.qr || ''
   const header = activeTicket?.header
   const formReady = Boolean(activeTicket?.header?.id)
+  const assignedToName = (header?.facts || []).find((f) => f.label === 'Assigned to')?.value || ''
 
   return (
     <>
@@ -318,6 +319,9 @@ export default function TicketUpdate() {
                   ticketId={header.id}
                   user={user}
                   pickVisitedBy={pickVisitedBy}
+                  defaultVisitedBy={
+                    assignedToName && assignedToName !== 'Not assigned' ? assignedToName : ''
+                  }
                   formClassName="modal-update-form"
                   formId="ticket-update-page-form"
                   photoPickerKey={`upd-page-${header.id}`}

@@ -514,6 +514,8 @@ export default function TicketDetail() {
   const canManageAssign = canAssign && header && header.status !== 'Closed'
   const canReassign = canManageAssign && isAssigned
   const canFirstAssign = canManageAssign && !isAssigned
+  // Closing needs Update ticket `x`; the backend still enforces ticket access + holder.
+  const canCloseTicket = canPerm(user, 'Update ticket', 'x') && header?.status !== 'Closed'
 
   useEffect(() => {
     if (!canAssign) return undefined
@@ -685,9 +687,14 @@ export default function TicketDetail() {
                           Assign
                         </Button>
                       ) : null}
-                  <Link className="btn btn-primary" to="/tickets/close">
-                    Close ticket
-                  </Link>
+                  {canCloseTicket ? (
+                    <Link
+                      className="btn btn-primary"
+                      to={`/tickets/close?ticketId=${encodeURIComponent(header.id)}`}
+                    >
+                      Close ticket
+                    </Link>
+                  ) : null}
                 </div>
               </div>
 
@@ -904,6 +911,7 @@ export default function TicketDetail() {
             ticketId={ticketId}
             user={user}
             pickVisitedBy={pickVisitedBy}
+            defaultVisitedBy={isAssigned ? assignedTo : ''}
             photoPickerKey="upd-photos-open"
             canSubmit={showAddUpdate}
             onCancel={() => setUpdOpen(false)}

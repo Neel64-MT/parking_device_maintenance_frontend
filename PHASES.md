@@ -868,10 +868,33 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 43: Ticket-open read receipt and assignment notifications
+
+**Objective:** Treat opening a ticket as the read receipt for that ticket's notifications, and surface backend assignment/reassignment alerts in the existing notification UI.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Add `markTicketNotificationsRead(ticketId)` to `services/notifications.js` for `POST /api/notifications/ticket/:ticketId/read`.
+2. Add one route-scoped effect in `useTicketNotifications` keyed on `location.pathname` matching `/tickets/:ticketId`, so list, search, device history, direct URL and notification clicks are all covered without a second navigation mechanism.
+3. Dedupe per ticket with a ref so re-entering the same ticket does not re-request.
+4. Apply the backend's authoritative `updated` (`Math.max(0, count - updated)`), patch only that ticket's rows in `items`, then re-read `unread-count` so the bell, Tickets parent and All tickets child cannot drift.
+5. Keep failures non-blocking: report through the existing `listError` and never interfere with the ticket view. Do not bypass 401/403.
+6. Render `ticket.assigned` / `ticket.reassigned` through the existing popover; make the attribution line type-aware (`raisedBy` first, then `assignedBy`, else omitted) and drop the raise-specific title fallback.
+7. Widen `canReceiveTicketNotifications` to include `Technician` and `Engineer`, matching backend `NOTIFICATION_DELIVERY_ROLES`, so an assignee is never un-alertable.
+8. Document in ARCHITECTURE / DESIGN / MEMORY / SKILLS.
+
+**Out of scope:** A second realtime transport, a second unread counter, frontend-authored assignment notifications, a new ticket route, or any change to ticket/QR/assignment/authorization behaviour.
+
+**Verification:** `npm run lint` and `npm run build` pass. Mark-read verified against the live backend: `updated: 0` when nothing is unread, 404 for an unknown ticket, and the badge drops after opening a ticket.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 34 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42
+Phase 0 ──► … ──► Phase 34 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

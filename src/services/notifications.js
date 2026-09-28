@@ -46,6 +46,19 @@ export async function markAllNotificationsRead() {
   return api('/api/notifications/read-all', { method: 'PATCH' })
 }
 
+/**
+ * Mark every unread notification the current user holds for one ticket as read.
+ * Used when a ticket is opened directly (not only via the bell), so the unread
+ * badge stays in step with what the user has actually seen.
+ * @param {string} ticketId
+ * @returns {Promise<{ updated: number }>} rows actually changed (0 = nothing unread)
+ */
+export async function markTicketNotificationsRead(ticketId) {
+  return api(`/api/notifications/ticket/${encodeURIComponent(ticketId)}/read`, {
+    method: 'POST',
+  })
+}
+
 export async function getPushConfig() {
   return api('/api/notifications/push-config')
 }

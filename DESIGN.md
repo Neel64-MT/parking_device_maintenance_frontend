@@ -363,6 +363,9 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Sound | Play the bundled achievement MP3 on a new push/count increase, including an open background tab; debounce duplicates and tolerate autoplay blocking |
 | Sidebar count | Same backend unread count on Tickets parent and All tickets child; hidden at zero, capped visually at `99+` |
 | Read state | Mark one read from the item; Mark all read uses `PATCH /api/notifications/read-all` |
+| Read on open | Opening `/tickets/:ticketId` marks that ticket's notifications read via `POST /api/notifications/ticket/:ticketId/read`; badge and list update in place, no refresh |
+| Assignment alerts | `ticket.assigned` / `ticket.reassigned` render in the same popover; recipient-only, so the holder is the only reader |
+| Attribution | "Raised by …" for `ticket.raised`; "Assigned by …" for assignment types; line omitted when the payload has neither |
 | Navigation | Uses backend `data.url` only when `canOpen`; opens existing `/tickets/:ticketId` and preserves the Open tab return path |
 | Responsive | Popover becomes a fixed 14px-inset panel below the topbar at ≤820px |
 | Colors | Teal unread accents, `--info-bg` permission strip, existing danger badge for counts; no new palette |

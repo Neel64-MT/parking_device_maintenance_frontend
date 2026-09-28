@@ -44,14 +44,19 @@ export function canPerm(user, screen, flag) {
 }
 
 /**
- * New-ticket notifications are produced by the backend for these roles only.
- * This is a presentation guard; the backend remains the authorization source.
+ * Notification-eligible roles.
+ *
+ * - New-ticket ("ticket.raised") alerts stay limited to the oversight roles.
+ * - Assignment alerts add the roles that can actually be made a ticket assignee
+ *   (Technician / Engineer), so an assignee is never un-alertable.
+ *
+ * Site attendant and AMC officer are excluded because they are never eligible
+ * assignees. This is a presentation guard; the backend remains the source of truth.
  */
+const NOTIFICATION_ROLES = ['Admin', 'Project manager', 'Control room', 'Technician', 'Engineer']
+
 export function canReceiveTicketNotifications(user) {
-  return (
-    canPerm(user, 'All tickets', 'v') &&
-    ['Admin', 'Project manager', 'Control room'].includes(user?.role)
-  )
+  return canPerm(user, 'All tickets', 'v') && NOTIFICATION_ROLES.includes(user?.role)
 }
 
 /** Dashboard is the home screen only for Admin and Project manager. */

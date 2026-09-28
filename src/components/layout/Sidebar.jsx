@@ -25,6 +25,21 @@ function NotificationBadge({ count }) {
   )
 }
 
+/**
+ * Icon + unread badge in one positioned anchor.
+ * The badge is always rendered here (open rail or closed) and CSS slides it from
+ * the row tail to the icon's top-right corner, so collapsing never remounts it.
+ * `hasChevron` = the row ends in the group chevron, so the tail count stops 16px short.
+ */
+function BadgedNavIcon({ name, count, hasChevron = true }) {
+  return (
+    <span className={`nav-ico-anchor${hasChevron ? '' : ' tail-only'}`}>
+      <NavIcon name={name} />
+      <NotificationBadge count={count} />
+    </span>
+  )
+}
+
 export function Sidebar({
   open,
   onNavigate,
@@ -98,17 +113,21 @@ export function Sidebar({
         {menu.map((m, index) => {
           if (!m.children) {
             const active = isMenuItemOn(m, pageId)
+            const isTicketLeaf = m.id === 'ticket-list'
             return (
               <div key={m.id} className={`nav-item${active ? ' active' : ''}`}>
                 <Link
                   to={m.path}
                   onClick={onNavigate}
-                  title={tip ? m.label : undefined}
-                  aria-label={m.id === 'ticket-list' ? unreadLabel(m.label, unreadCount) : tip ? m.label : undefined}
+                  title={tip ? (isTicketLeaf ? unreadLabel(m.label, unreadCount) : m.label) : undefined}
+                  aria-label={isTicketLeaf ? unreadLabel(m.label, unreadCount) : tip ? m.label : undefined}
                 >
-                  <NavIcon name={m.icon} />
+                  {isTicketLeaf ? (
+                    <BadgedNavIcon name={m.icon} count={unreadCount} hasChevron={false} />
+                  ) : (
+                    <NavIcon name={m.icon} />
+                  )}
                   <span className="nav-label">{m.label}</span>
-                  {m.id === 'ticket-list' ? <NotificationBadge count={unreadCount} /> : null}
                 </Link>
               </div>
             )
@@ -126,11 +145,14 @@ export function Sidebar({
                 aria-label={unreadLabel(m.label, unreadCount)}
                 aria-expanded={groupOpen}
               >
-                <NavIcon name={m.icon} />
+                {isTicketsGroup ? (
+                  <BadgedNavIcon name={m.icon} count={unreadCount} />
+                ) : (
+                  <NavIcon name={m.icon} />
+                )}
                 <span className="nav-label">{m.label}</span>
                 {isTicketsGroup ? (
                   <span className="nav-group-tail">
-                    <NotificationBadge count={unreadCount} />
                     <span className="nav-group-chevron" aria-hidden="true" />
                   </span>
                 ) : null}
