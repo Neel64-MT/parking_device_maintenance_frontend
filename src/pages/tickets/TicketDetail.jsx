@@ -381,7 +381,6 @@ export default function TicketDetail() {
   const canAssign = canPerm(user, 'All tickets', 'a')
   const canUpdateTicketView = canPerm(user, 'Update ticket', 'v')
   const canUpdateTicketEdit = canPerm(user, 'Update ticket', 'e')
-  const canCloseTicket = canPerm(user, 'Update ticket', 'x')
   const pickVisitedBy = isDashboardRole(user)
   const backToTickets = ticketsListReturnPath(location.state?.from)
   const fromHere = `${location.pathname}${location.search}`
