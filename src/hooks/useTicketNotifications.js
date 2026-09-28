@@ -110,6 +110,7 @@ export function useTicketNotifications() {
   const listLoadedRef = useRef(listLoaded)
   const registrationRef = useRef(null)
   const clickedRef = useRef(new Set())
+  const lastTicketRef = useRef(null)
   const countRequestRef = useRef(0)
   const listRequestRef = useRef(0)
   const listLoadingRef = useRef(false)
@@ -543,6 +544,52 @@ export function useTicketNotifications() {
     const next = `${location.pathname}${params.toString() ? `?${params}` : ''}${location.hash}`
     window.history.replaceState({}, '', next)
   }, [eligible, location.hash, location.pathname, location.search, markReadById])
+
+  /*
+   * Opening a ticket marks that ticket's notifications read — including when the
+   * user navigates straight to the ticket rather than clicking the bell.
+   * Scoped per ticket so re-entering the same one is a no-op, and the backend
+   * already restricts the update to the caller's own notifications.
+   */
+  useEffect(() => {
+    if (!eligible) return
+    const match = /^\/tickets\/([^/]+)$/.exec(location.pathname)
+    const currentTicketId = match ? decodeURIComponent(match[1]) : null
+    if (!currentTicketId) {
+      lastTicketRef.current = null
+      return
+    }
+    if (lastTicketRef.current === currentTicketId) return
+    lastTicketRef.current = currentTicketId
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const result = await notificationApi.markTicketNotificationsRead(currentTicketId)
+        if (cancelled) return
+        const updated = Number(result?.updated || 0)
+        if (updated <= 0) return
+        // Keep the loaded list and the badge in step with what the server just changed.
+        setItems((previous) =>
+          previous.map((item) =>
+            item.relatedEntityType === 'ticket' && item.data?.ticketId === currentTicketId
+              ? { ...item, isRead: true, readAt: item.readAt || new Date().toISOString() }
+              : item,
+          ),
+        )
+        setUnreadCount((count) => Math.max(0, count - updated))
+        void refreshUnreadCount()
+      } catch (error) {
+        // A read-state sync failure must never block viewing the ticket.
+        if (!cancelled && mountedRef.current) {
+          setListError(errorMessage(error, 'Could not update notification read state.'))
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [eligible, location.pathname, refreshUnreadCount])
 
   return {
     eligible,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { TEAM } from '../../data/team'
 import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { ApiRequestError } from '../../services/api'
@@ -40,6 +40,7 @@ export function TicketAddUpdateForm({
   ticketId,
   user,
   pickVisitedBy = false,
+  defaultVisitedBy = '',
   formClassName = 'modal-update-form',
   formId,
   photoPickerKey = 'upd-photos',
@@ -57,13 +58,30 @@ export function TicketAddUpdateForm({
   const [updCost, setUpdCost] = useState('')
   const [updPartIds, setUpdPartIds] = useState([])
   const [updPartsChanged, setUpdPartsChanged] = useState(false)
-  const [updVisitedBy, setUpdVisitedBy] = useState(() => (pickVisitedBy ? '' : user?.name || ''))
+  // "Visited by" defaults to whoever currently holds the ticket, so the common case
+  // (the assigned engineer/technician made the visit) needs no manual selection.
+  const assigneeName = (defaultVisitedBy || '').trim()
+  const [updVisitedBy, setUpdVisitedBy] = useState(() => (pickVisitedBy ? assigneeName : user?.name || ''))
   const [updSubmitting, setUpdSubmitting] = useState(false)
   const [partsItems, setPartsItems] = useState([])
   const [partsLoading, setPartsLoading] = useState(true)
   const [partsError, setPartsError] = useState('')
   const [issueCategories, setIssueCategories] = useState([])
   const [issuesLoading, setIssuesLoading] = useState(true)
+
+  // The assignee is listed first so the pre-selected value is always an option,
+  // even when it is not part of the static TEAM list.
+  const visitedByOptions = useMemo(() => {
+    const seen = new Set()
+    const options = []
+    for (const name of [assigneeName, user?.name, ...TEAM]) {
+      const value = (name || '').trim()
+      if (!value || seen.has(value)) continue
+      seen.add(value)
+      options.push(value)
+    }
+    return options
+  }, [assigneeName, user?.name])
 
   function resetUpdateForm() {
     setUpdType('Site visit — not resolved')
@@ -73,7 +91,7 @@ export function TicketAddUpdateForm({
     setUpdCost('')
     setUpdPartIds([])
     setUpdPartsChanged(false)
-    setUpdVisitedBy(pickVisitedBy ? '' : user?.name || '')
+    setUpdVisitedBy(pickVisitedBy ? assigneeName : user?.name || '')
   }
 
   function changePartsChanged(nextValue) {
@@ -102,25 +120,30 @@ export function TicketAddUpdateForm({
 
   useEffect(() => {
     let cancelled = false
+    // The whole fetch must run inside the deferred callback. Setting the loading flag
+    // in the timer but starting the request outside it lets a cache hit resolve as a
+    // microtask *before* the timer fires, so `false` is applied first and the timer then
+    // leaves the flag stuck on `true` ("Loading issue categories…" forever).
     const id = window.setTimeout(() => {
-      if (!cancelled) setPartsLoading(true)
+      if (cancelled) return
+      setPartsLoading(true)
+      listParts()
+        .then((list) => {
+          if (!cancelled) {
+            setPartsItems(list)
+            setPartsError('')
+          }
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setPartsItems([])
+            setPartsError(err instanceof ApiRequestError ? err.message : 'Could not load parts.')
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setPartsLoading(false)
+        })
     }, 0)
-    listParts()
-      .then((list) => {
-        if (!cancelled) {
-          setPartsItems(list)
-          setPartsError('')
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setPartsItems([])
-          setPartsError(err instanceof ApiRequestError ? err.message : 'Could not load parts.')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setPartsLoading(false)
-      })
     return () => {
       cancelled = true
       window.clearTimeout(id)
@@ -129,22 +152,24 @@ export function TicketAddUpdateForm({
 
   useEffect(() => {
     let cancelled = false
+    // Same ordering requirement as the parts load above: flag first, then the request.
     const id = window.setTimeout(() => {
-      if (!cancelled) setIssuesLoading(true)
+      if (cancelled) return
+      setIssuesLoading(true)
+      listIssueCategories()
+        .then((cats) => {
+          if (!cancelled) setIssueCategories(cats)
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            toastApiError(err, 'Could not load issue categories.')
+            setIssueCategories([])
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setIssuesLoading(false)
+        })
     }, 0)
-    listIssueCategories()
-      .then((cats) => {
-        if (!cancelled) setIssueCategories(cats)
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          toastApiError(err, 'Could not load issue categories.')
-          setIssueCategories([])
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIssuesLoading(false)
-      })
     return () => {
       cancelled = true
       window.clearTimeout(id)
@@ -260,10 +285,9 @@ export function TicketAddUpdateForm({
               required
             >
               <option value="">Select who visited</option>
-              {user?.name ? <option value={user.name}>{user.name}</option> : null}
-              {TEAM.map((t) => (
-                <option key={t} value={t}>
-                  {t}
+              {visitedByOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
                 </option>
               ))}
             </select>

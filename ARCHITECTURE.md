@@ -304,7 +304,28 @@ POST /api/tickets
 
 `AppLayout` creates one `useTicketNotifications()` instance and passes its state to `Topbar` and `Sidebar`; the two sidebar locations never maintain independent counts. The hook consumes the existing authenticated REST APIs, performs a 30-second fallback poll (subject to browser throttling when hidden), and refreshes on focus/visibility. A newly received push or an increase in the backend unread count attempts to play `public/sounds/elevenlabs-achievement-unlock.mp3`; a 2-second debounce prevents push/poll double playback, and browser autoplay rejection is handled without breaking notifications. The service worker shows a non-silent, interaction-required Chrome notification so it remains visible while the user works in another app. The service worker is the only push client and relays notification IDs to the page; it never reads the JWT from `localStorage` or calls protected APIs directly.
 
-Browser push is opt-in: permission is requested only from the notification dropdown's explicit Enable action. The backend remains authoritative for recipient roles (`Admin`, `Project manager`, `Control room`) and `All tickets v` access. Notification clicks use the existing `/tickets/:ticketId` route and return state `/tickets?tab=new`; the existing detail 403/404 handling remains authoritative.
+Browser push is opt-in: permission is requested only from the notification dropdown's explicit Enable action. The backend remains authoritative for recipient roles and `All tickets v` access. Notification clicks use the existing `/tickets/:ticketId` route and return state `/tickets?tab=new`; the existing detail 403/404 handling remains authoritative.
+
+#### Opening a ticket marks its notifications read
+
+Opening a ticket is itself the read receipt, so the badge tracks what the user has actually seen even when they never touch the bell:
+
+```text
+any navigation to /tickets/:ticketId
+  → useTicketNotifications route effect (location.pathname)
+  → POST /api/notifications/ticket/:ticketId/read
+  → backend marks the caller's own unread rows for that ticket → { updated }
+  → loaded list patched to isRead, unread count -= updated (floored at 0)
+  → refreshUnreadCount() re-reads the authoritative count
+```
+
+The route effect is scoped to the path, so it covers every existing way in — ticket list rows, search, device history, direct URL, and notification clicks — without a second navigation mechanism. `lastTicketRef` makes re-entering the same ticket a no-op, and the row set is only ever touched for the ticket being viewed, so a sibling ticket's notification stays unread. The backend scopes the update with `WHERE recipient_user_id = $1`, so a user can never mark another user's row. A failure sets the existing `listError` and never blocks the ticket view; a `0` response means nothing was unread, and the count is left alone.
+
+#### Assignment / reassignment notifications
+
+`createTicketAssignmentNotification` writes `ticket.assigned` / `ticket.reassigned` for the new holder only, after the assignment transaction commits and wrapped so a notification failure can never fail the assignment. It fires from three places: raise with an assignee, assign/reassign, and update handover. The existing unique key `(recipient_user_id, type, related_entity_type, related_entity_id)` keeps it idempotent. Recipient roles are `NOTIFICATION_DELIVERY_ROLES` — the oversight roles plus `Technician` and `Engineer`, so an assignee is never un-alertable. Because the recipient is the assignee, assignee-scoped access always applies, so `canOpen` is true and `data.url` is always usable. Delivery reuses the same VAPID path, so the popover, the sound, and the badge need no new code.
+
+The bell renders these through the existing item component. Attribution is type-aware — `ticket.raised` rows carry `data.raisedBy` and render "Raised by …", assignment rows carry `data.assignedBy` and render "Assigned by …" — and a payload with neither simply omits the line.
 
 ### View Update issue details
 

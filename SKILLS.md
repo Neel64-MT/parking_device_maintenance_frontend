@@ -229,6 +229,10 @@ Inspect existing code
 - Play `public/sounds/elevenlabs-achievement-unlock.mp3` for a new push or unread-count increase, including an open background tab; debounce duplicate events and ignore autoplay rejection.
 - Permission is opt-in and user-triggered. Reconcile existing subscriptions through the backend push-config/subscription APIs; do not prompt on load or add a second SW.
 - Use backend `data.url`/`canOpen` with the existing ticket route; rely on TicketDetail for 403/404 handling.
+- Opening a ticket is the read receipt: `POST /api/notifications/ticket/:ticketId/read` marks the caller's own rows for that ticket. Drive it from a route-scoped effect in the one `useTicketNotifications` owner — do not add a second mark-read path, endpoint, or counter.
+- Scope the patch to the viewed ticket only, apply the backend's authoritative `updated` with a `Math.max(0, …)` floor, then re-read `unread-count`; never decrement by guesswork.
+- Dedupe per ticket so rerenders and re-entry do not re-request. Keep mark-read failures non-blocking (`listError`), and never bypass 401/403.
+- Render `ticket.assigned` / `ticket.reassigned` from the same popover as `ticket.raised`; attribute by type (`raisedBy` then `assignedBy`) and omit the line when neither exists. Do not hardcode ticket details in the frontend.
 - Fall back to visible-page polling/focus refresh because the backend has no WebSocket/SSE transport.
 - In TicketDetail View Update, use structured reported/found issue arrays, group by category, show all sub-categories, and fall back to scalar fields for older events; hide the issue section when no issue data exists.
 

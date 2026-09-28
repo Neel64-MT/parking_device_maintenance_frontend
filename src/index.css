@@ -312,10 +312,6 @@ body.rail-lock {
   flex: none;
 }
 
-.nav-group-tail .nav-notification-count {
-  margin-left: 0;
-}
-
 .nav-group-chevron {
   width: 6px;
   height: 6px;
@@ -323,7 +319,9 @@ body.rail-lock {
   border-right: 1.5px solid #7e93a6;
   border-bottom: 1.5px solid #7e93a6;
   transform: rotate(-45deg);
-  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.22s ease;
 }
 
 .nav-group.open>button::after,
@@ -415,16 +413,46 @@ body.rail-lock {
   line-height: 1;
 }
 
-.rail.collapsed .nav-group>button .nav-notification-count {
+/* Unread count rides on the ticket icon and slides to the row tail when the rail opens.
+   Offsets are matched to the row geometry (16px inset, 24px icon, 6px chevron, 10px gap)
+   and timed to the rail's 380ms width animation, so open/close reads as one motion. */
+.nav-ico-anchor {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+}
+
+.nav-ico-anchor .nav-notification-count {
   position: absolute;
-  top: 3px;
-  right: 3px;
+  top: -6px;
+  right: -8px;
   min-width: 17px;
   height: 17px;
   padding: 0 3px;
   margin: 0;
   font-size: 12px;
   border: 2px solid var(--navy);
+  transition:
+    top 0.38s linear,
+    right 0.38s linear,
+    min-width 0.38s linear,
+    height 0.38s linear,
+    padding 0.38s linear;
+}
+
+/* Open rail: park the count at the row tail, just before the group chevron. */
+.rail:not(.collapsed) .nav-ico-anchor .nav-notification-count {
+  /* Centre on the 24px icon; offsets are measured from the icon's top-left. */
+  top: 2px;
+  right: calc(72px - var(--rail-expanded));
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+}
+
+/* No chevron on this row (flat "All tickets" link) → count uses the full tail. */
+.rail:not(.collapsed) .nav-ico-anchor.tail-only .nav-notification-count {
+  right: calc(56px - var(--rail-expanded));
 }
 
 .rail-bottom {
@@ -473,8 +501,11 @@ body.rail-lock {
   border: 0;
 }
 
+/* Closed rail: shrink the chevron instead of removing it, so the row keeps its
+   tail geometry and the unread count can slide in and out of it. */
 .rail.collapsed .nav-group>button .nav-group-chevron {
-  display: none;
+  opacity: 0;
+  transform: rotate(-45deg) scale(0.4);
 }
 
 .rail.collapsed .nav-sub {
@@ -1053,6 +1084,30 @@ textarea {
   min-height: 80px;
   padding: 9px 10px;
   resize: vertical;
+}
+
+/* ---------- Inline field errors ----------
+   A Field with `error` paints its control red, swaps the hint for the message, and
+   keeps the red border while focused so the error does not flicker away on click. */
+.fld.has-error>input,
+.fld.has-error>textarea,
+.fld.has-error>select,
+.fld.has-error input.is-invalid,
+.fld.has-error textarea.is-invalid {
+  border-color: var(--bad);
+  box-shadow: 0 0 0 1px var(--bad);
+}
+
+.fld.has-error>span {
+  color: var(--bad);
+}
+
+.field-error {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  font-style: normal;
+  color: var(--bad);
 }
 
 select:disabled,
@@ -4474,6 +4529,22 @@ body.modal-lock {
   margin: 6px 0 0;
   align-items: center;
 }
+/* Money / quantity entry. type="text" + inputMode="numeric" gives digits-only on mobile
+   with no spinner, no scroll-wheel increment, and no way to type a minus sign. */
+.amount-input {
+  font-variant-numeric: tabular-nums;
+}
+.amount-input::-webkit-outer-spin-button,
+.amount-input::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+.amount-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
 button.linkish {
   appearance: none;
   border: 0;
