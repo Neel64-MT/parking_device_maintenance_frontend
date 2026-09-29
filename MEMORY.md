@@ -31,7 +31,7 @@
   - Panel `.foot-note` bottom-aligned in equal-height `.grid-2` cards
 - [x] **Phase 14 — Raise ticket flow + field action bars**
   - Removed Raise step 3 (Who should attend / assign / priority)
-  - Reported by = signed-in user (read-only)
+  - Reported by is not rendered in the frontend; the backend continues to derive the reporter from the signed-in session
   - PhotoPicker kept as original compact 86×86 tile (full-width Add photo reverted)
   - `.sticky-bar` is `position: static` (not viewport-fixed) on Raise / Update / Close
   - `.sticky-bar-inner` max-width `580px` to match `.mobile`; transparent bar (no white footer strip)
@@ -70,7 +70,7 @@
 - Camera live: overlay flip icon (front/rear); **Cancel** + **Take photo** in one row
 - Camera flow: Take photo → crop/review (full-width image, no black letterbox) → Upload (confirm local File) or Recapture
 - Validate `image/*` ≤8 MB; max **5** photos; object-URL thumbs until submit
-- **Deferred upload:** parents call `uploadImages` on Raise / Update / Close / Detail Add Update submit (not on each add)
+- **Deferred upload:** parents call `uploadImages` on Raise / Update / Close / Detail Add Update submit (not on each add); Raise/Update attach after ticket/update is accepted (Phase 38 / 21)
 - Wired on Raise, Ticket Update (fixed + not-fixed), Ticket Close, Detail Add Update
 - Ticket create/update/close POST still toast; photo URLs prepared after upload for future APIs
 - Compact tile preserved; no new npm deps; QrScanner not reused for photos
@@ -173,21 +173,23 @@
 
 ## Currently working on
 
-- **Phase:** Phase 34 — Issue Master create + category hard delete
-- **Task:** Complete — live create category/sub; category DELETE + IN_USE→deactivate; docs
-- **File:** `IssueMaster.jsx`, `issues.js`, docs
+- **Phase:** Phase 36 — Live Roles matrix + route permission guards
+- **Task:** Complete — matrix Save/Create wired; RequirePerm on routes; action gates
+- **File:** `Users.jsx`, `users.js`, `AuthContext.jsx`, `routes.jsx`, ticket/device/road pages, docs
+
+- **Phase:** Phase 38 — Raise create → upload → attach photos
+- **Task:** Complete — Raise matches Add Update photo order
+- **File:** `TicketRaise.jsx`, `tickets.js`, backend `tickets.ts` raised photos PATCH, docs
 
 ## Pending
 
 - Wire Close create API; Ticket Close page still design preview (Detail Add Update is live)
 - External inspection package (`PROJECT_PATH` — deferred until path provided)
-- Roles tab on Users still mostly preview matrix
 - Real Settings preferences beyond profile/password
 - TicketList assignee filter still hardcoded names (Detail assign is live)
-- TicketList / Add Update / Close still use static `ISSUE_MASTER` for some selects (Raise is live)
-- Run migration `007_ticket_status_open.sql` / `009_parts_amount.sql` / `010_device_sync.sql` / `015_issue_master_delete_field_roles.sql` on environments that need them
+- TicketList / Close still use static `ISSUE_MASTER` for some selects (Raise + Add Update use live categories)
+- Run migration `007` / `009` / `010` / `015` / **`017_ticket_issues`** / **`018_site_attendant_device_sync_issue_master`** on environments that need them
 - Finish / verify remaining Phase 23 Parts criteria if still Pending in PR.md
-
 ## Important decisions
 
 1–15. Prior phases (auth, sidebar, Settings, Raise, ticket visibility API).
@@ -196,8 +198,11 @@
 18. Phase 31: Detail Assign Save → `POST /api/tickets/:id/assign` with `assigneeId` from `GET /api/lookups/technicians`; optional note → `reason`; reload detail for trail/facts.
 19. Phase 32: Parts “delete” = soft `PATCH { active: false }` (no hard DELETE). Issue sub delete = `DELETE` + 409→deactivate; UI gated with Issue master `d`/`e`. Image hover/pinch zoom without new libs. Crop uses `dvh` + sticky actions + larger mobile handles.
 19b. Phase 34: Issue create category/sub via `POST` (`c`); category hard-delete via `DELETE` (`d`) with 409→`PATCH active:false` when `e`. Cache clear so Raise picks up new rows.
-19. Sidebar MENU items carry `screen` keys matching `user.permissions`; hide when no view (`v`); Settings stays always visible (no perm screen); unauthorized `/users` redirects via `homePathForUser` (not always `/dashboard`).
-20. Update Ticket uses live scan (Phase 27b); open ticket → Detail Add Update; free → Raise.
+19c. Phase 35: Users create/edit role dropdown filters to same-or-below (`ROLE_HIERARCHY` in `users.js`); Users `c`/`e` still required; backend `403` remains authority; edit omits unchanged `roleId`.
+19d. Phase 36: Roles matrix live (`GET/POST /api/roles`, `PATCH …/permissions`); `RequirePerm` on routes; action gates reuse `canPerm`; hierarchy unchanged; UI still advisory vs backend `authorize`.
+19c. Phase 37: Raise/Update send `issues[]`; Detail uses `issuesReported`/`issuesFound`; Site attendant Device Sync + Issue Master via BE 018 + existing `canPerm` (no role hardcode).
+19e. Phase 39: Roles matrix hierarchy (`canManageRolePermissions`); `RequirePerm` on dashboard + parts; Engineer Parts create/update parity.
+19. Sidebar MENU items carry `screen` keys matching `user.permissions`; hide when no view (`v`); Settings stays always visible (no perm screen); unauthorized `/users` redirects via `homePathForUser` (not always `/dashboard`).20. Update Ticket uses live scan (Phase 27b); open ticket → Detail Add Update; free → Raise.
 21. Phase 18: only Admin / Project manager land on and open Dashboard; other roles home to All tickets.
 22. Ticket workflow status labels: Open / Under repair / Waiting for spare / Closed — never display **New**.
 23. Ticket list visibility is raiser OR assignee for non–Admin/PM; do not hide a user’s own raised tickets because the device road is outside `user_roads`.
@@ -225,12 +230,14 @@
 45. Phase 29: Update Ticket form renders on `/tickets/update` via shared `TicketAddUpdateForm` (no navigate to Detail for Update). Detail keeps Modal Add Update for trail. Prefer `?ticketId=` for refresh.
 46. Phase 30: Work report is live (`getWorkReport` / `exportWorkReport`); mock `workReport.js` removed; close rate stays client-side from closed/worked.
 47. Phase 31: Detail Assign/Reassign → `assignTicket` + technicians Hand to; trail from GET ticket after save.
+48. Phase 44: Device list is Slot Label ascending **from the backend** (no client sort). Assign / Reassign Hand to shows only Technician / Engineer via `filterAssignableAssignees`; the ticket's current assignee is always kept in the list.
 
 ### Phase 30 — Work Report API (complete)
 
 - Migrated from static `REPORT` to `GET /api/reports/work`
 - Export → `GET /api/reports/work/export` (CSV download)
 - Person options: `GET /api/lookups/technicians`; Road: `listRoadLookups`
+- Phase 44 note: this lookup is **not** narrowed to Technician / Engineer — Control room and Project manager are valid report actors. Only the ticket Assign / Reassign dropdowns filter.
 - Filters: view, person, road; from/to only when Date range
 - Auth: `canPerm(..., 'Work report', 'v')` → else Navigate home
 - Loading SkeletonTable; EmptyState when no people; toastApiError on failure
@@ -241,6 +248,7 @@
 
 - `assignTicket` → `POST /api/tickets/:id/assign` `{ assigneeId, reason? }`
 - Hand to: `listTechnicianLookups` (UUID); controlled optional note
+- Phase 44: Hand to options are passed through `filterAssignableAssignees` → Technician / Engineer only, current assignee pinned (both TicketList inline modal and TicketDetail).
 - Save validates worker; busy button; Cancel resets without API
 - Success toast + `reloadTicket()` for Assigned to fact + `assignmentTrail`
 - Trail `when` formatted; empty: `No assignment history.`
@@ -259,6 +267,39 @@
 - `createIssueCategory` / `createIssueSubcategory` / `deleteIssueCategory` in `issues.js`
 - IssueMaster inline create forms wired (`c`); category Trash → hard delete (`d`); 409 → deactivate if `e`
 - Sub edit/delete unchanged; Raise Ticket benefits from cache clear
+- Status: Complete
+
+### Phase 35 — Users role hierarchy UI (complete)
+
+- `ROLE_HIERARCHY` + `filterAssignableRoles` in `services/users.js` (mirrors backend)
+- Users create/edit role selects show same-or-below only; create disabled when none
+- Edit PATCH omits `roleId` when unchanged
+- Status: Complete
+
+### Phase 36 — Live Roles matrix + route guards (complete)
+
+- Roles tab: live list + controlled checkboxes + Save (`updateRolePermissions`) + Create role
+- `RequirePerm` wraps routes; Raise/Update/Close/Scan/Roads action gates via `canPerm`
+- After saving own role matrix, `AuthContext.refresh()` reloads `/me`
+- Status: Complete
+
+### Phase 39 — Roles hierarchy + route holes (complete)
+
+- `canManageRolePermissions` — Save/checkboxes only for same-or-below roles
+- `RequirePerm` on `/dashboard` (Dashboard `v`) and `/masters/parts` (Update ticket `v`)
+- Parts nav uses Update ticket `v`; PartMaster Engineer create/update parity with Technician
+- Status: Complete
+
+### Phase 37 — Multi-issue + Site attendant Sync / Issue Master (complete)
+
+- `TicketIssueRows` + Raise/Update send `issues[]`; Detail shows `issuesReported` / `issuesFound`
+- Site attendant preview ROLES: Device list `vc....`, Issue master `vce..d` (BE 018); Sync/CRUD via existing `canPerm`
+- Status: Complete
+
+### Phase 38 — Raise create → upload → attach photos (complete)
+
+- Backend: raise response includes `eventId`; `PATCH /api/tickets/:id/raised/:eventId/photos`
+- FE: `createTicket` (`photos: []`) → `uploadImages` → `attachTicketRaisePhotos`; partial photo fail still opens ticket
 - Status: Complete
 
 ## Important decisions (detail)
@@ -287,6 +328,7 @@
 32. Backend `tabForStatus`: Closed → `cls`; `!assignee_id` → `new`; else → `asg` (do not put status Open with assignee on Open tab).
 33. Backend `listStatus` (list + tiles only): assignee + Open/New → Under repair for pills/tile counts; no DB rewrite. Open over 3 days = all non-closed with daysOpen > 3.
 34. Detail Add Update network order: updates first, then uploads, then attach photo URLs — avoids orphan uploads on 403.
+35. Raise network order (Phase 38): create ticket first (`photos: []`), then uploads, then `PATCH …/raised/:eventId/photos` — same rationale as Add Update; photo failure after create still navigates to the ticket.
 
 ## Known issues / gaps
 
@@ -295,7 +337,7 @@
 | Domain screens | Close create still mock; Raise create + Detail Add Update + Work report are live |
 | Manual Raise slots | Static `SLOTS` may 404 against live DB — surface miss; no full device-list fetch |
 | Inspection package | `PROJECT_PATH` deferred until product supplies path |
-| Roles tab | Permission matrix save still toast/preview |
+| Roles tab | Live matrix via `/api/roles` (Phase 36); PM remains view-only without Roles `e` |
 | Forgot SMTP | Dev logs reset URL when SMTP unset |
 | Status migration | Environments that never ran `007` may still store `New` (API/FE normalize display) |
 | Backend restart | Restart backend after Phase 17 scan shape, Phase 18 visibility, Phase 19 `tabForStatus` / `listStatus` / `daysAfterClose`, Phase 21 update/photos attach routes, and Phase 26 list field mapping / device-sync |
@@ -321,6 +363,36 @@
 - List still refreshes via `reloadToken`; validation/upsert remains backend SoT
 - Lint + production build pass
 
+### Phase 39 — New-ticket notifications (complete)
+
+- Added `services/notifications.js` for the backend notification list/count/read and VAPID subscription contracts.
+- Added one `useTicketNotifications` owner in `AppLayout`; the topbar bell, Tickets parent, and All tickets child share the backend unread count.
+- Added `NotificationBell` with latest notifications, unread/read state, mark-one/mark-all actions, permission guidance, and existing ticket-route navigation.
+- Added `public/sw.js` for the backend Web Push payload and notification click relay; no WebSocket/SSE or second service worker.
+- Bundled `public/sounds/elevenlabs-achievement-unlock.mp3`; play it on a new push or unread-count increase, including an open background tab, with duplicate-event debounce and autoplay-safe failure handling.
+- Browser permission is requested only from the explicit Enable action; denied/unsupported/unavailable states do not repeatedly prompt.
+- Existing `/tickets/:ticketId` route and TicketDetail 403/404 handling remain authoritative.
+- `npm run build` and `npm run lint` pass.
+- Known backend follow-up: unrelated Control Room notification payloads may contain a ticket URL that ticket detail correctly rejects with 403; frontend does not bypass that authorization.
+- Opening a ticket now marks that ticket's notifications read. `services/notifications.js` gained `markTicketNotificationsRead(ticketId)` → `POST /api/notifications/ticket/:ticketId/read`; the hook watches `location.pathname` for `/tickets/:ticketId` and calls it once per ticket (`lastTicketRef`), so list, search, device history, direct URL and notification clicks are all covered without a new navigation path.
+- The count uses the backend's authoritative `updated` (`Math.max(0, count - updated)`) then re-reads `unread-count`; only the viewed ticket's rows are patched in `items`, so other tickets stay unread. The backend scopes the update to `recipient_user_id`, so one user can never mark another's row. A failure sets the existing `listError` and never blocks the ticket.
+- Assignment / reassignment notifications exist in the backend (`createTicketAssignmentNotification`, types `ticket.assigned` / `ticket.reassigned`, called from raise-with-assignee, assign/reassign and update handover, idempotent via the existing unique key). Frontend needed no new transport: the popover, sound and badge already consume any backend row.
+- `canReceiveTicketNotifications` widened to `['Admin', 'Project manager', 'Control room', 'Technician', 'Engineer']`, matching backend `NOTIFICATION_DELIVERY_ROLES`, so an assignee is never un-alertable. Site attendant and AMC officer stay excluded because they are never eligible assignees.
+- `NotificationBell` attribution is now type-aware via `notificationAttribution(item)`: `raisedBy` is checked first so new-ticket rows are unchanged, `assignedBy` is the fallback, and a payload with neither omits the line. The title fallback changed from the raise-specific "New ticket raised" to the neutral "Ticket notification".
+- View Update now groups structured reported/found issue categories and sub-categories in readable cards when present, hides the issue section when absent, and keeps legacy scalar fallback.
+- Ticket list `updates` now counts only events emitted by the Update Ticket flow (`visit_open`, `visit_resolved`, `waiting_spare`, `reclassified`), regardless of technician, engineer, admin, project manager, or control room actor; raised/assigned/closed events are excluded.
+- Update issue selection now starts blank instead of seeding reported/found pairs; the user chooses the category and sub-category.
+- Update parts use one **Parts were changed** radio with a single **Yes** option; order is searchable dropdown, selected removable tags, Labour / other charges, then a cost summary showing Parts Total, optional Labour / other charges, and Total Amount. Labour rejects negative values; existing `parts` / `cost` payload fields are unchanged.
+
+### Phase 44 — Slot Label order + Assign dropdown role filter (complete)
+
+- Device list renders Slot Label ascending with **zero frontend code**: `GET /api/devices` orders by `devices.slot_number` in SQL (backend `DEVICE_LIST_ORDER_BY`), so the order survives `LIMIT/OFFSET` pagination. Client-side sorting was rejected because it would only order the current page. Filters, search, status tiles, columns, and the `TablePagination` behavior are unchanged.
+- `services/users.js` gained `ASSIGNABLE_ASSIGNEE_ROLES = ['Technician', 'Engineer']` (the real `roles.name` values, next to the existing `NOTIFICATION_ROLES` list) and `filterAssignableAssignees(options, currentAssigneeId, currentAssigneeName)`.
+- Both Assign / Reassign "Hand to" dropdowns — `TicketList.jsx` inline modal and `TicketDetail.jsx` — now map the filtered list. Role comes from the `role` field the backend already returns in `GET /api/lookups/technicians`; no hardcoded display labels and no new users API.
+- The current assignee is always kept in the options, so a ticket held by a Control room / Project manager user still shows its selection in the select and can still be reassigned away from them (no silent blank prefill).
+- `WorkReport.jsx` deliberately keeps the **full** lookup — Control room / Project manager are valid report actors. Backend `assertEligibleAssignee` is untouched, so the server stays the final source of truth; no user was deleted, no role changed, and the global Users list is unaffected.
+- `npm run lint` and `npm run build` pass. Backend `npm run build`, `test:smoke:writes`, `test:smoke:close` pass, and `test:smoke` gains `OK devices Slot Label ascending`.
+
 ## Handoff notes
 
-Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` / `010_device_sync.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH / Phase 26 device list field mapping. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: any signed-in user; live `GET /api/devices/scan?q=`. Raise open ticket → **Update Ticket** → `/tickets/update?ticketId=` → assignee gate → **Add Update form on Update page**. Free device → Raise `POST /api/tickets`. Live screens show skeleton loaders while fetching (Phase 22). Masters submenu labels are Issue / Road / Parts; Parts icon is interlocking gears. Device list: Sync Devices (Admin/PM with Device list `c`) → `POST /api/device-sync`; complete toast may show Created/Updated/Skipped from `stats`; table shows Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location. Status tiles filter the list via `status` (stay on `/devices`). Site attendant / Technician sidebar: top-level **All tickets** (not under Tickets). **Next phase: 30.**
+Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` / `010_device_sync.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH / Phase 26 device list field mapping. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: any signed-in user; live `GET /api/devices/scan?q=`. Raise open ticket → **Update Ticket** → `/tickets/update?ticketId=` → assignee gate → **Add Update form on Update page**. Free device → Raise `POST /api/tickets`. Live screens show skeleton loaders while fetching (Phase 22). Masters submenu labels are Issue / Road / Parts; Parts icon is interlocking gears. Device list: Sync Devices (Admin/PM with Device list `c`) → `POST /api/device-sync`; complete toast may show Created/Updated/Skipped from `stats`; table shows Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location. Status tiles filter the list via `status` (stay on `/devices`). Device list rows are Slot Label ascending (backend SQL, no client sort). Assign / Reassign Hand to lists Technician + Engineer only (current assignee pinned); Work report Person still lists CR/PM. Site attendant / Technician sidebar: top-level **All tickets** (not under Tickets). **Next phase: 45.**

@@ -440,8 +440,8 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 **Tasks:**
 
 1. `services/parts.js` (`listParts` + session cache) + upgrade `PartChips` (id / name / amount).
-2. TicketDetail Add Update: multi parts + labour cost; trail shows part snapshots.
-3. TicketUpdate: bind PartChips/labour; `POST /updates` when ticket id known.
+2. TicketDetail Add Update: one **Parts were changed** radio with a single **Yes** option; show PartChips then Labour / other charges only when selected; keep existing `parts` / `cost` payload fields.
+3. TicketUpdate: same conditional parts flow; `POST /updates` when ticket id known.
 4. Parts page under Masters → Parts; Masters child labels Issue / Road / Parts; Parts nav icon = interlocking gears.
 5. Docs finalize; lint/build.
 
@@ -749,10 +749,215 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 35: Users role hierarchy UI
+
+**Objective:** Filter Users create/edit role dropdowns to same-or-below the logged-in user’s privilege rank (backend Phase 36 hierarchy), without redesigning Users or the Roles matrix.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `ROLE_HIERARCHY` / `roleRank` / `canAssignRole` / `filterAssignableRoles` in `services/users.js`.
+2. Users create/edit `<select>` use assignable roles; default first assignable; empty → muted message + disable create.
+3. Edit omits `roleId` when unchanged; keep current role option if outside assignable list.
+4. Docs update.
+
+**Out of scope:** Live Roles matrix API; new `allowedTargetRoles` backend endpoint; UI redesign.
+
+**Verification:** Admin sees all hierarchy roles; PM never sees Admin; 403 toast on tampered higher role; edit Admin user without role change succeeds for PM.
+
+**Completion:** PR.md Phase 35 criteria pass.
+
+---
+
+## Phase 36: Live Roles matrix + route permission guards
+
+**Objective:** Wire Users → Roles & permissions to live `/api/roles` (checkbox toggles + Save + Create role), and enforce `canPerm` at the router so direct URLs cannot open screens without the matching flag. Preserve Phase 35 user role hierarchy.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `createRole` / `updateRolePermissions` in `services/users.js`; Roles tab loads `GET /api/roles`.
+2. Controlled `permMap` checkboxes; Save → `PATCH /api/roles/:id/permissions`; Create role → `POST /api/roles`; gate with Roles & permissions `v`/`c`/`e`; `refresh()` when saving own role.
+3. `RequirePerm` in AuthContext; wrap feature routes in `routes.jsx` (screens match backend `authorize`).
+4. Action gates: Raise `c`, Update submit `e`, Close `x`, Scan QR `v`, Road Add `c`; harden list/detail Navigate when view missing.
+5. Docs update.
+
+**Out of scope:** Inventing View→Create flag dependencies; Settings always-visible; Parts role exceptions; Close ticket live API.
+
+**Verification:** Toggle + Save persists; PM cannot save matrix; Technician blocked from `/masters/roads` and `/tickets/raise` without `v`; hierarchy dropdown unchanged.
+
+**Completion:** PR.md Phase 36 criteria pass.
+
+---
+
+## Phase 37: Multi-issue tickets + Site attendant Sync / Issue Master (FE)
+
+**Objective:** Wire Raise/Update/Detail to backend Phase 41 `issues[]` + `issuesReported`/`issuesFound`; Site attendant Device Sync and Issue Master CRUD via existing `canPerm` after BE migration 018.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `TicketIssueRows` — one category per row, multi-select sub-categories (chips); used categories hidden on Add another; client validation.
+2. Raise submits `issues[]` via `createTicket`.
+3. Add Update loads live categories, starts with a blank user-selectable issue row, and posts the selected `issues[]` when rows are complete; do not seed from reported/found data.
+4. Detail displays `issuesReported` / `issuesFound` (classification fallback).
+5. Align preview `ROLES['Site attendant']` Device list `vc....`, Issue master `vce..d`.
+6. Docs.
+
+**Out of scope:** Close ticket live API; inventing new Sync/Issue Master pages; Ctrl/Cmd multi-select (rows used instead).
+
+**Verification:** Raise N issues; Update replace found set; Detail lists; attendant Sync + Issue Master after `/me` refresh (migrations 017/018).
+
+**Completion:** PR.md Phase 37 criteria pass.
+
+---
+
+## Phase 38: Raise ticket — create first, then photos
+
+**Objective:** Align Raise photo order with Add Update: create ticket → upload images → attach URLs to the raised event (better under concurrent load; avoids orphan uploads when create fails).
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Backend: `POST /api/tickets` returns `eventId` for the raised event; `PATCH /api/tickets/:id/raised/:eventId/photos` attaches URLs (`Raise ticket` `c`).
+2. Frontend: `createTicket` with `photos: []` → `uploadImages` → `attachTicketRaisePhotos`; partial photo failure still navigates to the new ticket with a warning toast.
+3. Docs (RULES / ARCHITECTURE / DESIGN / MEMORY / PR).
+
+**Out of scope:** Close ticket photo attach; changing Update attach path.
+
+**Verification:** Raise with photos shows images on Detail trail; Raise without photos still succeeds; create failure does not upload; photo failure after create still opens the ticket.
+
+**Completion:** PR.md Phase 38 criteria pass.
+
+---
+
+## Phase 39: New-ticket notifications
+
+**Objective:** Consume the backend Phase 38 `ticket.raised` notification and VAPID Web Push contract; add a restrained notification center, shared Tickets/All Tickets unread badges, permission guidance, and existing ticket-route navigation.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Add `services/notifications.js` for list/count/read, push-config, and subscription APIs; use `apiEnvelope` for pagination.
+2. Add one `useTicketNotifications` owner in `AppLayout`; refresh on focus/visibility with a restrained visible-page poll.
+3. Add `NotificationBell` with latest backend rows, unread/read state, mark-one/mark-all actions, and permission states.
+4. Add `public/sw.js` for the existing push payload and `notificationclick` relay; no WebSocket/SSE or duplicate service worker.
+5. Show the same backend unread count on the Tickets parent and All tickets child while preserving responsive rail behavior.
+6. Request browser permission only from an explicit Enable action; reconcile/remove push subscriptions and clean up on logout.
+7. Use `/tickets/:ticketId` and existing TicketDetail 403/404 behavior.
+8. Bundle and play the supplied achievement MP3 for new push/count events, including an open background tab, with duplicate-event debounce and autoplay-safe handling; keep the service-worker notification non-silent and interaction-required.
+9. Update frontend docs and run lint/build checks.
+
+**Out of scope:** New ticket routes, new menu destinations, a second realtime transport, frontend authorization, backend notification schema changes, or a new notification library.
+
+**Verification:** Build and lint pass. Manual browser/API matrix still requires a running authenticated backend and browser notification permission environment.
+
+**Completion:** PR.md Phase 39 criteria documented.
+
+---
+
+## Phase 40: View Update issue details
+
+**Objective:** Make issue category/sub-category information understandable in the TicketDetail View Update modal, including multiple structured issues.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Use structured reported/found issue arrays when available.
+2. Group every issue category and list all sub-categories beneath it.
+3. Show clear category/sub-category counts while keeping multiple issues grouped.
+4. Keep legacy scalar event fields as a fallback and keep photos in View Image.
+
+**Verification:** Browser smoke test with two categories and three sub-categories; lint/build pass.
+
+---
+
+## Phase 41: Update issue/parts clarity
+
+**Objective:** Make the Add Update form clearer by starting issue selection blank and showing parts/charges only when the user confirms parts changed.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Start Update issue rows blank; the user selects category and sub-category instead of seeing reported/found values pre-filled.
+2. Add one native **Parts were changed** radio with a single **Yes** option.
+3. Show a searchable PartChips dropdown only after Yes; show selected parts as removable tags with **×**, then **Labour / other charges**, then a cost summary with Parts Total, optional Labour / other charges, and Total Amount. Labour cannot be negative.
+4. Keep the existing `parts` and `cost` request fields; No sends empty/zero values without adding a boolean payload field.
+
+**Verification:** Browser smoke test confirms blank issue selection, conditional parts/charge visibility and ordering, and unchanged update payload; lint/build pass.
+
+---
+
+## Phase 42: Update-only ticket count
+
+**Objective:** Make the ticket list Updates value count only activity created through the Update Ticket flow, regardless of which permitted role submits it.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Count `visit_open`, `visit_resolved`, `waiting_spare`, and `reclassified` events.
+2. Exclude `raised`, `assigned`, and `closed` events.
+3. Do not filter by actor role; technician, engineer, admin, project manager, and control room updates all count.
+
+**Verification:** Backend TypeScript build and frontend lint/build pass.
+
+---
+
+## Phase 43: Ticket-open read receipt and assignment notifications
+
+**Objective:** Treat opening a ticket as the read receipt for that ticket's notifications, and surface backend assignment/reassignment alerts in the existing notification UI.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. Add `markTicketNotificationsRead(ticketId)` to `services/notifications.js` for `POST /api/notifications/ticket/:ticketId/read`.
+2. Add one route-scoped effect in `useTicketNotifications` keyed on `location.pathname` matching `/tickets/:ticketId`, so list, search, device history, direct URL and notification clicks are all covered without a second navigation mechanism.
+3. Dedupe per ticket with a ref so re-entering the same ticket does not re-request.
+4. Apply the backend's authoritative `updated` (`Math.max(0, count - updated)`), patch only that ticket's rows in `items`, then re-read `unread-count` so the bell, Tickets parent and All tickets child cannot drift.
+5. Keep failures non-blocking: report through the existing `listError` and never interfere with the ticket view. Do not bypass 401/403.
+6. Render `ticket.assigned` / `ticket.reassigned` through the existing popover; make the attribution line type-aware (`raisedBy` first, then `assignedBy`, else omitted) and drop the raise-specific title fallback.
+7. Widen `canReceiveTicketNotifications` to include `Technician` and `Engineer`, matching backend `NOTIFICATION_DELIVERY_ROLES`, so an assignee is never un-alertable.
+8. Document in ARCHITECTURE / DESIGN / MEMORY / SKILLS.
+
+**Out of scope:** A second realtime transport, a second unread counter, frontend-authored assignment notifications, a new ticket route, or any change to ticket/QR/assignment/authorization behaviour.
+
+**Verification:** `npm run lint` and `npm run build` pass. Mark-read verified against the live backend: `updated: 0` when nothing is unread, 404 for an unknown ticket, and the badge drops after opening a ticket.
+
+---
+
+## Phase 44: Slot Label ascending order and Assign dropdown role filter
+
+**Objective:** Show the Device List in ascending Slot Label order and limit the Assign / Reassign "Hand to" dropdown to Technician and Engineer users, without breaking pagination, filters, search, assignment, or reassignment.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. **Slot Label order — backend, no frontend sorting.** `GET /api/devices` now orders by `devices.slot_number` ascending through one shared `DEVICE_LIST_ORDER_BY` constant, so the order is correct on every page instead of within a page only. Client-side sorting was rejected because pagination is `LIMIT/OFFSET`. Nothing changes in `DeviceList.jsx`.
+2. **Assign dropdown role filter.** Add `ASSIGNABLE_ASSIGNEE_ROLES = ['Technician', 'Engineer']` (the real `roles.name` values) and `filterAssignableAssignees(options, currentAssigneeId, currentAssigneeName)` to `services/users.js`, next to the existing `NOTIFICATION_ROLES` list — no new users API, role values come from the API response.
+3. Apply the helper to both dropdowns: the `TicketList.jsx` inline Assign/Reassign modal and the `TicketDetail.jsx` Hand to select. Reuse the already-loaded `listTechnicianLookups()` result; no extra fetch.
+4. Always pin the ticket's current assignee into the option list so a ticket held by a Control room / Project manager user still renders its selection and can still be reassigned away (no silent blank prefill).
+5. Leave `WorkReport.jsx` on the full lookup — Control room / Project manager are valid report actors — and leave backend `assertEligibleAssignee` untouched so the server remains the final source of truth.
+
+**Out of scope:** Deleting users, changing user roles, editing the global Users list, a new users/roles endpoint, a natural-sort dependency, client-side device sorting, or any change to ticket ordering, permissions, notifications, or authentication.
+
+**Verification:** `npm run lint` and `npm run build` pass; backend `npm run build` passes and its smoke suite now asserts `OK devices Slot Label ascending` across page 1 and page 2.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 28 ──► Phase 29 ──► Phase 30 ──► Phase 31 ──► Phase 32 ──► Phase 34
+Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 ──► Phase 43 ──► Phase 44
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

@@ -156,9 +156,11 @@ Inspect existing code
 - Use `QrScannerModal` + `html5-qrcode`; stop the camera on close.
 - Gate camera with `canScanWithCamera(user)` — any signed-in user.
 - Resolve scans through `services/devices.resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy PD/QR/slot → `GET /api/devices/scan?q=` (404 → null). Never call SmartPark from the browser.
-- Site attendant Raise: map scan fields; block create when `openTicketId` is set; create via `createTicket` + issue UUIDs from `listIssueCategories`.
+- Site attendant Raise: map scan fields; block create when `openTicketId` is set; create via `createTicket` (`photos: []`) + `issues[]` from `TicketIssueRows` / `listIssueCategories`, then optional `uploadImages` → `attachTicketRaisePhotos`.
 - Raise open-ticket primary **Update Ticket** → `/tickets/update?ticketId=` (+ `qr` state); secondary Open → Detail.
-- Update Ticket page: live `resolveScan` or entry `ticketId`; gate with `getTicket` (open + assignee); show `TicketAddUpdateForm` on the page; free → Raise (+ `qr`).
+- Update Ticket page: live `resolveScan` or entry `ticketId`; gate with `getTicket` (open + assignee); show `TicketAddUpdateForm` with a blank issue row for user selection; free → Raise (+ `qr`).
+- Multi-issue: reuse `TicketIssueRows` + `IssueSelects`; Update starts blank and sends the selected `issues[]`; Sub-category is stacked below category; Detail prefers `issuesReported` / `issuesFound`. Parts were changed uses one radio with a single Yes option; order the searchable PartChips dropdown, removable selected tags, Labour / other charges, then the Parts Total / optional Labour / Total Amount summary. Reject negative labour; do not add a payload field.
+- Site attendant Sync / Issue Master: rely on `/api/auth/me` permissions after migration 018; do not hardcode the role.
 - Detail header: ops **or** assignee → Add update Modal (shared form); field non-assignee → QR Update Ticket link.
 
 ## Ticket detail / list UI skills (Phase 19+)
@@ -185,11 +187,19 @@ Inspect existing code
 - Honor `prefers-reduced-motion` via CSS (no shimmer).
 - Live create/update buttons: disable + busy label (`Saving…` / `Creating…`) while the request runs; gate Cancel/modal close the same way (Users create/edit/password/approve).
 
-## Parts Master / visit cost (Phase 23+)
+## Users role hierarchy (Phase 35+)
+
+- Use `ROLE_HIERARCHY` / `filterAssignableRoles` from `services/users.js` (same order as backend Phase 36).
+- Create and edit role dropdowns: same-or-below only; still require Users `c` / `e`.
+- On edit PATCH, omit `roleId` when unchanged so non-role edits on higher-role users do not hit hierarchy `403`.
+- Do not hardcode per-role `if` chains; do not invent an `allowedTargetRoles` API unless backend adds one.
+- Roles & permissions matrix is live (`listRoles` / `createRole` / `updateRolePermissions`); gate with Roles & permissions `v`/`c`/`e`.
+- Protect routes with `RequirePerm` (inside `RequireAuth`); do not rely on sidebar hide alone.
 
 - Use `listParts()` from `services/parts.js` (session cache); do not fetch per chip click.
 - `PartChips` selects by UUID; submit `parts: id[]` and labour-only `cost`.
 - Display backend `cost` / `partsCost` after save; never send a client-calculated visit total as authoritative.
+- Ticket list `updates` is backend-counted from Update Ticket event types only; include `reclassified`, exclude raised/assigned/closed, and do not filter by role.
 
 ## Issue Master (Phase 32 / 34+)
 
@@ -209,6 +219,34 @@ Inspect existing code
 - On complete, toast `devicesCreated` / `devicesUpdated` / `devicesSkipped` from `run.stats` when numeric; do not invent other stats fields.
 - Backend owns skip/upsert validation; FE never creates devices from sync payloads.
 - Device list status tiles filter via `listDevices({ status })` on the same page; do not route Under repair / Not working to `/tickets`.
+
+## Slot Label order + Assign dropdown skills (Phase 44+)
+
+- Device list is ordered by Slot Label **in the backend SQL** (`GET /api/devices` → `ORDER BY slot_number`); do not add client-side sorting there — it would only order the current page and break `LIMIT/OFFSET` pagination.
+- Ticket list order stays `raised_at DESC`; it has no Slot Label column.
+- Assign / Reassign "Hand to" lists `filterAssignableAssignees(listTechnicianLookups(), currentAssigneeId, currentAssigneeName)` from `services/users.js`; role names come from the existing `roles.name` values (`Technician`, `Engineer`) via `ASSIGNABLE_ASSIGNEE_ROLES` — never invent labels or ids.
+- Always keep the ticket's current assignee in the option list, even when their role is not assignable, so an existing Control room / Project manager holder still renders and can be reassigned away.
+- Do **not** narrow `GET /api/lookups/technicians` server-side: Work report Person filter needs Control room / Project manager. Do not delete users or change roles to achieve this.
+- Both dropdowns (TicketList inline modal and TicketDetail) must use the same helper; do not filter inline in the components.
+- Backend `assertEligibleAssignee` stays the final source of truth — the frontend filter is a UX guard, not authorization.
+
+## Notification skills (Phase 39+)
+
+- Consume `services/notifications.js` and the existing backend `/api/notifications` endpoints; preserve backend pagination with `apiEnvelope`.
+- Keep one `useTicketNotifications` owner in `AppLayout`; pass its count to `Topbar` and `Sidebar` so the bell and both ticket badges cannot drift.
+- Gate the UX with the existing role names plus `canPerm(user, 'All tickets', 'v')`; never use client state as authorization.
+- Use `public/sw.js` for `push` and `notificationclick`; the page handles protected mark-read requests because the JWT is in `localStorage`.
+- Play `public/sounds/elevenlabs-achievement-unlock.mp3` for a new push or unread-count increase, including an open background tab; debounce duplicate events and ignore autoplay rejection.
+- Permission is opt-in and user-triggered. Reconcile existing subscriptions through the backend push-config/subscription APIs; do not prompt on load or add a second SW.
+- Use backend `data.url`/`canOpen` with the existing ticket route; rely on TicketDetail for 403/404 handling.
+- Opening a ticket is the read receipt: `POST /api/notifications/ticket/:ticketId/read` marks the caller's own rows for that ticket. Drive it from a route-scoped effect in the one `useTicketNotifications` owner — do not add a second mark-read path, endpoint, or counter.
+- Scope the patch to the viewed ticket only, apply the backend's authoritative `updated` with a `Math.max(0, …)` floor, then re-read `unread-count`; never decrement by guesswork.
+- Dedupe per ticket so rerenders and re-entry do not re-request. Keep mark-read failures non-blocking (`listError`), and never bypass 401/403.
+- Render `ticket.assigned` / `ticket.reassigned` from the same popover as `ticket.raised`; attribute by type (`raisedBy` then `assignedBy`) and omit the line when neither exists. Do not hardcode ticket details in the frontend.
+- Fall back to visible-page polling/focus refresh because the backend has no WebSocket/SSE transport.
+- In TicketDetail View Update, use structured reported/found issue arrays, group by category, show all sub-categories, and fall back to scalar fields for older events; hide the issue section when no issue data exists.
+
+---
 
 ## Definition of done (per page)
 

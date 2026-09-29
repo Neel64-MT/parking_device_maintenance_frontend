@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast } from '../../context/ToastContext'
 import { ROAD_ROWS } from '../../data/roads'
+import { canPerm } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field, FilterBar } from '../../components/ui/FilterBar'
 import { Pill } from '../../components/ui/Pill'
@@ -21,6 +23,8 @@ function PlusIcon() {
 }
 
 export default function RoadList() {
+  const { user } = useAuth()
+  const canCreate = canPerm(user, 'Road master', 'c')
   const [query, setQuery] = useState('')
   const [zone, setZone] = useState(FILTER_DEFAULTS.zone)
   const [status, setStatus] = useState(FILTER_DEFAULTS.status)
@@ -94,10 +98,12 @@ export default function RoadList() {
               <Link className="btn btn-sm" to="/devices">
                 View devices
               </Link>
-              <Link className="btn btn-sm btn-primary" to="/masters/roads/add">
-                <PlusIcon />
-                Add road
-              </Link>
+              {canCreate ? (
+                <Link className="btn btn-sm btn-primary" to="/masters/roads/add">
+                  <PlusIcon />
+                  Add road
+                </Link>
+              ) : null}
             </div>
           </div>
 
@@ -156,8 +162,13 @@ export default function RoadList() {
 
           <div className="foot-note">
             Slots are the surveyed capacity; devices are what is actually installed. Sobo – Marigold
-            is on hold because footpath work is incomplete.{' '}
-            <Link to="/masters/roads/add">Add road</Link>
+            is on hold because footpath work is incomplete.
+            {canCreate ? (
+              <>
+                {' '}
+                <Link to="/masters/roads/add">Add road</Link>
+              </>
+            ) : null}
           </div>
         </section>
       </main>

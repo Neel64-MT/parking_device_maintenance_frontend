@@ -1,5 +1,58 @@
 import { api } from './api'
 
+/**
+ * Privilege order highest → lowest (mirrors backend Phase 36 `role-hierarchy.ts`).
+ * Same rank may create/assign; lower index = higher privilege.
+ * Names must match `roles.name` exactly.
+ */
+export const ROLE_HIERARCHY = [
+  'Admin',
+  'Project manager',
+  'Control room',
+  'Engineer',
+  'Technician',
+  'Site attendant',
+  'AMC officer',
+]
+
+/** 0 = highest privilege. Returns -1 if name is not in the hierarchy. */
+export function roleRank(roleName) {
+  return ROLE_HIERARCHY.indexOf(roleName)
+}
+
+/**
+ * Actor may assign target when target is same rank or below (higher index).
+ * Unknown roles (custom names not in hierarchy) are not assignable.
+ */
+export function canAssignRole(actorRoleName, targetRoleName) {
+  const actorRank = roleRank(actorRoleName || '')
+  const targetRank = roleRank(targetRoleName || '')
+  if (actorRank < 0 || targetRank < 0) return false
+  return targetRank >= actorRank
+}
+
+/**
+ * Actor may edit a role's permission matrix when target is same rank or below.
+ * Custom (unknown) names: Admin only (mirrors backend assertCanManageRolePermissions).
+ */
+export function canManageRolePermissions(actorRoleName, targetRoleName) {
+  const actorRank = roleRank(actorRoleName || '')
+  const targetRank = roleRank(targetRoleName || '')
+  if (actorRank < 0) return false
+  if (targetRank < 0) return actorRank === 0
+  return targetRank >= actorRank
+}
+
+/**
+ * Filter `GET /api/roles` rows to those the actor may assign (same-or-below).
+ * @param {string} actorRoleName
+ * @param {{ id: string, name: string }[]} roles
+ */
+export function filterAssignableRoles(actorRoleName, roles) {
+  if (!Array.isArray(roles)) return []
+  return roles.filter((r) => canAssignRole(actorRoleName, r?.name))
+}
+
 export async function listUsers({ q = '', status = '' } = {}) {
   const params = new URLSearchParams()
   if (q.trim()) params.set('q', q.trim())
@@ -18,6 +71,36 @@ export async function updateUser(id, body) {
 
 export async function listRoles() {
   return api('/api/roles')
+}
+
+/**
+ * Create a role (`POST /api/roles`). Requires Roles & permissions `c`.
+ * @param {{ name: string, scope?: 'all_roads'|'assigned_roads', copyFromRoleId?: string|null, note?: string }} body
+ */
+export async function createRole(body) {
+  return api('/api/roles', { method: 'POST', body })
+}
+
+/**
+ * Update a role's permission matrix (`PATCH /api/roles/:id/permissions`).
+ * Requires Roles & permissions `e`. Admin is locked on the backend.
+ * @param {string} roleId
+ * @param {Record<string, string>} permissions screen → 6-char code
+ */
+export async function updateRolePermissions(roleId, permissions) {
+  return api(`/api/roles/${roleId}/permissions`, {
+    method: 'PATCH',
+    body: { permissions },
+  })
+}
+
+/**
+ * Reset a role to seeded defaults (`POST /api/roles/:id/permissions/reset`).
+ * Requires Roles & permissions `e`. Not available for Admin or custom roles without defaults.
+ * @param {string} roleId
+ */
+export async function resetRolePermissions(roleId) {
+  return api(`/api/roles/${roleId}/permissions/reset`, { method: 'POST' })
 }
 
 /**
@@ -43,6 +126,57 @@ export function canPerm(user, screen, flag) {
   return idx >= 0 && code[idx] === flag
 }
 
+/**
+ * Roles offered in the Assign / Reassign "Hand to" dropdown.
+ *
+ * `GET /api/lookups/technicians` also returns Control room and Project manager
+ * because the Work report Person filter needs them. A ticket is only ever held
+ * by field staff, so the assign dropdown narrows to the two field roles.
+ *
+ * This is a presentation guard; the backend `assertEligibleAssignee` remains the
+ * final source of truth and is intentionally left unchanged.
+ */
+export const ASSIGNABLE_ASSIGNEE_ROLES = ['Technician', 'Engineer']
+
+/**
+ * Narrow a technicians lookup list to the assignable roles for the Hand to select.
+ *
+ * The ticket's current assignee is always kept so a ticket already held by a
+ * non-assignable user (Control room / Project manager) still renders its
+ * selection and can still be reassigned away from them.
+ *
+ * @param {{ id: string, name: string, role: string, label: string }[]} options
+ * @param {string|null|undefined} currentAssigneeId
+ * @param {string} [currentAssigneeName] fallback label when the current assignee
+ *   is not in the lookup list (e.g. inactive user)
+ */
+export function filterAssignableAssignees(options, currentAssigneeId, currentAssigneeName) {
+  if (!Array.isArray(options)) return []
+  const currentId = currentAssigneeId == null ? '' : String(currentAssigneeId)
+  const keep = options.filter(
+    (o) => ASSIGNABLE_ASSIGNEE_ROLES.includes(o?.role) || String(o?.id) === currentId,
+  )
+  if (!currentId || keep.some((o) => String(o.id) === currentId)) return keep
+  const name = (currentAssigneeName || '').trim()
+  return [...keep, { id: currentId, name, role: '', label: name || `Current assignee ${currentId}` }]
+}
+
+/**
+ * Notification-eligible roles.
+ *
+ * - New-ticket ("ticket.raised") alerts stay limited to the oversight roles.
+ * - Assignment alerts add the roles that can actually be made a ticket assignee
+ *   (Technician / Engineer), so an assignee is never un-alertable.
+ *
+ * Site attendant and AMC officer are excluded because they are never eligible
+ * assignees. This is a presentation guard; the backend remains the source of truth.
+ */
+const NOTIFICATION_ROLES = ['Admin', 'Project manager', 'Control room', 'Technician', 'Engineer']
+
+export function canReceiveTicketNotifications(user) {
+  return canPerm(user, 'All tickets', 'v') && NOTIFICATION_ROLES.includes(user?.role)
+}
+
 /** Dashboard is the home screen only for Admin and Project manager. */
 export function isDashboardRole(user) {
   return user?.role === 'Admin' || user?.role === 'Project manager'
@@ -65,7 +199,7 @@ export function isOpsTicketUpdater(user) {
   return role === 'Admin' || role === 'Project manager' || role === 'Control room'
 }
 
-/** Post-login / index landing path by role. */
+/** Post-login / index landing path — Dashboard View permission only. */
 export function homePathForUser(user) {
-  return isDashboardRole(user) ? '/dashboard' : '/tickets'
+  return canPerm(user, 'Dashboard', 'v') ? '/dashboard' : '/tickets'
 }

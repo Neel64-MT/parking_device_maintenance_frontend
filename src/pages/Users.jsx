@@ -1,17 +1,28 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { PageMeta } from '../context/PageMetaContext'
 import { toast, toastApiError, toastApiSuccess } from '../context/ToastContext'
 import { ApiRequestError } from '../services/api'
-import { canPerm, createUser, homePathForUser, listRoles, listUsers, updateUser } from '../services/users'
+import {
+  canManageRolePermissions,
+  canPerm,
+  createRole as createRoleApi,
+  createUser,
+  filterAssignableRoles,
+  homePathForUser,
+  listRoles,
+  listUsers,
+  resetRolePermissions,
+  updateRolePermissions,
+  updateUser,
+} from '../services/users'
 import {
   PERM_FLAGS,
   PERM_SCREENS,
   ROLE_HELP,
-  ROLE_ROWS,
-  ROLES,
   permOn,
+  togglePermFlag,
 } from '../data/users'
 import { Button } from '../components/ui/Button'
 import { Field } from '../components/ui/FilterBar'
@@ -37,10 +48,13 @@ function formatLastActive(value) {
 }
 
 export default function Users() {
-  const { user } = useAuth()
+  const { user, refresh } = useAuth()
   const canView = canPerm(user, 'Users', 'v')
   const canCreate = canPerm(user, 'Users', 'c')
   const canEdit = canPerm(user, 'Users', 'e')
+  const canViewRoles = canPerm(user, 'Roles & permissions', 'v')
+  const canCreateRole = canPerm(user, 'Roles & permissions', 'c')
+  const canEditRoles = canPerm(user, 'Roles & permissions', 'e')
   const canViewWorkReport = canPerm(user, 'Work report', 'v')
 
   const [tab, setTab] = useState('users')
@@ -51,12 +65,15 @@ export default function Users() {
   const [roles, setRoles] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [rolesError, setRolesError] = useState('')
+  const [rolesLoading, setRolesLoading] = useState(false)
 
   const [roleHelpOpen, setRoleHelpOpen] = useState(false)
   const [userFormOpen, setUserFormOpen] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(true)
   const [roleFormOpen, setRoleFormOpen] = useState(false)
-  const [permRole, setPermRole] = useState('Technician')
+  const [permRoleId, setPermRoleId] = useState('')
+  const [permMap, setPermMap] = useState({})
 
   const [fullName, setFullName] = useState('')
   const [mobile, setMobile] = useState('')
@@ -69,6 +86,7 @@ export default function Users() {
   const [editMobile, setEditMobile] = useState('')
   const [editEmail, setEditEmail] = useState('')
   const [editRoleId, setEditRoleId] = useState('')
+  const [editOriginalRoleId, setEditOriginalRoleId] = useState('')
   const [editStatus, setEditStatus] = useState('Active')
 
   const [pwId, setPwId] = useState(null)
@@ -79,15 +97,101 @@ export default function Users() {
   const [savingEdit, setSavingEdit] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
   const [approvingId, setApprovingId] = useState(null)
+  const [creatingRole, setCreatingRole] = useState(false)
+  const [savingPerms, setSavingPerms] = useState(false)
 
   const [roleName, setRoleName] = useState('')
-  const [copyFrom, setCopyFrom] = useState('Start with nothing')
-  const [scope, setScope] = useState('Only roads assigned to the user')
+  const [copyFrom, setCopyFrom] = useState('')
+  const [scope, setScope] = useState('assigned_roads')
 
   const nameRef = useRef(null)
   const roleNameRef = useRef(null)
+  const permRoleIdRef = useRef('')
 
-  const roleDef = ROLES[permRole]
+  const selectedPermRole = useMemo(
+    () => roles.find((r) => r.id === permRoleId) || null,
+    [roles, permRoleId],
+  )
+
+  /** Roles `e` plus hierarchy; Admin matrix is locked. */
+  const canEditSelectedRolePerms = Boolean(
+    canEditRoles &&
+      selectedPermRole &&
+      selectedPermRole.name !== 'Admin' &&
+      !selectedPermRole.permissionsLocked &&
+      canManageRolePermissions(user?.role, selectedPermRole.name),
+  )
+
+  const canResetSelectedRolePerms = Boolean(
+    canEditSelectedRolePerms && selectedPermRole?.canReset !== false && selectedPermRole?.defaultPermissions,
+  )
+
+  const selectPermRole = useCallback((role) => {
+    if (!role || role.name === 'Admin' || role.permissionsLocked) {
+      permRoleIdRef.current = ''
+      setPermRoleId('')
+      setPermMap({})
+      return
+    }
+    permRoleIdRef.current = role.id
+    setPermRoleId(role.id)
+    setPermMap({ ...(role.permissions || {}) })
+  }, [])
+
+  const togglePerm = useCallback(
+    (screen, flagIndex) => {
+      if (!canEditSelectedRolePerms) return
+      setPermMap((prev) => {
+        const code = prev[screen] || '......'
+        return { ...prev, [screen]: togglePermFlag(code, flagIndex) }
+      })
+    },
+    [canEditSelectedRolePerms],
+  )
+
+  const assignableRoles = useMemo(
+    () => filterAssignableRoles(user?.role, roles),
+    [user?.role, roles],
+  )
+
+  const editRoleOptions = useMemo(() => {
+    if (!editRoleId) return assignableRoles
+    if (assignableRoles.some((r) => r.id === editRoleId)) return assignableRoles
+    const current = roles.find((r) => r.id === editRoleId)
+    return current ? [current, ...assignableRoles] : assignableRoles
+  }, [assignableRoles, editRoleId, roles])
+
+  const applyRolesList = useCallback(
+    (list) => {
+      setRoles(list)
+      const allowed = filterAssignableRoles(user?.role, list)
+      setRoleId((prev) => {
+        if (prev && allowed.some((r) => r.id === prev)) return prev
+        return allowed[0]?.id || ''
+      })
+      const prevPerm = permRoleIdRef.current
+      const prevRow = list.find((r) => r.id === prevPerm)
+      const nextPermId =
+        prevPerm && prevRow && prevRow.name !== 'Admin' && !prevRow.permissionsLocked
+          ? prevPerm
+          : (
+              list.find((r) => r.name === 'Technician') ||
+              list.find((r) => r.name !== 'Admin' && !r.permissionsLocked) ||
+              list[0]
+            )?.id || ''
+      permRoleIdRef.current = nextPermId
+      setPermRoleId(nextPermId)
+      const row = list.find((r) => r.id === nextPermId)
+      if (row?.name === 'Admin' || row?.permissionsLocked) {
+        setPermRoleId('')
+        permRoleIdRef.current = ''
+        setPermMap({})
+      } else {
+        setPermMap({ ...(row?.permissions || {}) })
+      }
+    },
+    [user?.role],
+  )
 
   const refreshUsers = useCallback(async () => {
     if (!canView) {
@@ -138,29 +242,79 @@ export default function Users() {
     }
   }, [canView, query, statusFilter])
 
+  const refreshRoles = useCallback(async () => {
+    if (!canViewRoles && !canCreate && !canEdit) return null
+    setRolesLoading(true)
+    setRolesError('')
+    try {
+      const list = await listRoles()
+      if (!Array.isArray(list)) {
+        setRoles([])
+        return []
+      }
+      applyRolesList(list)
+      return list
+    } catch (err) {
+      setRolesError(err instanceof ApiRequestError ? err.message : 'Could not load roles.')
+      return null
+    } finally {
+      setRolesLoading(false)
+    }
+  }, [canViewRoles, canCreate, canEdit, applyRolesList])
+
   useEffect(() => {
-    if (!canCreate && !canEdit) return undefined
     let cancelled = false
+    if (!canViewRoles && !canCreate && !canEdit) return undefined
+
     ;(async () => {
+      setRolesLoading(true)
+      setRolesError('')
       try {
         const list = await listRoles()
-        if (cancelled || !Array.isArray(list)) return
-        setRoles(list)
-        setRoleId((prev) => prev || list[0]?.id || '')
-      } catch {
-        /* Roles list optional for view-only users */
+        if (cancelled) return
+        if (!Array.isArray(list)) {
+          setRoles([])
+          return
+        }
+        applyRolesList(list)
+      } catch (err) {
+        if (cancelled) return
+        setRolesError(err instanceof ApiRequestError ? err.message : 'Could not load roles.')
+      } finally {
+        if (!cancelled) setRolesLoading(false)
       }
     })()
+
     return () => {
       cancelled = true
     }
-  }, [canCreate, canEdit])
+  }, [canViewRoles, canCreate, canEdit, applyRolesList])
+
+  const effectiveRoleId = useMemo(() => {
+    if (!roleId) return assignableRoles[0]?.id || ''
+    if (assignableRoles.some((r) => r.id === roleId)) return roleId
+    return assignableRoles[0]?.id || ''
+  }, [assignableRoles, roleId])
+
+  useEffect(() => {
+    if (effectiveRoleId === roleId) return undefined
+    const id = window.setTimeout(() => setRoleId(effectiveRoleId), 0)
+    return () => window.clearTimeout(id)
+  }, [effectiveRoleId, roleId])
 
   async function saveUser(e) {
     e.preventDefault()
     if (!canCreate || creating) return
-    if (!fullName.trim() || !mobile.trim() || !password || !roleId) {
+    if (!assignableRoles.length) {
+      toast('No roles you can assign.', 'error')
+      return
+    }
+    if (!fullName.trim() || !mobile.trim() || !password || !effectiveRoleId) {
       toast('Name, mobile, password and role are required.', 'error')
+      return
+    }
+    if (!assignableRoles.some((r) => r.id === effectiveRoleId)) {
+      toast('You cannot create a user with a role higher than your own.', 'error')
       return
     }
     setCreating(true)
@@ -170,7 +324,7 @@ export default function Users() {
         mobile: mobile.trim(),
         email: email.trim() || '',
         password,
-        roleId,
+        roleId: effectiveRoleId,
         roadIds: [],
         status: 'Active',
       })
@@ -180,6 +334,7 @@ export default function Users() {
       setMobile('')
       setEmail('')
       setPassword('')
+      setRoleId(assignableRoles[0]?.id || '')
       await refreshUsers()
     } catch (err) {
       toastApiError(err, 'Could not create user.')
@@ -208,6 +363,7 @@ export default function Users() {
     setEditMobile(row.mobile || '')
     setEditEmail(row.email || '')
     setEditRoleId(row.roleId || '')
+    setEditOriginalRoleId(row.roleId || '')
     setEditStatus(row.status)
     setPwId(null)
   }
@@ -220,15 +376,21 @@ export default function Users() {
       toast('Mobile number must be at least 10 digits.', 'error')
       return
     }
+    const roleChanged = Boolean(editRoleId) && editRoleId !== editOriginalRoleId
+    if (roleChanged && !assignableRoles.some((r) => r.id === editRoleId)) {
+      toast('You cannot create a user with a role higher than your own.', 'error')
+      return
+    }
     setSavingEdit(true)
     try {
-      await updateUser(editId, {
+      const body = {
         fullName: editName.trim(),
         mobile: mobileValue,
         email: editEmail.trim(),
-        roleId: editRoleId || undefined,
         status: editStatus,
-      })
+      }
+      if (roleChanged) body.roleId = editRoleId
+      await updateUser(editId, body)
       toastApiSuccess('User updated.')
       setEditId(null)
       await refreshUsers()
@@ -264,13 +426,69 @@ export default function Users() {
     }
   }
 
-  function createRole(e) {
+  async function submitCreateRole(e) {
     e.preventDefault()
-    toast('Design preview — role would be created here.', 'success')
-    setRoleFormOpen(false)
-    setRoleName('')
-    setCopyFrom('Start with nothing')
-    setScope('Only roads assigned to the user')
+    if (!canCreateRole || creatingRole) return
+    if (roleName.trim().length < 2) {
+      toast('Role name must be at least 2 characters.', 'error')
+      return
+    }
+    setCreatingRole(true)
+    try {
+      await createRoleApi({
+        name: roleName.trim(),
+        scope: scope === 'all_roads' ? 'all_roads' : 'assigned_roads',
+        copyFromRoleId: copyFrom || null,
+      })
+      toastApiSuccess('Role created.')
+      setRoleFormOpen(false)
+      setRoleName('')
+      setCopyFrom('')
+      setScope('assigned_roads')
+      await refreshRoles()
+    } catch (err) {
+      toastApiError(err, 'Could not create role.')
+    } finally {
+      setCreatingRole(false)
+    }
+  }
+
+  async function savePermissions() {
+    if (!canEditSelectedRolePerms || !permRoleId || savingPerms) return
+    setSavingPerms(true)
+    try {
+      await updateRolePermissions(permRoleId, permMap)
+      toastApiSuccess('Permissions saved.')
+      const savedName = selectedPermRole?.name
+      await refreshRoles()
+      if (savedName && savedName === user?.role) {
+        await refresh()
+      }
+    } catch (err) {
+      toastApiError(err, 'Could not save permissions.')
+    } finally {
+      setSavingPerms(false)
+    }
+  }
+
+  async function resetPermissions() {
+    if (!canResetSelectedRolePerms || !permRoleId || savingPerms) return
+    setSavingPerms(true)
+    try {
+      const data = await resetRolePermissions(permRoleId)
+      const nextMap = data?.permissions || selectedPermRole?.defaultPermissions || {}
+      setPermMap({ ...nextMap })
+      toastApiSuccess('Permissions reset to defaults.')
+      const savedName = selectedPermRole?.name
+      await refreshRoles()
+      if (savedName && savedName === user?.role) {
+        await refresh()
+      }
+    } catch (err) {
+      toastApiError(err, 'Could not reset permissions.')
+    } finally {
+      setSavingPerms(false)
+    }
   }
 
   const activeCount = rows.filter((r) => r.status === 'Active').length
@@ -364,7 +582,7 @@ export default function Users() {
           onChange={setTab}
           tabs={[
             { id: 'users', label: 'Users', count: rows.length },
-            { id: 'roles', label: 'Roles & permissions', count: ROLE_ROWS.length },
+            { id: 'roles', label: 'Roles & permissions', count: roles.length },
           ]}
         />
 
@@ -426,7 +644,7 @@ export default function Users() {
                     </Field>
                     <Field
                       label="Mobile number"
-                      hint="Also the login ID. Ticket alerts go to this number."
+                      hint=""
                     >
                       <input
                         type="tel"
@@ -452,17 +670,32 @@ export default function Users() {
                       />
                     </Field>
                     <Field label="Role">
-                      <select value={roleId} onChange={(e) => setRoleId(e.target.value)}>
-                        {roles.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.name}
-                          </option>
-                        ))}
-                      </select>
+                      {assignableRoles.length ? (
+                        <select
+                          value={effectiveRoleId}
+                          onChange={(e) => setRoleId(e.target.value)}
+                          disabled={creating}
+                        >
+                          {assignableRoles.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="muted" style={{ margin: 0 }}>
+                          No roles you can assign.
+                        </p>
+                      )}
                     </Field>
                   </div>
                   <div className="row" style={{ marginTop: 12 }}>
-                    <Button type="submit" size="sm" variant="primary" disabled={creating}>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      variant="primary"
+                      disabled={creating || !assignableRoles.length}
+                    >
                       {creating ? 'Creating…' : 'Save user'}
                     </Button>
                     <Button
@@ -587,6 +820,14 @@ export default function Users() {
 
         {tab === 'roles' ? (
           <div>
+            {!canViewRoles ? (
+              <section className="panel">
+                <div className="hint-strip auth-error" style={{ margin: 16 }} role="alert">
+                  <span>You do not have permission to view roles and permissions.</span>
+                </div>
+              </section>
+            ) : (
+              <>
             <section className="panel">
               <div className="panel-head">
                 <div>
@@ -594,68 +835,90 @@ export default function Users() {
                   <p>Pick a role to see and edit what it can do</p>
                 </div>
                 <div className="actions">
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => {
-                      setRoleFormOpen((v) => !v)
-                      setTimeout(() => roleNameRef.current?.focus(), 0)
-                    }}
-                  >
-                    Add role
-                  </Button>
+                  {canCreateRole ? (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => {
+                        setRoleFormOpen((v) => !v)
+                        setTimeout(() => roleNameRef.current?.focus(), 0)
+                      }}
+                    >
+                      Add role
+                    </Button>
+                  ) : null}
                 </div>
               </div>
 
-              <div className={`inline-form${roleFormOpen ? ' open' : ''}`}>
-                <form onSubmit={createRole}>
-                  <div className="row">
-                    <Field label="Role name">
-                      <input
-                        ref={roleNameRef}
-                        type="text"
-                        value={roleName}
-                        onChange={(e) => setRoleName(e.target.value)}
-                        placeholder="e.g. Store keeper"
-                      />
-                    </Field>
-                    <Field label="Copy permissions from">
-                      <select value={copyFrom} onChange={(e) => setCopyFrom(e.target.value)}>
-                        <option>Start with nothing</option>
-                        <option>Technician</option>
-                        <option>Site attendant</option>
-                        <option>Control room</option>
-                      </select>
-                    </Field>
-                    <Field
-                      label="Scope"
-                      hint="Decides whether the person sees the whole city or only their stretch."
-                    >
-                      <select value={scope} onChange={(e) => setScope(e.target.value)}>
-                        <option>Only roads assigned to the user</option>
-                        <option>All roads</option>
-                      </select>
-                    </Field>
-                  </div>
-                  <div className="row" style={{ marginTop: 12 }}>
-                    <Button type="submit" size="sm" variant="primary">
-                      Create role
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => {
-                        setRoleFormOpen(false)
-                        setRoleName('')
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              </div>
+              {canCreateRole ? (
+                <div className={`inline-form${roleFormOpen ? ' open' : ''}`}>
+                  <form onSubmit={submitCreateRole}>
+                    <div className="row">
+                      <Field label="Role name">
+                        <input
+                          ref={roleNameRef}
+                          type="text"
+                          value={roleName}
+                          onChange={(e) => setRoleName(e.target.value)}
+                          placeholder="e.g. Store keeper"
+                          disabled={creatingRole}
+                        />
+                      </Field>
+                      <Field label="Copy permissions from">
+                        <select
+                          value={copyFrom}
+                          onChange={(e) => setCopyFrom(e.target.value)}
+                          disabled={creatingRole}
+                        >
+                          <option value="">Start with nothing</option>
+                          {roles.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.name}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field
+                        label="Scope"
+                        hint="Decides whether the person sees the whole city or only their stretch."
+                      >
+                        <select
+                          value={scope}
+                          onChange={(e) => setScope(e.target.value)}
+                          disabled={creatingRole}
+                        >
+                          <option value="assigned_roads">Only roads assigned to the user</option>
+                          <option value="all_roads">All roads</option>
+                        </select>
+                      </Field>
+                    </div>
+                    <div className="row" style={{ marginTop: 12 }}>
+                      <Button type="submit" size="sm" variant="primary" disabled={creatingRole}>
+                        {creatingRole ? 'Creating…' : 'Create role'}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={creatingRole}
+                        onClick={() => {
+                          setRoleFormOpen(false)
+                          setRoleName('')
+                          setCopyFrom('')
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              ) : null}
 
               <div className="panel-body flush">
+                {rolesError ? (
+                  <div className="hint-strip auth-error" style={{ margin: 16 }} role="alert">
+                    <span>{rolesError}</span>
+                  </div>
+                ) : null}
                 <div className="table-wrap">
                   <table>
                     <thead>
@@ -668,24 +931,30 @@ export default function Users() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ROLE_ROWS.map((row) => (
-                        <tr key={row.name}>
+                      {rolesLoading && !roles.length ? <SkeletonTable rows={5} cols={5} /> : null}
+                      {!rolesLoading && !roles.length ? (
+                        <tr>
+                          <td colSpan={5}>
+                            <span className="muted">No roles found.</span>
+                          </td>
+                        </tr>
+                      ) : null}
+                      {roles.map((row) => (
+                        <tr key={row.id}>
                           <td>
                             <b>{row.name}</b>
                           </td>
                           <td>{row.scope}</td>
-                          <td className="num">
-                            {row.usersLink ? (
-                              <Link to="/tickets">{row.users}</Link>
-                            ) : (
-                              row.users
-                            )}
-                          </td>
-                          <td>{row.purpose}</td>
+                          <td className="num">{row.users ?? 0}</td>
+                          <td>{row.note || '—'}</td>
                           <td className="act">
-                            <Button size="sm" onClick={() => setPermRole(row.name)}>
-                              Permissions
-                            </Button>
+                            {row.name === 'Admin' || row.permissionsLocked ? (
+                              <span className="muted">Full access</span>
+                            ) : (
+                              <Button size="sm" onClick={() => selectPermRole(row)}>
+                                Permissions
+                              </Button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -698,13 +967,37 @@ export default function Users() {
             <section className="panel">
               <div className="panel-head">
                 <div>
-                  <h3>Permissions — {permRole}</h3>
-                  <p>Tick what this role is allowed to do</p>
+                  <h3>Permissions — {selectedPermRole?.name || '—'}</h3>
+                  <p>
+                    {!selectedPermRole
+                      ? 'Select a role to review its permissions.'
+                      : canEditSelectedRolePerms
+                        ? 'Tick what this role is allowed to do. Reset restores the seeded defaults.'
+                        : canEditRoles
+                          ? 'View only — this role is above yours; you cannot change its matrix'
+                          : 'View only — you cannot change this matrix'}
+                  </p>
                 </div>
                 <div className="actions">
-                  <Button size="sm" variant="primary" onClick={() => toast('Permissions saved.', 'success')}>
-                    Save changes
-                  </Button>
+                  {canResetSelectedRolePerms ? (
+                    <Button
+                      size="sm"
+                      disabled={savingPerms || !permRoleId}
+                      onClick={resetPermissions}
+                    >
+                      {savingPerms ? 'Working…' : 'Reset to defaults'}
+                    </Button>
+                  ) : null}
+                  {canEditSelectedRolePerms ? (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      disabled={savingPerms || !permRoleId}
+                      onClick={savePermissions}
+                    >
+                      {savingPerms ? 'Saving…' : 'Save changes'}
+                    </Button>
+                  ) : null}
                 </div>
               </div>
               <div className="panel-body flush">
@@ -728,7 +1021,7 @@ export default function Users() {
                             <td colSpan={7}>{group}</td>
                           </tr>
                           {screens.map((scr) => {
-                            const code = roleDef.p[scr] || '......'
+                            const code = permMap[scr] || '......'
                             return (
                               <tr key={scr}>
                                 <td>{scr.replace(/ master$/i, '')}</td>
@@ -737,7 +1030,8 @@ export default function Users() {
                                     <input
                                       type="checkbox"
                                       checked={permOn(code, i)}
-                                      onChange={() => {}}
+                                      disabled={!canEditSelectedRolePerms || savingPerms || !permRoleId}
+                                      onChange={() => togglePerm(scr, i)}
                                     />
                                   </td>
                                 ))}
@@ -750,8 +1044,12 @@ export default function Users() {
                   </table>
                 </div>
               </div>
-              <div className="foot-note">{roleDef.note}</div>
+              <div className="foot-note">
+                {selectedPermRole?.note || 'Select a role to review its permissions.'}
+              </div>
             </section>
+              </>
+            )}
           </div>
         ) : null}
       </main>
@@ -779,7 +1077,7 @@ export default function Users() {
             <Field
               label="Mobile number"
               required
-              hint="Also the login ID. Ticket alerts go to this number."
+              hint=""
             >
               <input
                 type="tel"
@@ -797,8 +1095,12 @@ export default function Users() {
               />
             </Field>
             <Field label="Role">
-              <select value={editRoleId} onChange={(e) => setEditRoleId(e.target.value)}>
-                {roles.map((r) => (
+              <select
+                value={editRoleId}
+                onChange={(e) => setEditRoleId(e.target.value)}
+                disabled={savingEdit || !editRoleOptions.length}
+              >
+                {editRoleOptions.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
                   </option>

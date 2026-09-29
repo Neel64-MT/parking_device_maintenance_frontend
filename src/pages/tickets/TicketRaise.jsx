@@ -7,12 +7,19 @@ import { scanDeviceFacts } from '../../data/scanDevice'
 import { ApiRequestError } from '../../services/api'
 import { canScanWithCamera, resolveScan } from '../../services/devices'
 import { listIssueCategories } from '../../services/issues'
-import { createTicket } from '../../services/tickets'
+import { attachTicketRaisePhotos, createTicket } from '../../services/tickets'
 import { uploadImages } from '../../services/uploads'
+import {
+  hasDuplicateSubCategories,
+  hasIncompleteIssueRows,
+  newIssueRow,
+  rowsToIssuePairs,
+} from '../../components/tickets/ticketIssueRowsHelpers'
+import { canPerm } from '../../services/users'
+import { TicketIssueRows } from '../../components/tickets/TicketIssueRows'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
 import { Field } from '../../components/ui/FilterBar'
-import { IssueSelects } from '../../components/ui/IssueSelects'
 import { PhotoPicker } from '../../components/ui/PhotoPicker'
 import { QrScannerModal } from '../../components/ui/QrScannerModal'
 
@@ -51,6 +58,7 @@ export default function TicketRaise() {
   const { user } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const canCreate = canPerm(user, 'Raise ticket', 'c')
   const canScan = canScanWithCamera(user)
   const resolveGen = useRef(0)
   const prefillDone = useRef(false)
@@ -60,8 +68,7 @@ export default function TicketRaise() {
     return typeof qr === 'string' ? qr : ''
   })
   const [device, setDevice] = useState(null)
-  const [category, setCategory] = useState('')
-  const [subCategory, setSubCategory] = useState('')
+  const [issueRows, setIssueRows] = useState(() => [newIssueRow()])
   const [description, setDescription] = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
   const [photos, setPhotos] = useState([])
@@ -70,7 +77,6 @@ export default function TicketRaise() {
   const [issueCategories, setIssueCategories] = useState([])
   const [issuesLoading, setIssuesLoading] = useState(true)
 
-  const reportedBy = user?.name || ''
   const fromHere = `${location.pathname}${location.search}`
   const blocked = Boolean(device?.dup)
   const backTo = raiseReturnPath(location.state?.from)
@@ -116,8 +122,7 @@ export default function TicketRaise() {
   }, [])
 
   function clearProblemFields() {
-    setCategory('')
-    setSubCategory('')
+    setIssueRows([newIssueRow()])
     setDescription('')
     setPhotos([])
   }
@@ -191,6 +196,10 @@ export default function TicketRaise() {
   }
 
   async function tryRaise() {
+    if (!canCreate) {
+      toast('You do not have permission to raise tickets.', 'error')
+      return
+    }
     if (!device?.scan) {
       toast('Scan or enter a QR number first.', 'error')
       return
@@ -199,26 +208,63 @@ export default function TicketRaise() {
       toast('This device already has an open ticket. Update that ticket instead.', 'warning')
       return
     }
-    if (!category || !subCategory) {
-      toast('Select an issue category and sub-category.', 'error')
+    const issues = rowsToIssuePairs(issueRows)
+    if (!issues.length) {
+      toast('Select at least one issue category and sub-category.', 'error')
+      return
+    }
+    if (hasIncompleteIssueRows(issueRows)) {
+      toast('Select at least one sub-category for each chosen category.', 'error')
+      return
+    }
+    if (hasDuplicateSubCategories(issueRows)) {
+      toast('Each issue can only be selected once.', 'error')
       return
     }
 
     setSubmitting(true)
     try {
-      let photoUrls = []
-      if (photos.length) {
-        const uploaded = await uploadImages(photos)
-        photoUrls = uploaded.map((u) => u.url).filter(Boolean)
-      }
-
       const created = await createTicket({
         deviceId: device.scan.deviceId,
-        categoryId: category,
-        subCategoryId: subCategory,
+        issues,
         description: description.trim() || undefined,
-        photos: photoUrls,
+        photos: [],
       })
+
+      if (photos.length) {
+        if (!created?.eventId) {
+          toastApiError(
+            new ApiRequestError('Ticket raised but server did not return an event id for photos.', {
+              status: 500,
+            }),
+            'Ticket raised but photos could not be attached.',
+          )
+          if (created?.id) {
+            navigate(openTicketPath(created.id), { state: { from: fromHere } })
+          } else {
+            navigate(fromDevice ? '/tickets' : backTo)
+          }
+          return
+        }
+        try {
+          const uploaded = await uploadImages(photos)
+          const photoUrls = uploaded.map((u) => u.url).filter(Boolean)
+          if (!photoUrls.length) {
+            throw new ApiRequestError('Ticket raised but photo upload returned no URLs.', {
+              status: 500,
+            })
+          }
+          await attachTicketRaisePhotos(created.id, created.eventId, photoUrls)
+        } catch (photoErr) {
+          toastApiError(photoErr, 'Ticket raised but photos could not be attached.')
+          if (created?.id) {
+            navigate(openTicketPath(created.id), { state: { from: fromHere } })
+          } else {
+            navigate(fromDevice ? '/tickets' : backTo)
+          }
+          return
+        }
+      }
 
       toastApiSuccess(created?.id ? `Ticket ${created.id} raised.` : 'Ticket raised.')
       if (created?.id) {
@@ -374,23 +420,14 @@ export default function TicketRaise() {
               {issuesLoading ? (
                 <p className="muted">Loading issue categories…</p>
               ) : (
-                <IssueSelects
-                  category={category}
-                  subCategory={subCategory}
-                  onCategoryChange={setCategory}
-                  onSubCategoryChange={setSubCategory}
+                <TicketIssueRows
+                  rows={issueRows}
+                  onChange={setIssueRows}
                   categories={issueCategories}
                   disabled={busy || !device}
+                  minRows={1}
                 />
               )}
-              <Field label="What is happening">
-                <textarea
-                  placeholder="e.g. Flap does not open after payment, two vehicles waiting"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  disabled={busy || !device}
-                />
-              </Field>
               <Field label="Photos">
                 <PhotoPicker
                   hint="Up to 5 photos — the slot, the flap, the display."
@@ -398,17 +435,12 @@ export default function TicketRaise() {
                   disabled={busy || !device}
                 />
               </Field>
-              <Field
-                label="Reported by"
-                hint="Taken from the signed-in account. Assignment is done by Admin / control room."
-                style={{ marginBottom: 0 }}
-              >
-                <input
-                  type="text"
-                  value={reportedBy}
-                  disabled
-                  readOnly
-                  aria-readonly="true"
+              <Field label="What is happening">
+                <textarea
+                  placeholder="e.g. Flap does not open after payment, two vehicles waiting"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={busy || !device}
                 />
               </Field>
             </div>
@@ -427,7 +459,7 @@ export default function TicketRaise() {
             <Button
               variant="primary"
               onClick={tryRaise}
-              disabled={blocked || !device || busy || issuesLoading}
+              disabled={!canCreate || blocked || !device || busy || issuesLoading}
             >
               {submitting ? 'Raising…' : resolving ? 'Fetching device…' : 'Raise ticket'}
             </Button>

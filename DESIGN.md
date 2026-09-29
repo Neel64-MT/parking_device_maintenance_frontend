@@ -171,12 +171,22 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Item | Pattern |
 |------|---------|
 | Raise steps | 1 device + 2 problem only; remove assign/priority panel |
-| Reported by | Read-only input from `useAuth().user.name` |
+| Reported by | Not displayed; backend derives the reporter from the signed-in session |
+| Problem field order | Photos first, then **What is happening** |
 | Photo add | Compact `.photo-add` 86×86 dashed tile (original preview) |
 | Action bar | `.sticky-bar { position: static }` — scrolls with page, not viewport-fixed |
 | Action width | `.sticky-bar-inner { max-width: 580px }` matches `.mobile` |
 | Action chrome | Transparent background; no full-bleed white footer / top border / shadow |
 | Shared on | Raise, Update, Close ticket pages |
+
+## Phase 37 — Multi-issue rows
+
+| Item | Pattern |
+|------|---------|
+| Issue rows | One category per row; multi-select sub-categories as chips; used categories hidden on Add another |
+| Issue rows | Update starts with a blank selectable category/sub-category row; no reported/found prefill; Sub-category renders on a new line |
+| Detail multi | Group by category under As reported / As found (category header + sub list from `issuesReported` / `issuesFound`) |
+| Site attendant | Sync + Issue Master via permissions; Parts still role-hidden |
 
 ## Phase 15 — Ticket visibility (UX notes)
 
@@ -184,7 +194,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 |------|----------|
 | Ticket list (when API-wired) | Backend returns only authorized tickets; empty list uses existing empty-state |
 | Users Approve | Visible when session has Users `e` (Admin or Project Manager) |
-| Roles matrix preview | Mirror PM Users `vce...` to match backend seed |
+| Roles matrix | Live `GET/PATCH /api/roles`; PM Roles `v` only (no edit) |
 
 ## Phase 16 — FE ticket/dashboard API binding
 
@@ -202,11 +212,11 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Scan button | Opens `QrScannerModal` for any signed-in user |
 | Device card after scan | QR Number, Slot Id, Slot Label, Slot Identifier, Parking Location, Status, Open ticket (+ lat/lng when present) |
 | Raise with open ticket | `.reclass` banner; disable Raise; Open / Update existing ticket → `/tickets/:id` |
-| Free device Raise | Step 2 problem form; issue UUID selects; live `POST /api/tickets` |
+| Free device Raise | Step 2 problem form; issue UUID selects; live `POST /api/tickets` then optional photo attach |
 | Loading | “Fetching device…” while `resolveScan` runs; Raise disabled while resolving/submitting |
 | Scan API error | Toast + clear device; do not offer Raise |
 | Update after scan | Live resolveScan; open ticket → Detail CTAs; free → Raise CTA; miss/error EmptyState |
-| Scan QR page | Live camera when role allows; miss / error empty panels; no simulate-mock buttons |
+| Scan QR page | Removed — use Raise / Update Ticket camera or typed QR instead |
 
 ## Phase 18 — Home, status, Raised by
 
@@ -219,6 +229,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Ticket tabs | Labels **Open** / Assigned / Closed (tab id `new` unchanged) |
 | Status pill | Never show **New**; show **Open** (same tone as before) |
 | Table columns | … Issue found → **Raised by** → Assigned to → Updates … |
+| Updates count | Only `visit_open`, `visit_resolved`, `waiting_spare`, and `reclassified` events from Update Ticket; no actor-role filter |
 
 ## Phase 19 — List columns, Add Update modal, trail images
 
@@ -250,7 +261,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Crop layout | Image fits viewport (`max-height` + `object-fit: contain`); transparent stage — **no black letterbox**; larger handles on mobile |
 | Preview thumbs | Local object-URL in `.photo-thumb.has-img`; × removes one; count `N of 5` |
 | Cap | Max **5** photos; Add tile hidden at limit |
-| Upload timing | Parent `uploadImages` on form submit — not per-file on add |
+| Upload timing | Parent `uploadImages` on form submit — not per-file on add; Raise/Update attach after create/update succeeds |
 | CSS | `.photo-source-menu`, `.camera-capture-*`, `.camera-flip-*`, `.camera-crop-*` in `index.css` |
 
 ## Phase 21 — Sidebar alignment, pagination, PhotoPicker/modal, live Add Update
@@ -266,6 +277,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | TicketList pager | `.table-pagination` Card Minimal right: Page X of Y + N per page left; Previous / Next right; one row at all widths (≤560: tighter gap, Prev short label, content-sized select) |
 | Limit options | 10 / 25 / 50 / 100 (default 25) |
 | PhotoPicker in modal | Source menu + camera portaled to `body`; hidden folder input; Add photo leftmost when empty |
+| Raise save | `POST /api/tickets` (photos `[]`) → `uploadImages` → `PATCH …/raised/:eventId/photos` |
 | Add Update save | `POST /updates` → `uploadImages` → `PATCH …/photos`; button needs Update-ticket `e` |
 
 ## Phase 22 — Responsive skeleton loaders
@@ -284,10 +296,13 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 
 | Item | Pattern |
 |------|---------|
-| PartChips | Multi-toggle by part `id`; label `Name · ₹amount` |
+| PartChips | Update uses a searchable dropdown; selected parts appear as removable tags with **×**; dropdown options remain multi-select |
+| Parts gate | One **Parts were changed** radio with a single **Yes** option; only selected reveals parts and labour fields |
+| Field order | Searchable parts dropdown → selected tags → **Labour / other charges** → Parts total |
 | Loading / empty / error | Muted line in chip row; no hardcoded live fallback |
 | Cost field | Label **Labour / other charges**; hint that part prices are server-added |
 | Selected parts hint | Optional display-only sum of master amounts (not sent as `cost`) |
+| Cost summary | **Parts Total** + optional **Labour / other charges** + **Total Amount**; labour cannot be negative |
 | After save | Toast uses backend `cost`; trail lists part snapshot names |
 | Masters nav | Child labels **Issue** / **Road** / **Parts** (group **Masters** unchanged) |
 | Parts icon | Interlocking gear cluster in `NavIcons` `parts` (not bolt; distinct from Settings) |
@@ -326,6 +341,16 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Category delete | Trash icon → confirm → `DELETE /api/issues/categories/:id` (`d`); 409 → `PATCH active:false` if `e` |
 | Busy | Disable create/delete controls while request runs; toast via `toastApi*` |
 
+## Phase 35 — Users role hierarchy dropdown
+
+| Item | Pattern |
+|------|---------|
+| Hierarchy | Admin → Project manager → Control room → Engineer → Technician → Site attendant → AMC officer |
+| Create/Edit role select | `filterAssignableRoles(user.role, roles)` — same-or-below only |
+| Gates | Still require Users `c` / `e`; empty assignable disables create |
+| Edit PATCH | Omit `roleId` when unchanged (avoids 403 on higher-role rows) |
+| Matrix | Roles tab live via `/api/roles` (Phase 36); hierarchy dropdown unchanged |
+
 ## Phase 25 — Forgot password role gate + 404
 
 | Item | Pattern |
@@ -337,6 +362,36 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Gear animation | `.gearbox` transparent; gears `--navy-2`/`--navy-3`; hub ring `--teal`; no black panel |
 | Motion | Clockwise / counter-clockwise; paused under `prefers-reduced-motion` |
 | CTA | Primary button → `homePathForUser` or `/login` |
+
+## Phase 39 — New-ticket notifications
+
+| Item | Pattern |
+|------|---------|
+| Browser control | Inline bell in the topbar; stays visible when `.topbar-actions` is hidden on mobile |
+| Notification list | Small anchored popover with latest backend rows, unread dot, ticket reference, message, device/issue/raiser context, and time |
+| Permission state | Explicit Enable / Turn off action; denied and unavailable states explain browser/deployment limits without repeated prompts |
+| Sound | Play the bundled achievement MP3 on a new push/count increase, including an open background tab; debounce duplicates and tolerate autoplay blocking |
+| Sidebar count | Same backend unread count on Tickets parent and All tickets child; hidden at zero, capped visually at `99+` |
+| Read state | Mark one read from the item; Mark all read uses `PATCH /api/notifications/read-all` |
+| Read on open | Opening `/tickets/:ticketId` marks that ticket's notifications read via `POST /api/notifications/ticket/:ticketId/read`; badge and list update in place, no refresh |
+| Assignment alerts | `ticket.assigned` / `ticket.reassigned` render in the same popover; recipient-only, so the holder is the only reader |
+| Attribution | "Raised by …" for `ticket.raised`; "Assigned by …" for assignment types; line omitted when the payload has neither |
+| Navigation | Uses backend `data.url` only when `canOpen`; opens existing `/tickets/:ticketId` and preserves the Open tab return path |
+| Responsive | Popover becomes a fixed 14px-inset panel below the topbar at ≤820px |
+| Colors | Teal unread accents, `--info-bg` permission strip, existing danger badge for counts; no new palette |
+| Accessibility | Bell/menu labels include unread count; Escape/outside click close the popover; unread items expose state text |
+
+The notification UI is an authenticated-shell addition; it does not add a new menu destination or replace the existing Toast system.
+
+## View Update issue details
+
+| Item | Pattern |
+|------|---------|
+| Issue context | Show Reported issues / Issues found section only when the event has issue data |
+| Multiple issues | Group each issue category in its own bordered card; show all sub-categories as readable chips |
+| Summary | Show clear category/sub-category counts while keeping multiple issues grouped |
+| Empty/fallback | Hide the issue section when no issue exists; use legacy scalar category/sub-category fields for older events |
+| Scope | Details remain in View Update; photos remain in View Image |
 
 ## Phase 26 — Device Sync
 
@@ -373,13 +428,24 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Empty / loading | EmptyState when no people; SkeletonTable while first load |
 | Add / Edit device | Form fields: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location; Edit via `/devices/add?id=` |
 
+## Phase 44 — Slot Label order and Assign dropdown role filter
+
+| Item | Pattern |
+|------|---------|
+| Device list order | No frontend sorting. `GET /api/devices` orders Slot Label ascending in SQL, so order is already correct across pages |
+| Assign dropdown source | Unchanged: `listTechnicianLookups()` → `GET /api/lookups/technicians` (returns `role` per row) |
+| Assign dropdown filter | `filterAssignableAssignees(techOptions, currentAssigneeId, currentAssigneeName)` from `services/users.js`, with `ASSIGNABLE_ASSIGNEE_ROLES = ['Technician', 'Engineer']` |
+| Current assignee | Always kept in the option list, even when its role is not assignable, so an existing Control room / Project manager holder still shows their selection and can be reassigned away |
+| Work report | Person filter keeps the full lookup (Control room / Project manager are valid report actors) |
+| Authorization | Unchanged — `canPerm(user, 'All tickets', 'a')` in the UI, `authorize('All tickets', 'a')` + `assertEligibleAssignee` on the server |
+
 ## Phase 27 — QR → device → raise / update
 
 | Item | Pattern |
 |------|---------|
 | Scan resolve | `resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy → `GET /api/devices/scan?q=`; “Fetching device…” while in flight |
 | Device facts | QR Number, Slot Id, Slot Label, Slot Identifier, Parking Location, Status, Open ticket |
-| No open ticket | Raise step 2; issue UUID selects; Raise → upload → `POST /api/tickets` |
+| No open ticket | Raise step 2; issue UUID selects; Raise → `POST /api/tickets` → upload → `PATCH …/raised/:eventId/photos` |
 | Open ticket | `.reclass`; no Create; primary **Update Ticket** → `/tickets/update` (`ticketId` + `qr`); secondary Open → Detail |
 | Create conflict | Toast + refresh blocked state / navigate via `details.openTicketId` |
 | Scan miss / error | EmptyState; error does not allow Raise |
@@ -388,7 +454,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Update Ticket (`/tickets/update`) | Live scan or `?ticketId=`; assignee gate; **Add Update form on page**; free → Raise (+ `qr`) |
 | Manual QR Number | Raise/Update: scan or type QR Number only (no Road/Slot selects); Find device → `resolveScan` |
 | Detail actions | Ops **or** assignee → **Add update** (Modal); field non-assignee → QR **Update Ticket** → `/tickets/update` |
-| Assign / Reassign | Inline Hand to (technicians lookup UUID) + optional note → `POST /api/tickets/:id/assign`; reload trail |
+| Assign / Reassign | Inline Hand to (technicians lookup UUID, narrowed to Technician / Engineer) + optional note → `POST /api/tickets/:id/assign`; reload trail |
 
 ## Phase 28 — QR lookup → Update Ticket
 
