@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
 import { toastApiError, toastApiSuccess } from '../../context/ToastContext'
@@ -7,12 +7,15 @@ import { ApiRequestError } from '../../services/api'
 import { assignTicket, getTicket } from '../../services/tickets'
 import {
   canPerm,
+  filterAssignableAssignees,
+  homePathForUser,
   isDashboardRole,
   isFieldTicketUpdater,
   isOpsTicketUpdater,
   listTechnicianLookups,
 } from '../../services/users'
 import { TicketAddUpdateForm } from '../../components/tickets/TicketAddUpdateForm'
+import { groupIssuesForDisplay } from '../../components/tickets/ticketIssueRowsHelpers'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/FilterBar'
 import { ImagePreviewModal } from '../../components/ui/ImagePreviewModal'
@@ -33,6 +36,32 @@ function ScanQrIcon() {
       <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
       <path d="M4 12h16" />
     </svg>
+  )
+}
+
+function IssueClassificationList({ issues, emptyBig = '—', emptySub = '—' }) {
+  const groups = groupIssuesForDisplay(issues)
+  if (!groups.length) {
+    return (
+      <>
+        <div className="big">{emptyBig}</div>
+        <div className="sub2">{emptySub}</div>
+      </>
+    )
+  }
+  return (
+    <div className="issue-groups">
+      {groups.map((g) => (
+        <div key={g.key} className="issue-group">
+          <div className="big">{g.category}</div>
+          <ul className="issue-list">
+            {g.subs.map((s) => (
+              <li key={s.key}>{s.label}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -119,8 +148,75 @@ function normalizeParts(parts) {
     .filter(Boolean)
 }
 
+function normalizeViewUpdateIssues(issues) {
+  if (!Array.isArray(issues)) return []
+  return issues
+    .map((issue) => ({
+      ...issue,
+      category: issue?.category || issue?.categoryName || '—',
+      sub: issue?.sub || issue?.subcategory || issue?.subCategory || '—',
+    }))
+    .filter((issue) => issue.category !== '—' || issue.sub !== '—')
+}
+
+function ViewUpdateIssueList({ item, reportedIssues, foundIssues }) {
+  const isRaised = Boolean(item?.isRaisedEvent)
+  const hasEventIssue = Boolean(item?.issues?.length || item?.category || item?.subcategory)
+  const structured = item?.issues?.length
+    ? item.issues
+    : isRaised
+      ? reportedIssues
+      : hasEventIssue
+        ? foundIssues
+        : []
+  const fallback = item?.category || item?.subcategory
+    ? [{ category: item.category, sub: item.subcategory }]
+    : []
+  const issues = normalizeViewUpdateIssues(structured?.length ? structured : fallback)
+  const groups = groupIssuesForDisplay(issues)
+  const categoryCount = groups.length
+  const subcategoryCount = groups.reduce((total, group) => total + group.subs.length, 0)
+  const label = isRaised ? 'Reported issues' : 'Issues found'
+  const summary = `${categoryCount} ${categoryCount === 1 ? 'category' : 'categories'} · ${subcategoryCount} ${
+    subcategoryCount === 1 ? 'sub-category' : 'sub-categories'
+  }`
+
+  if (!groups.length) return null
+
+  return (
+    <div className="view-update-issues">
+      <div className="view-update-issues-head">
+        <div>
+          <small>{label}</small>
+          <strong>{summary}</strong>
+        </div>
+      </div>
+      <div className="view-update-issue-groups">
+        {groups.map((group) => (
+          <div className="view-update-issue-group" key={group.key}>
+            <div className="view-update-issue-category">
+              <span>Issue category</span>
+              <strong>{group.category}</strong>
+            </div>
+            <div className="view-update-issue-subs">
+              <span>Sub-categories</span>
+              <div className="view-update-sub-list">
+                {group.subs.map((sub) => (
+                  <span className="view-update-sub" key={sub.key}>
+                    {sub.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /** View Update details only — never includes photos / ImagePreviewModal. */
-function ViewUpdateDetails({ item }) {
+function ViewUpdateDetails({ item, reportedIssues, foundIssues }) {
   if (!item) return null
   const whenLabel = formatRaisedOn(item.when)
   const costLabel =
@@ -131,8 +227,6 @@ function ViewUpdateDetails({ item }) {
   const parts = item.parts || []
   const extraMeta = (item.meta || []).filter((m) => m.kind !== 'nextVisit' && m.kind !== 'cost')
   const isRaised = item.isRaisedEvent
-  const category = item.category || ''
-  const subcategory = item.subcategory || ''
   const rawBody = String(item.body || '').trim()
   const hasWhatHappening = Boolean(rawBody && !/^ticket\s+raised$/i.test(rawBody))
   const whatWasDone = !isRaised ? item.workDone || item.body || '' : ''
@@ -164,18 +258,7 @@ function ViewUpdateDetails({ item }) {
           <span>{item.status}</span>
         </div>
       ) : null}
-      {category ? (
-        <div>
-          <small>{isRaised ? 'Issue category' : 'Issue category found'}</small>
-          <span>{category}</span>
-        </div>
-      ) : null}
-      {subcategory ? (
-        <div>
-          <small>Sub-category</small>
-          <span>{subcategory}</span>
-        </div>
-      ) : null}
+      <ViewUpdateIssueList item={item} reportedIssues={reportedIssues} foundIssues={foundIssues} />
       {isRaised ? (
         <div>
           <small>What is happening</small>
@@ -280,6 +363,7 @@ function mapWorkHistory(events) {
       photos: normalizePhotos(e.photos),
       category: e.category || '',
       subcategory: e.subcategory || '',
+      issues: Array.isArray(e.issues) ? e.issues : [],
       workDone: e.workDone || '',
       note: e.note || '',
       isRaisedEvent,
@@ -297,6 +381,7 @@ export default function TicketDetail() {
   const canView = canPerm(user, 'All tickets', 'v')
   const canAssign = canPerm(user, 'All tickets', 'a')
   const canUpdateTicketView = canPerm(user, 'Update ticket', 'v')
+  const canUpdateTicketEdit = canPerm(user, 'Update ticket', 'e')
   const pickVisitedBy = isDashboardRole(user)
   const backToTickets = ticketsListReturnPath(location.state?.from)
   const fromHere = `${location.pathname}${location.search}`
@@ -394,6 +479,27 @@ export default function TicketDetail() {
 
   const header = ticket?.header
   const classification = ticket?.classification
+  const issuesReported = ticket?.issuesReported
+  const issuesFound = ticket?.issuesFound
+
+  const reportedIssues = useMemo(() => {
+    if (Array.isArray(issuesReported) && issuesReported.length) {
+      return issuesReported
+    }
+    const r = classification?.reported
+    if (r?.category || r?.sub) return [r]
+    return []
+  }, [issuesReported, classification])
+
+  const foundIssues = useMemo(() => {
+    if (Array.isArray(issuesFound) && issuesFound.length) {
+      return issuesFound
+    }
+    const f = classification?.found
+    if (f?.category || f?.sub) return [f]
+    return []
+  }, [issuesFound, classification])
+
   const workHistory = useMemo(() => mapWorkHistory(ticket?.workHistory), [ticket])
   const assignmentTrail = ticket?.assignmentTrail || []
   const devicePreviousTickets = ticket?.devicePreviousTickets || []
@@ -403,6 +509,7 @@ export default function TicketDetail() {
   const isTicketAssignee = Boolean(user?.id && ticket?.assigneeId === user.id)
   const showAddUpdate =
     canUpdateTicketView &&
+    canUpdateTicketEdit &&
     header?.status !== 'Closed' &&
     isAssigned &&
     (isOpsTicketUpdater(user) || isTicketAssignee)
@@ -411,6 +518,13 @@ export default function TicketDetail() {
   const canManageAssign = canAssign && header && header.status !== 'Closed'
   const canReassign = canManageAssign && isAssigned
   const canFirstAssign = canManageAssign && !isAssigned
+  // Hand to shows Technician / Engineer only; the current assignee stays pinned.
+  const assigneeOptions = useMemo(
+    () => filterAssignableAssignees(techOptions, ticket?.assigneeId, assignedTo),
+    [techOptions, ticket?.assigneeId, assignedTo],
+  )
+  // Closing needs Update ticket `x`; the backend still enforces ticket access + holder.
+  const canCloseTicket = canPerm(user, 'Update ticket', 'x') && header?.status !== 'Closed'
 
   useEffect(() => {
     if (!canAssign) return undefined
@@ -511,13 +625,19 @@ export default function TicketDetail() {
     }
   }
 
-  const reportedLabel = classification?.reported
-    ? [classification.reported.category, classification.reported.sub].filter(Boolean).join(' › ')
-    : null
-  const foundLabel = classification?.found
-    ? [classification.found.category, classification.found.sub].filter(Boolean).join(' › ')
-    : null
-  const showReclass = reportedLabel && foundLabel && reportedLabel !== foundLabel
+  const reportedLabel = reportedIssues
+    .map((i) => [i.category, i.sub].filter(Boolean).join(' › '))
+    .filter(Boolean)
+    .join('; ')
+  const foundLabel = foundIssues
+    .map((i) => [i.category, i.sub].filter(Boolean).join(' › '))
+    .filter(Boolean)
+    .join('; ')
+  const showReclass = Boolean(reportedLabel && foundLabel && reportedLabel !== foundLabel)
+
+  if (!canView) {
+    return <Navigate to={homePathForUser(user)} replace />
+  }
 
   return (
     <>
@@ -580,9 +700,14 @@ export default function TicketDetail() {
                           Assign
                         </Button>
                       ) : null}
-                  <Link className="btn btn-primary" to="/tickets/close">
-                    Close ticket
-                  </Link>
+                  {canCloseTicket ? (
+                    <Link
+                      className="btn btn-primary"
+                      to={`/tickets/close?ticketId=${encodeURIComponent(header.id)}`}
+                    >
+                      Close ticket
+                    </Link>
+                  ) : null}
                 </div>
               </div>
 
@@ -623,7 +748,7 @@ export default function TicketDetail() {
                         key={`${item.when}-${item.title}`}
                         className={`tl-item${item.tone ? ` ${item.tone}` : ''}`}
                       >
-                        <div className="when">{item.when}</div>
+                        <div className="when">{formatRaisedOn(item.when)}</div>
                         <h4>
                           {item.title}
                           {item.status ? (
@@ -681,13 +806,15 @@ export default function TicketDetail() {
                   <div className="class-pair">
                     <div>
                       <small>As reported</small>
-                      <div className="big">{classification?.reported?.sub || '—'}</div>
-                      <div className="sub2">{classification?.reported?.category || '—'}</div>
+                      <IssueClassificationList issues={reportedIssues} />
                     </div>
                     <div>
                       <small>As found</small>
-                      <div className="big">{classification?.found?.sub || 'Not inspected yet'}</div>
-                      <div className="sub2">{classification?.found?.category || '—'}</div>
+                      <IssueClassificationList
+                        issues={foundIssues}
+                        emptyBig="Not inspected yet"
+                        emptySub="—"
+                      />
                     </div>
                   </div>
                   <div className="foot-note">
@@ -797,6 +924,7 @@ export default function TicketDetail() {
             ticketId={ticketId}
             user={user}
             pickVisitedBy={pickVisitedBy}
+            defaultVisitedBy={isAssigned ? assignedTo : ''}
             photoPickerKey="upd-photos-open"
             canSubmit={showAddUpdate}
             onCancel={() => setUpdOpen(false)}
@@ -836,7 +964,7 @@ export default function TicketDetail() {
                   <option value="">
                     {techsLoading ? 'Loading workers…' : 'Select worker'}
                   </option>
-                  {techOptions.map((t) => (
+                  {assigneeOptions.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.label || t.name}
                     </option>
@@ -887,7 +1015,11 @@ export default function TicketDetail() {
         subtitle="Update details only — photos open from View Image"
         onClose={() => setViewingUpdate(null)}
       >
-        <ViewUpdateDetails item={viewingUpdate} />
+        <ViewUpdateDetails
+          item={viewingUpdate}
+          reportedIssues={reportedIssues}
+          foundIssues={foundIssues}
+        />
       </Modal>
 
       <ImagePreviewModal

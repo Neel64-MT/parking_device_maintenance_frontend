@@ -5,7 +5,40 @@ import { NavIcon } from '../icons/NavIcons'
 import { BrandMark } from '../ui/BrandMark'
 import { useAuth } from '../../context/AuthContext'
 import { usePageMeta } from '../../context/PageMetaContext'
-import { canPerm, isDashboardRole } from '../../services/users'
+import { canPerm } from '../../services/users'
+
+function displayCount(value) {
+  const count = Number(value) || 0
+  return count > 99 ? '99+' : String(count)
+}
+
+function unreadLabel(label, count) {
+  return count > 0 ? `${label}, ${count} unread notification${count === 1 ? '' : 's'}` : label
+}
+
+function NotificationBadge({ count }) {
+  if (!count) return null
+  return (
+    <span className="nav-notification-count" aria-hidden="true">
+      {displayCount(count)}
+    </span>
+  )
+}
+
+/**
+ * Icon + unread badge in one positioned anchor.
+ * The badge is always rendered here (open rail or closed) and CSS slides it from
+ * the row tail to the icon's top-right corner, so collapsing never remounts it.
+ * `hasChevron` = the row ends in the group chevron, so the tail count stops 16px short.
+ */
+function BadgedNavIcon({ name, count, hasChevron = true }) {
+  return (
+    <span className={`nav-ico-anchor${hasChevron ? '' : ' tail-only'}`}>
+      <NavIcon name={name} />
+      <NotificationBadge count={count} />
+    </span>
+  )
+}
 
 export function Sidebar({
   open,
@@ -14,20 +47,14 @@ export function Sidebar({
   opening = false,
   closing = false,
   onCloseTransitionEnd,
+  unreadCount = 0,
 }) {
   const { pageId } = usePageMeta()
   const { user } = useAuth()
   /** Manual open/close overrides; unset keys fall back to “child page is active”. */
   const [expanded, setExpanded] = useState({})
 
-  const menu = filterMenuByView(
-    MENU,
-    (screen) => {
-      if (screen === 'Dashboard' && !isDashboardRole(user)) return false
-      return canPerm(user, screen, 'v')
-    },
-    user?.role,
-  )
+  const menu = filterMenuByView(MENU, (screen) => canPerm(user, screen, 'v'))
 
   function isGroupOpen(index, item) {
     if (Object.prototype.hasOwnProperty.call(expanded, index)) {
@@ -79,15 +106,20 @@ export function Sidebar({
         {menu.map((m, index) => {
           if (!m.children) {
             const active = isMenuItemOn(m, pageId)
+            const isTicketLeaf = m.id === 'ticket-list'
             return (
               <div key={m.id} className={`nav-item${active ? ' active' : ''}`}>
                 <Link
                   to={m.path}
                   onClick={onNavigate}
-                  title={tip ? m.label : undefined}
-                  aria-label={tip ? m.label : undefined}
+                  title={tip ? (isTicketLeaf ? unreadLabel(m.label, unreadCount) : m.label) : undefined}
+                  aria-label={isTicketLeaf ? unreadLabel(m.label, unreadCount) : tip ? m.label : undefined}
                 >
-                  <NavIcon name={m.icon} />
+                  {isTicketLeaf ? (
+                    <BadgedNavIcon name={m.icon} count={unreadCount} hasChevron={false} />
+                  ) : (
+                    <NavIcon name={m.icon} />
+                  )}
                   <span className="nav-label">{m.label}</span>
                 </Link>
               </div>
@@ -95,17 +127,28 @@ export function Sidebar({
           }
 
           const groupOpen = !collapsed && isGroupOpen(index, m)
+          const isTicketsGroup = m.label === 'Tickets'
           return (
             <div key={m.label} className={`nav-group${groupOpen ? ' open' : ''}`}>
               <button
                 type="button"
+                className={isTicketsGroup ? 'tickets-nav' : undefined}
                 onClick={() => toggleGroup(index, m)}
-                title={tip ? m.label : undefined}
-                aria-label={tip ? m.label : undefined}
+                title={tip ? unreadLabel(m.label, unreadCount) : undefined}
+                aria-label={unreadLabel(m.label, unreadCount)}
                 aria-expanded={groupOpen}
               >
-                <NavIcon name={m.icon} />
+                {isTicketsGroup ? (
+                  <BadgedNavIcon name={m.icon} count={unreadCount} />
+                ) : (
+                  <NavIcon name={m.icon} />
+                )}
                 <span className="nav-label">{m.label}</span>
+                {isTicketsGroup ? (
+                  <span className="nav-group-tail">
+                    <span className="nav-group-chevron" aria-hidden="true" />
+                  </span>
+                ) : null}
               </button>
               <div className="nav-sub">
                 <div className="nav-sub-inner">
@@ -115,9 +158,11 @@ export function Sidebar({
                       to={c.path}
                       className={isMenuItemOn(c, pageId) ? 'active' : undefined}
                       onClick={onNavigate}
+                      aria-label={c.id === 'ticket-list' ? unreadLabel(c.label, unreadCount) : undefined}
                     >
                       {c.icon ? <NavIcon name={c.icon} /> : null}
                       <span className="nav-label">{c.label}</span>
+                      {c.id === 'ticket-list' ? <NotificationBadge count={unreadCount} /> : null}
                     </Link>
                   ))}
                 </div>

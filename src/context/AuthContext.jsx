@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { Navigate, useLocation } from 'react-router-dom'
 import { ApiRequestError, clearToken, getToken } from '../services/api'
 import * as authApi from '../services/auth'
-import { homePathForUser } from '../services/users'
+import { homePathForUser, canPerm } from '../services/users'
 import { AuthBootSkeleton } from '../components/ui/Skeleton'
 
 const AuthContext = createContext(null)
@@ -118,6 +118,24 @@ export function RequireAuth({ children }) {
 
   if (!user) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
+
+  return children
+}
+
+/**
+ * Require a screen permission flag (default view).
+ * Must sit inside RequireAuth. Missing permission → home path for the role.
+ */
+export function RequirePerm({ screen, flag = 'v', children }) {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return <AuthBootSkeleton />
+  }
+
+  if (!user || !canPerm(user, screen, flag)) {
+    return <Navigate to={homePathForUser(user)} replace />
   }
 
   return children

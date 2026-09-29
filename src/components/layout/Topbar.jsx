@@ -5,6 +5,7 @@ import { usePageMeta } from '../../context/PageMetaContext'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { NavIcon } from '../icons/NavIcons'
+import { NotificationBell } from './NotificationBell'
 
 /** Animated hamburger ↔ X (menuOpen = true shows X). */
 function MenuToggleIcon({ open }) {
@@ -17,7 +18,7 @@ function MenuToggleIcon({ open }) {
   )
 }
 
-export function Topbar({ onMenuClick, menuOpen = false }) {
+export function Topbar({ onMenuClick, menuOpen = false, notificationState = {} }) {
   const { title, crumb, actions } = usePageMeta()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -42,6 +43,11 @@ export function Topbar({ onMenuClick, menuOpen = false }) {
     if (loggingOut) return
     setLoggingOut(true)
     try {
+      try {
+        await notificationState.prepareLogout?.()
+      } catch {
+        /* Logout must still complete if push cleanup fails. */
+      }
       await logout()
       setConfirmOpen(false)
       navigate('/login', { replace: true })
@@ -75,6 +81,8 @@ export function Topbar({ onMenuClick, menuOpen = false }) {
         <div className="topbar-actions" id="topbarActions">
           {actions}
         </div>
+
+        <NotificationBell notificationState={notificationState} />
 
         <div className="who" aria-label={`${name}, ${role}`}>
           <div className="avatar" aria-hidden="true">

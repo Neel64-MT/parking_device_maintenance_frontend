@@ -1,13 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { TEAM } from '../../data/team'
 import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { ApiRequestError } from '../../services/api'
+import { listIssueCategories } from '../../services/issues'
 import { listParts, sumSelectedPartsAmount } from '../../services/parts'
 import { addTicketUpdate, attachTicketUpdatePhotos } from '../../services/tickets'
 import { uploadImages } from '../../services/uploads'
+import {
+  hasDuplicateSubCategories,
+  hasIncompleteIssueRows,
+  newIssueRow,
+  rowsToIssuePairs,
+} from './ticketIssueRowsHelpers'
+import { TicketIssueRows } from './TicketIssueRows'
 import { Button } from '../ui/Button'
 import { Field } from '../ui/FilterBar'
-import { IssueSelects } from '../ui/IssueSelects'
 import { PartChips } from '../ui/PartChips'
 import { PhotoPicker } from '../ui/PhotoPicker'
 
@@ -20,14 +27,20 @@ function todayLocalIso() {
   return `${y}-${m}-${day}`
 }
 
+function formatMoney(value) {
+  return `₹${Number(value || 0).toLocaleString('en-IN')}`
+}
+
 /**
  * Shared Add Update form (Detail modal + /tickets/update page).
  * Submit order: update → upload photos → attach URLs.
+ * Issue rows intentionally start blank; the user selects the category and sub-category.
  */
 export function TicketAddUpdateForm({
   ticketId,
   user,
   pickVisitedBy = false,
+  defaultVisitedBy = '',
   formClassName = 'modal-update-form',
   formId,
   photoPickerKey = 'upd-photos',
@@ -39,56 +52,137 @@ export function TicketAddUpdateForm({
   canSubmit = true,
 }) {
   const [updType, setUpdType] = useState('Site visit — not resolved')
-  const [updCat, setUpdCat] = useState('')
-  const [updSub, setUpdSub] = useState('')
+  const [issueRows, setIssueRows] = useState(() => [newIssueRow()])
   const [updPhotos, setUpdPhotos] = useState([])
   const [updWorkDone, setUpdWorkDone] = useState('')
   const [updCost, setUpdCost] = useState('')
   const [updPartIds, setUpdPartIds] = useState([])
-  const [updVisitedBy, setUpdVisitedBy] = useState(() => (pickVisitedBy ? '' : user?.name || ''))
+  const [updPartsChanged, setUpdPartsChanged] = useState(false)
+  // "Visited by" defaults to whoever currently holds the ticket, so the common case
+  // (the assigned engineer/technician made the visit) needs no manual selection.
+  const assigneeName = (defaultVisitedBy || '').trim()
+  const [updVisitedBy, setUpdVisitedBy] = useState(() => (pickVisitedBy ? assigneeName : user?.name || ''))
   const [updSubmitting, setUpdSubmitting] = useState(false)
   const [partsItems, setPartsItems] = useState([])
   const [partsLoading, setPartsLoading] = useState(true)
   const [partsError, setPartsError] = useState('')
+  const [issueCategories, setIssueCategories] = useState([])
+  const [issuesLoading, setIssuesLoading] = useState(true)
+
+  // The assignee is listed first so the pre-selected value is always an option,
+  // even when it is not part of the static TEAM list.
+  const visitedByOptions = useMemo(() => {
+    const seen = new Set()
+    const options = []
+    for (const name of [assigneeName, user?.name, ...TEAM]) {
+      const value = (name || '').trim()
+      if (!value || seen.has(value)) continue
+      seen.add(value)
+      options.push(value)
+    }
+    return options
+  }, [assigneeName, user?.name])
 
   function resetUpdateForm() {
     setUpdType('Site visit — not resolved')
-    setUpdCat('')
-    setUpdSub('')
+    setIssueRows([newIssueRow()])
     setUpdPhotos([])
     setUpdWorkDone('')
     setUpdCost('')
     setUpdPartIds([])
-    setUpdVisitedBy(pickVisitedBy ? '' : user?.name || '')
+    setUpdPartsChanged(false)
+    setUpdVisitedBy(pickVisitedBy ? assigneeName : user?.name || '')
+  }
+
+  function changePartsChanged(nextValue) {
+    setUpdPartsChanged(nextValue)
+    if (!nextValue) {
+      setUpdPartIds([])
+      setUpdCost('')
+    }
+  }
+
+  function changeLabourCost(value) {
+    if (value === '') {
+      setUpdCost('')
+      return
+    }
+    const numeric = Number(value)
+    if (Number.isFinite(numeric) && numeric >= 0) setUpdCost(value)
   }
 
   useEffect(() => {
+    const id = window.setTimeout(() => {
+      setIssueRows([newIssueRow()])
+    }, 0)
+    return () => window.clearTimeout(id)
+  }, [ticketId])
+
+  useEffect(() => {
     let cancelled = false
-    setPartsLoading(true)
-    listParts()
-      .then((list) => {
-        if (!cancelled) {
-          setPartsItems(list)
-          setPartsError('')
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setPartsItems([])
-          setPartsError(err instanceof ApiRequestError ? err.message : 'Could not load parts.')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setPartsLoading(false)
-      })
+    // The whole fetch must run inside the deferred callback. Setting the loading flag
+    // in the timer but starting the request outside it lets a cache hit resolve as a
+    // microtask *before* the timer fires, so `false` is applied first and the timer then
+    // leaves the flag stuck on `true` ("Loading issue categories…" forever).
+    const id = window.setTimeout(() => {
+      if (cancelled) return
+      setPartsLoading(true)
+      listParts()
+        .then((list) => {
+          if (!cancelled) {
+            setPartsItems(list)
+            setPartsError('')
+          }
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setPartsItems([])
+            setPartsError(err instanceof ApiRequestError ? err.message : 'Could not load parts.')
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setPartsLoading(false)
+        })
+    }, 0)
     return () => {
       cancelled = true
+      window.clearTimeout(id)
+    }
+  }, [ticketId])
+
+  useEffect(() => {
+    let cancelled = false
+    // Same ordering requirement as the parts load above: flag first, then the request.
+    const id = window.setTimeout(() => {
+      if (cancelled) return
+      setIssuesLoading(true)
+      listIssueCategories()
+        .then((cats) => {
+          if (!cancelled) setIssueCategories(cats)
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            toastApiError(err, 'Could not load issue categories.')
+            setIssueCategories([])
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setIssuesLoading(false)
+        })
+    }, 0)
+    return () => {
+      cancelled = true
+      window.clearTimeout(id)
     }
   }, [ticketId])
 
   const partsHintTotal = sumSelectedPartsAmount(partsItems, updPartIds)
-  const labourHint = updCost === '' ? 0 : Number(updCost) || 0
+  const labourHint =
+    updPartsChanged && updCost !== '' && Number.isFinite(Number(updCost))
+      ? Math.max(0, Number(updCost))
+      : 0
   const visitHintTotal = partsHintTotal + labourHint
+  const hasCostSummary = updPartIds.length > 0 || labourHint > 0
 
   async function submitUpdate(e) {
     e.preventDefault()
@@ -101,16 +195,32 @@ export function TicketAddUpdateForm({
       toast('Select who visited.', 'error')
       return
     }
+
+    const issues = rowsToIssuePairs(issueRows)
+    if (hasIncompleteIssueRows(issueRows)) {
+      toast('Select at least one sub-category for each chosen category.', 'error')
+      return
+    }
+    if (hasDuplicateSubCategories(issueRows)) {
+      toast('Each issue can only be selected once.', 'error')
+      return
+    }
+
     setUpdSubmitting(true)
     onBusyChange?.(true)
     try {
-      const saved = await addTicketUpdate(ticketId, {
+      const body = {
         updateType: updType,
         workDone: updWorkDone.trim() || undefined,
-        cost: updCost === '' ? 0 : Number(updCost) || 0,
-        parts: [...new Set(updPartIds)],
+        cost: labourHint,
+        parts: updPartsChanged ? [...new Set(updPartIds)] : [],
         photos: [],
-      })
+      }
+      if (issues.length) {
+        body.issues = issues
+      }
+
+      const saved = await addTicketUpdate(ticketId, body)
 
       if (updPhotos.length) {
         if (!saved?.eventId) {
@@ -175,10 +285,9 @@ export function TicketAddUpdateForm({
               required
             >
               <option value="">Select who visited</option>
-              {user?.name ? <option value={user.name}>{user.name}</option> : null}
-              {TEAM.map((t) => (
-                <option key={t} value={t}>
-                  {t}
+              {visitedByOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
                 </option>
               ))}
             </select>
@@ -198,59 +307,107 @@ export function TicketAddUpdateForm({
         </Field>
       </div>
 
-      <div className="row" style={{ marginTop: 12 }}>
-        <IssueSelects
-          category={updCat}
-          subCategory={updSub}
-          onCategoryChange={setUpdCat}
-          onSubCategoryChange={setUpdSub}
-          categoryLabel="Issue category found"
-        />
-        <Field
-          label="Labour / other charges"
-          hintAfter="Part prices come from Parts and are added by the server."
-        >
-          <input
-            type="number"
-            placeholder="0"
-            value={updCost}
-            onChange={(e) => setUpdCost(e.target.value)}
-            onWheel={(e) => e.currentTarget.blur()}
-            min="0"
+      <div style={{ marginTop: 12 }}>
+        {issuesLoading ? (
+          <p className="muted">Loading issue categories…</p>
+        ) : (
+          <TicketIssueRows
+            rows={issueRows}
+            onChange={setIssueRows}
+            categories={issueCategories}
             disabled={updSubmitting}
+            minRows={1}
+            categoryLabel="Select issue category"
+            addLabel="Add another issue"
           />
-        </Field>
+        )}
       </div>
+
       <div style={{ marginTop: 12 }}>
         <Field
-          label="Parts changed"
-          hint="Tap every part you replaced. Leave blank if nothing was changed."
+          label="Parts were changed"
+          hint="Select Yes if a part was replaced during this visit."
         >
-          <PartChips
-            items={partsItems}
-            selected={updPartIds}
-            onChange={setUpdPartIds}
-            loading={partsLoading}
-            error={partsError}
-            disabled={updSubmitting}
-          />
-          {updPartIds.length > 0 ? (
-            <div className="parts-total" aria-live="polite">
-              <div className="parts-total-meta">
-                <strong>Parts total · {updPartIds.length} selected</strong>
-                <span>
-                  From Parts (display only). Server adds this to labour
-                  {labourHint > 0
-                    ? ` · est. visit ₹${visitHintTotal.toLocaleString('en-IN')}`
-                    : ''}
-                  .
-                </span>
-              </div>
-              <div className="parts-total-amount">₹{partsHintTotal.toLocaleString('en-IN')}</div>
-            </div>
-          ) : null}
+          <div className="update-parts-choice">
+            <label
+              className={`update-parts-choice-option${updPartsChanged ? ' is-selected' : ''}${updSubmitting ? ' is-disabled' : ''}`}
+            >
+              <input
+                type="radio"
+                checked={updPartsChanged}
+                onChange={() => changePartsChanged(true)}
+                disabled={updSubmitting}
+                aria-label="Parts were changed: Yes"
+              />
+              <span>Yes</span>
+            </label>
+          </div>
         </Field>
       </div>
+
+      {updPartsChanged ? (
+        <>
+          <div style={{ marginTop: 12 }}>
+            <Field
+              label="Select parts"
+              hint="Search and select every part you replaced during this visit."
+            >
+              <PartChips
+                searchable
+                items={partsItems}
+                selected={updPartIds}
+                onChange={setUpdPartIds}
+                loading={partsLoading}
+                error={partsError}
+                disabled={updSubmitting}
+              />
+            </Field>
+          </div>
+
+          <div className="row" style={{ marginTop: 12 }}>
+            <Field
+              label="Labour / other charges"
+              hintAfter="Part prices come from Parts and are added by the server."
+            >
+              <input
+                type="number"
+                placeholder="0"
+                value={updCost}
+                onChange={(e) => changeLabourCost(e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
+                min="0"
+                step="0.01"
+                disabled={updSubmitting}
+              />
+            </Field>
+          </div>
+
+          {hasCostSummary ? (
+            <div className="visit-cost-summary" aria-live="polite">
+              <div className="visit-cost-summary-head">
+                <strong>Cost summary</strong>
+                <span>Display only. Server calculates the final visit cost.</span>
+              </div>
+              {updPartIds.length > 0 ? (
+                <div className="visit-cost-row">
+                  <span>Parts Total</span>
+                  <strong>{formatMoney(partsHintTotal)}</strong>
+                </div>
+              ) : null}
+              {labourHint > 0 ? (
+                <div className="visit-cost-row">
+                  <span>Labour / other charges</span>
+                  <strong>{formatMoney(labourHint)}</strong>
+                </div>
+              ) : null}
+              <div className="visit-cost-row visit-cost-total">
+                <span>Total Amount</span>
+                <strong>{formatMoney(visitHintTotal)}</strong>
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : null}
       <div style={{ marginTop: 12 }}>
         <Field label="Photos">
           <PhotoPicker

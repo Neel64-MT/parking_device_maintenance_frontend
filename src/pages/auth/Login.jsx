@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { ApiRequestError } from '../../services/api'
-import { homePathForUser, isDashboardRole } from '../../services/users'
+import { canPerm, homePathForUser } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/FilterBar'
 import { Panel } from '../../components/ui/Panel'
@@ -33,7 +33,10 @@ export default function Login() {
       const from = location.state?.from
       const home = homePathForUser(user)
       const deepLink =
-        from && from !== '/login' && from !== '/' && !(from === '/dashboard' && !isDashboardRole(user))
+        from &&
+        from !== '/login' &&
+        from !== '/' &&
+        !(from === '/dashboard' && !canPerm(user, 'Dashboard', 'v'))
       navigate(deepLink ? from : home, { replace: true })
     } catch (err) {
       const message =

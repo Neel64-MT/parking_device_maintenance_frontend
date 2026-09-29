@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
 import { toast } from '../../context/ToastContext'
@@ -12,7 +12,7 @@ import {
   startDeviceSync,
 } from '../../services/devices'
 import { listRoadLookups } from '../../services/roads'
-import { canPerm } from '../../services/users'
+import { canPerm, homePathForUser } from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { CopyTextButton } from '../../components/ui/CopyTextButton'
 import { Field, FilterBar } from '../../components/ui/FilterBar'
@@ -84,7 +84,6 @@ export default function DeviceList() {
   const canView = canPerm(user, 'Device list', 'v')
   const canSync = canPerm(user, 'Device list', 'c')
   const canAdd = canPerm(user, 'Add device', 'c')
-  const canScan = canPerm(user, 'Scan QR', 'v')
 
   const [query, setQuery] = useState('')
   const [road, setRoad] = useState(FILTER_DEFAULTS.road)
@@ -358,6 +357,10 @@ export default function DeviceList() {
       </>
     ) : null
 
+  if (!canView) {
+    return <Navigate to={homePathForUser(user)} replace />
+  }
+
   return (
     <>
       <PageMeta pageId="device-list" title="Device list" crumb={crumb} />
@@ -366,7 +369,6 @@ export default function DeviceList() {
         <JumpLinks
           links={[
             ...(canAdd ? [{ to: '/devices/add', label: 'Add device' }] : []),
-            ...(canScan ? [{ to: '/devices/scan', label: 'Scan QR' }] : []),
             { to: '/masters/roads', label: 'Road' },
             { to: '/tickets', label: 'All tickets' },
           ]}

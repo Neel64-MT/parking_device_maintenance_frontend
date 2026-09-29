@@ -16,17 +16,35 @@ export function FilterBar({ children, actions }) {
  * Uses a div (not <label>) so composite controls (PhotoPicker, chips, selects)
  * are not hijacked by label activation of the first nested button/input.
  */
-export function Field({ label, required, hint, hintAfter, children, className = '', style }) {
+export function Field({
+  label,
+  required,
+  hint,
+  hintAfter,
+  error,
+  errorId,
+  children,
+  className = '',
+  style,
+}) {
   return (
-    <div className={`fld${className ? ` ${className}` : ''}`} style={style}>
+    <div
+      className={`fld${error ? ' has-error' : ''}${className ? ` ${className}` : ''}`}
+      style={style}
+    >
       {label ? (
         <span>
           {label}
           {required ? <i className="req"> *</i> : null}
         </span>
       ) : null}
-      {hint ? <i className="hint">{hint}</i> : null}
+      {hint && !error ? <i className="hint">{hint}</i> : null}
       {children}
+      {error ? (
+        <i className="field-error" id={errorId} role="alert">
+          {error}
+        </i>
+      ) : null}
       {hintAfter ? <i className="hint">{hintAfter}</i> : null}
     </div>
   )
