@@ -195,6 +195,9 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Ticket list (when API-wired) | Backend returns only authorized tickets; empty list uses existing empty-state |
 | Users Approve | Visible when session has Users `e` (Admin or Project Manager) |
 | Roles matrix | Live `GET/PATCH /api/roles`; PM Roles `v` only (no edit) |
+| Roles delete | Danger button + confirm `Modal` when Roles `d`; a role held by an Active or Pending account is refused by the backend and the row stays, with the `ROLE_IN_USE` message in the toast. Inactive accounts never block it |
+| Role-less account | Role column shows "No role — select one"; Edit refuses Active until a role is chosen |
+| User delete | Danger button + confirm `Modal` when Users `d`; permanent removal, offered on every row including Inactive |
 
 ## Phase 16 — FE ticket/dashboard API binding
 
@@ -350,6 +353,23 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Gates | Still require Users `c` / `e`; empty assignable disables create |
 | Edit PATCH | Omit `roleId` when unchanged (avoids 403 on higher-role rows) |
 | Matrix | Roles tab live via `/api/roles` (Phase 36); hierarchy dropdown unchanged |
+
+## Phase 44 — Users visibility + account delete
+
+| Item | Pattern |
+|------|---------|
+| Visibility | Render the API payload as-is — no client-side `row.id` / `row.role` filter |
+| Own account | Absent from the API response, so no self row and no self-delete control |
+| Delete button | `canPerm(user, 'Users', 'd')` (Admin only) + `row.status !== 'Inactive'` |
+| Style | `Button size="sm" variant="danger"` in the existing `td.act`, same as Edit/Password |
+| Confirm | Existing `Modal` (title “Delete user?”), names the user, `closeDisabled` while busy |
+| Busy state | `deleting` flag → button reads “Deleting…”, Cancel and close gated |
+| Success | `toastApiSuccess` then `await refreshUsers()` — no page reload |
+| Failure | `toastApiError(err, 'Could not delete user.')`; row stays in the list untouched |
+| Semantics | Deactivation, not removal — the row remains as `Inactive`, so Delete hides on it |
+| Foot-note | Restated: delete deactivates, self-delete is impossible, PM sees no Admin accounts |
+| Removed | `row.you` marker (nothing can be “you” in your own list) |
+| Row actions | Edit/Password keep the `canEdit` gate; the muted `—` now shows only when neither `e` nor `d` |
 
 ## Phase 25 — Forgot password role gate + 404
 

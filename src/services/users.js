@@ -69,6 +69,17 @@ export async function updateUser(id, body) {
   return api(`/api/users/${id}`, { method: 'PATCH', body })
 }
 
+/**
+ * Delete a user account (`DELETE /api/users/:id`). Requires Users `d`.
+ * This is a hard delete: the account is removed, and its reporter / assignee / actor
+ * references on past tickets, events, assignments and sync runs are cleared, so the
+ * tickets survive without the person's name. Self-delete is rejected by the backend.
+ * @param {string} id
+ */
+export async function deleteUser(id) {
+  return api(`/api/users/${id}`, { method: 'DELETE' })
+}
+
 export async function listRoles() {
   return api('/api/roles')
 }
@@ -92,6 +103,18 @@ export async function updateRolePermissions(roleId, permissions) {
     method: 'PATCH',
     body: { permissions },
   })
+}
+
+/**
+ * Delete a role (`DELETE /api/roles/:id`). Requires Roles & permissions `d`.
+ * A role that is still assigned to a Pending or Active account is rejected by the
+ * backend with `409 ROLE_IN_USE`; the message reaches the caller through
+ * `ApiRequestError`. Inactive accounts do not block the delete — they end up with no
+ * role and must be given one before they can be activated again.
+ * @param {string} roleId
+ */
+export async function deleteRole(roleId) {
+  return api(`/api/roles/${roleId}`, { method: 'DELETE' })
 }
 
 /**

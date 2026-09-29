@@ -934,30 +934,71 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
-## Phase 44: Slot Label ascending order and Assign dropdown role filter
+## Phase 44: Users visibility and account delete
 
-**Objective:** Show the Device List in ascending Slot Label order and limit the Assign / Reassign "Hand to" dropdown to Technician and Engineer users, without breaking pagination, filters, search, assignment, or reassignment.
+**Objective:** Reflect backend authorization in the existing Users page and add a delete action for authorized users, without rebuilding the table or duplicating the visibility rules.
 
 **Status:** Complete
 
 **Tasks:**
 
-1. **Slot Label order — backend, no frontend sorting.** `GET /api/devices` now orders by `devices.slot_number` ascending through one shared `DEVICE_LIST_ORDER_BY` constant, so the order is correct on every page instead of within a page only. Client-side sorting was rejected because pagination is `LIMIT/OFFSET`. Nothing changes in `DeviceList.jsx`.
-2. **Assign dropdown role filter.** Add `ASSIGNABLE_ASSIGNEE_ROLES = ['Technician', 'Engineer']` (the real `roles.name` values) and `filterAssignableAssignees(options, currentAssigneeId, currentAssigneeName)` to `services/users.js`, next to the existing `NOTIFICATION_ROLES` list — no new users API, role values come from the API response.
-3. Apply the helper to both dropdowns: the `TicketList.jsx` inline Assign/Reassign modal and the `TicketDetail.jsx` Hand to select. Reuse the already-loaded `listTechnicianLookups()` result; no extra fetch.
-4. Always pin the ticket's current assignee into the option list so a ticket held by a Control room / Project manager user still renders its selection and can still be reassigned away (no silent blank prefill).
-5. Leave `WorkReport.jsx` on the full lookup — Control room / Project manager are valid report actors — and leave backend `assertEligibleAssignee` untouched so the server remains the final source of truth.
+1. Add `deleteUser(id)` to `services/users.js` for `DELETE /api/users/:id`.
+2. Gate the Delete button with `canPerm(user, 'Users', 'd')` (Admin only) and hide it once `row.status === 'Inactive'`, since delete is a deactivation.
+3. Add `deleteTarget` / `deleting` state and a confirm `Modal` reusing the existing component and the `IssueMaster` danger-button pattern, naming the user being deleted.
+4. On success `toastApiSuccess` + `await refreshUsers()`; on failure `toastApiError` and leave the row in place.
+5. Do **not** add a client-side visibility filter — the backend already excludes your own account and hides Admin accounts from non-Admin viewers. Remove the now-dead `row.you` marker.
+6. Restate the panel foot-note for delete, self-delete protection, and PM/Admin visibility.
+7. Docs update.
 
-**Out of scope:** Deleting users, changing user roles, editing the global Users list, a new users/roles endpoint, a natural-sort dependency, client-side device sorting, or any change to ticket ordering, permissions, notifications, or authentication.
+**Out of scope:** A second Users list, a new modal or toast library, table/search/filter/pagination changes, and any client-side role filter.
 
-**Verification:** `npm run lint` and `npm run build` pass; backend `npm run build` passes and its smoke suite now asserts `OK devices Slot Label ascending` across page 1 and page 2.
+**Verification:** `npm run lint` and `npm run build` pass. Backend enforcement is covered by `npm run test:smoke:users` (Admin sees other Admins but not self; PM sees no Admin and not self; self-delete rejected at the API; unauthorized delete 403).
+
+---
+
+## Phase 45: Project manager and Control room removed from assign options
+
+**Objective:** Stop offering Project manager or Control room as a ticket holder in the Hand to dropdown, driven by the backend so the UI and API stay in agreement.
+
+**Status:** Complete — backend-only change; no frontend source edit was required.
+
+**Tasks:**
+
+1. Backend `ASSIGNABLE_ROLES` (Technician / Engineer) in `lib/ticket-access.ts`, consumed by both `GET /api/lookups/technicians` and `assertEligibleAssignee`.
+2. Confirm the frontend already renders the lookup as-is, so both roles disappear from Hand to, the All Tickets assignee filter, and the Work report person dropdown without any client change.
+3. Docs update.
+
+**Out of scope:** Any client-side role filter, new dropdown UI, and changes to who may *perform* an assign — Control room / Admin / Project manager can still route tickets, they just cannot hold one.
+
+**Verification:** `npm run lint` and `npm run build` pass. Confirmed against the live API that the lookup returns 4 workers (Technician / Engineer only), that PM and Control room assigns both return `400 INVALID_ASSIGNEE` with the ticket unchanged, and that Control room can still perform an assign.
+
+---
+
+## Phase 46: Role delete, Inactive exemption, and user hard delete
+
+**Objective:** Let an Admin delete a role from the Roles tab, stop Inactive accounts from blocking that delete, warn and then block reactivation of an account whose role is gone, and make user deletion a permanent removal.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `deleteRole(roleId)` in `services/users.js` against `DELETE /api/roles/:id`.
+2. Roles table: a `variant="danger"` Delete button beside **Permissions**, gated with `canPerm(user, 'Roles & permissions', 'd')` (Admin only in the seed).
+3. Confirm `Modal` naming the role, with its own `roleDeleteTarget` / `deletingRole` state and a `Deleting…` busy label, mirroring the Users delete pattern.
+4. On success `toastApiSuccess` + `refreshRoles()`; on failure `toastApiError(err, 'Could not delete role.')` so the backend `ROLE_IN_USE` message reaches the toast and the role stays in the list.
+5. Role column renders "No role — select one" when the payload has `roleMissing`, and `saveEdit` refuses `status: 'Active'` until a role is chosen.
+6. User delete becomes a hard delete: the button is offered on every row (`Inactive` included) and the confirm copy states the account is removed for good and the name disappears from past tickets.
+
+**Out of scope:** Any client-side pre-check on `row.users`, a new permission, a new page, or a duplicated user lookup. The guard is backend-only — the Users count in the roles table is a stale snapshot and must not gate the button. The activation guard is duplicated on purpose: the client copy keeps the wording and focus in the form, the backend `409 ROLE_REQUIRED` stays authoritative.
+
+**Verification:** `npm run lint` and `npm run build` pass. Backend behavior is covered by `npm run test:smoke:roles` (unassigned role deletes; Active/Pending assignees return `409 ROLE_IN_USE`; PM/Technician direct calls are `403`; a rejected delete leaves role, matrix and assignments untouched; the role becomes deletable after its users are moved; Inactive accounts do not block and end up role-less; a role-less account stays listed, activation is refused until a role is chosen; unknown role `404`) and `npm run test:smoke:users` (hard delete removes the row, it leaves every status-filtered list, a second delete is `404`, an already-Inactive account can be hard-deleted, the last-Active-Admin guard holds).
 
 ---
 
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 ──► Phase 43 ──► Phase 44
+Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

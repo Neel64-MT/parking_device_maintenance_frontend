@@ -9,6 +9,8 @@ import {
   canPerm,
   createRole as createRoleApi,
   createUser,
+  deleteRole,
+  deleteUser,
   filterAssignableRoles,
   homePathForUser,
   listRoles,
@@ -52,14 +54,19 @@ export default function Users() {
   const canView = canPerm(user, 'Users', 'v')
   const canCreate = canPerm(user, 'Users', 'c')
   const canEdit = canPerm(user, 'Users', 'e')
+  const canDelete = canPerm(user, 'Users', 'd')
   const canViewRoles = canPerm(user, 'Roles & permissions', 'v')
   const canCreateRole = canPerm(user, 'Roles & permissions', 'c')
   const canEditRoles = canPerm(user, 'Roles & permissions', 'e')
+  const canDeleteRoles = canPerm(user, 'Roles & permissions', 'd')
   const canViewWorkReport = canPerm(user, 'Work report', 'v')
 
   const [tab, setTab] = useState('users')
   const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  // Default to Active: the everyday list is the people who can sign in.
+  // "All statuses" stays available so Pending approvals and Inactive accounts are
+  // still reachable.
+  const [statusFilter, setStatusFilter] = useState('Active')
   const [tiles, setTiles] = useState([])
   const [rows, setRows] = useState([])
   const [roles, setRoles] = useState([])
@@ -92,6 +99,11 @@ export default function Users() {
   const [pwId, setPwId] = useState(null)
   const [pwNew, setPwNew] = useState('')
   const [pwConfirm, setPwConfirm] = useState('')
+
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [roleDeleteTarget, setRoleDeleteTarget] = useState(null)
+  const [deletingRole, setDeletingRole] = useState(false)
 
   const [creating, setCreating] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
@@ -381,6 +393,13 @@ export default function Users() {
       toast('You cannot create a user with a role higher than your own.', 'error')
       return
     }
+    // An account can lose its role when that role is deleted. The backend refuses to
+    // activate it without a role (409 ROLE_REQUIRED); prompting first keeps the wording
+    // and the focus in the form instead of behind an API error.
+    if (editStatus === 'Active' && !editRoleId) {
+      toast('Select a role for this user before activating the account.', 'error')
+      return
+    }
     setSavingEdit(true)
     try {
       const body = {
@@ -423,6 +442,42 @@ export default function Users() {
       toastApiError(err, 'Could not change password.')
     } finally {
       setSavingPassword(false)
+    }
+  }
+
+  async function confirmDeleteUser() {
+    if (!canDelete || !deleteTarget || deleting) return
+    setDeleting(true)
+    const { id, name } = deleteTarget
+    try {
+      await deleteUser(id)
+      toastApiSuccess(`User “${name}” deleted.`)
+      setDeleteTarget(null)
+      await refreshUsers()
+    } catch (err) {
+      // Keeps the row in the list and surfaces the backend message
+      // (e.g. "You cannot delete your own account.").
+      toastApiError(err, 'Could not delete user.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function confirmDeleteRole() {
+    if (!canDeleteRoles || !roleDeleteTarget || deletingRole) return
+    setDeletingRole(true)
+    const { id, name } = roleDeleteTarget
+    try {
+      await deleteRole(id)
+      toastApiSuccess(`Role “${name}” deleted.`)
+      setRoleDeleteTarget(null)
+      await refreshRoles()
+    } catch (err) {
+      // Keeps the role in the list and surfaces the backend message
+      // ("Role is assigned to users. Please change their role before deleting it.").
+      toastApiError(err, 'Could not delete role.')
+    } finally {
+      setDeletingRole(false)
     }
   }
 
@@ -751,11 +806,16 @@ export default function Users() {
                       <tr key={row.id}>
                         <td>
                           {row.name}
-                          {row.you ? <div className="muted">You</div> : null}
                           {row.email ? <div className="muted">{row.email}</div> : null}
                         </td>
                         <td>{row.mobile}</td>
-                        <td>{row.role}</td>
+                        <td>
+                          {row.roleMissing ? (
+                            <span className="muted">No role — select one</span>
+                          ) : (
+                            row.role
+                          )}
+                        </td>
                         <td>{row.roads}</td>
                         <td className={`num${row.openBad ? ' strong-bad' : ''}`}>
                           {row.openTickets != null ? (
@@ -796,11 +856,24 @@ export default function Users() {
                                 }}
                               >
                                 Password
-                              </Button>
+                              </Button>{' '}
                             </>
-                          ) : (
-                            <span className="muted">—</span>
-                          )}
+                          ) : null}
+                          {canDelete ? (
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              disabled={deleting}
+                              onClick={() => {
+                                setDeleteTarget(row)
+                                setEditId(null)
+                                setPwId(null)
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          ) : null}
+                          {!canEdit && !canDelete ? <span className="muted">—</span> : null}
                         </td>
                       </tr>
                     ))
@@ -811,9 +884,12 @@ export default function Users() {
             </div>
 
             <div className="foot-note">
-              A user is never deleted, only made inactive — their name has to stay readable on the
-              tickets they closed. Signup requests stay Pending until an Admin or Project Manager
-              approves them.
+              Delete removes the account for good — their name is cleared from the tickets they
+              raised, held and closed, though the tickets themselves stay. You cannot delete your
+              own account, and a Project Manager never sees Admin accounts here. Signup requests
+              stay Pending until an Admin or Project Manager approves them. If a role is deleted
+              while accounts are only inactive, those accounts keep no role and must be given one
+              before they can be activated again.
             </div>
           </section>
         ) : null}
@@ -954,7 +1030,17 @@ export default function Users() {
                               <Button size="sm" onClick={() => selectPermRole(row)}>
                                 Permissions
                               </Button>
-                            )}
+                            )}{' '}
+                            {canDeleteRoles ? (
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                disabled={deletingRole}
+                                onClick={() => setRoleDeleteTarget(row)}
+                              >
+                                Delete
+                              </Button>
+                            ) : null}
                           </td>
                         </tr>
                       ))}
@@ -1172,6 +1258,69 @@ export default function Users() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(deleteTarget)}
+        title="Delete user?"
+        subtitle="The account is removed for good. Tickets stay, but their reporter and assignee become blank."
+        closeDisabled={deleting}
+        onClose={() => {
+          if (deleting) return
+          setDeleteTarget(null)
+        }}
+      >
+        <p className="muted" style={{ marginBottom: 16 }}>
+          Delete <b>{deleteTarget?.name}</b>
+          {deleteTarget?.role ? ` (${deleteTarget.role})` : ''}? They will lose access immediately
+          and their name will no longer appear on past tickets.
+        </p>
+        <div className="modal-actions">
+          <Button type="button" disabled={deleting} onClick={() => setDeleteTarget(null)}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            disabled={deleting}
+            onClick={confirmDeleteUser}
+          >
+            {deleting ? 'Deleting…' : 'Delete'}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(roleDeleteTarget)}
+        title="Delete role?"
+        subtitle="A role can only be deleted while nobody who can sign in is assigned to it."
+        closeDisabled={deletingRole}
+        onClose={() => {
+          if (deletingRole) return
+          setRoleDeleteTarget(null)
+        }}
+      >
+        <p className="muted" style={{ marginBottom: 16 }}>
+          Delete <b>{roleDeleteTarget?.name}</b>? It can only be deleted while no account that can
+          sign in is assigned to it.
+        </p>
+        <div className="modal-actions">
+          <Button
+            type="button"
+            disabled={deletingRole}
+            onClick={() => setRoleDeleteTarget(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            disabled={deletingRole}
+            onClick={confirmDeleteRole}
+          >
+            {deletingRole ? 'Deleting…' : 'Delete'}
+          </Button>
+        </div>
       </Modal>
     </>
   )
