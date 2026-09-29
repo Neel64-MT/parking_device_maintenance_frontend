@@ -142,6 +142,7 @@ Inspect existing code
 - Reuse `appendTicketVisibilitySql` / `assertTicketAccess` from backend `lib/ticket-access.ts`.
 - Read paths filter by ownership; **assign** uses road scope only.
 - Detail Assign/Reassign: `assignTicket` → `POST /api/tickets/:id/assign` with `assigneeId` from `listTechnicianLookups`; optional note as `reason`; reload ticket for trail/facts.
+- Hand to / assignee options come from `listTechnicianLookups()` (`GET /api/lookups/technicians`) and are **Technician and Engineer only**. Neither Project manager nor Control room may hold a ticket: a PM routes and closes work, Control room raises and routes — neither attends it. Do not re-filter or append to this list in the browser; the backend `ASSIGNABLE_ROLES` constant is the single source and such an assignee is rejected with `400 INVALID_ASSIGNEE`. Note this is narrower than who may *perform* an assign (Control room / Admin / PM can still route), so do not "fix" the dropdown by re-adding those roles. The same lookup also feeds the All Tickets assignee filter and the Work report person dropdown, so the narrowing applies consistently everywhere.
 - PM signup approval = Users `e` on existing PATCH — sync FE `ROLES` matrix with `DEFAULT_ROLE_PERMS`.
 
 ## Frontend ticket API skills (Phase 16+)
@@ -243,8 +244,27 @@ Inspect existing code
 - Scope the patch to the viewed ticket only, apply the backend's authoritative `updated` with a `Math.max(0, …)` floor, then re-read `unread-count`; never decrement by guesswork.
 - Dedupe per ticket so rerenders and re-entry do not re-request. Keep mark-read failures non-blocking (`listError`), and never bypass 401/403.
 - Render `ticket.assigned` / `ticket.reassigned` from the same popover as `ticket.raised`; attribute by type (`raisedBy` then `assignedBy`) and omit the line when neither exists. Do not hardcode ticket details in the frontend.
+
+## Users delete + visibility skills (Phase 44+)
+
+- `GET /api/users` is already visibility-scoped by the backend: your own account is absent, and a non-Admin (Project manager) never receives Admin rows. Render the payload as-is — **never** add a client-side `row.id !== user.id` or `row.role !== 'Admin'` filter. That would be a second, drifting copy of the rule.
+- Delete uses `deleteUser(id)` from `services/users.js` against `DELETE /api/users/:id`, gated with `canPerm(user, 'Users', 'd')` (Admin is the only seeded role with it). No new role gains the button.
+- Delete is a **hard delete** (Phase 46+): the account is removed and the backend clears its references on past tickets, so the row leaves every status-filtered list. Show the button on **every** row, `Inactive` included, and word the confirm modal as a permanent removal ("their name will no longer appear on past tickets"). Do not describe it as a deactivation.
+- Reuse the existing confirm `Modal` + `Button variant="danger"` + a `deleting` busy flag (the `IssueMaster` pattern). Name the user in the copy, and state the consequence — tickets stay, the name does not.
+- On success `toastApiSuccess` then `await refreshUsers()`; on failure `toastApiError(err, 'Could not delete user.')` and leave the row untouched — the backend message (e.g. `You cannot delete your own account.`) reaches the toast unchanged.
+- The own row is never rendered, so a self-delete control cannot appear; the backend `SELF_DELETE_FORBIDDEN` response remains the authority.
+- A role-less account (`row.roleMissing`) shows "No role — select one". Activating it is refused in `saveEdit` with the same wording as the backend `409 ROLE_REQUIRED`; the role `<select>` is the only way out. Do not add a client-side "has a role" lookup.
+- The `row.you` marker is gone from the table — nothing can be "you" in your own list.
 - Fall back to visible-page polling/focus refresh because the backend has no WebSocket/SSE transport.
 - In TicketDetail View Update, use structured reported/found issue arrays, group by category, show all sub-categories, and fall back to scalar fields for older events; hide the issue section when no issue data exists.
+
+## Role delete skills (Phase 46+)
+
+- Role delete is a **Roles tab** action, not a separate page: `deleteRole(id)` in `services/users.js` → `DELETE /api/roles/:id`, gated with `canPerm(user, 'Roles & permissions', 'd')`. Reuse `roleDeleteTarget` / `deletingRole` state, do not reuse the Users `deleteTarget` / `deleting` pair.
+- Reuse the Users-delete confirm pattern exactly: `Button variant="danger"` in the Action cell beside **Permissions**, a confirm `Modal` naming the role, a busy label `Deleting…`, and `closeDisabled` while the request runs.
+- The assigned-role guard is **backend-only**: `409 ROLE_IN_USE` → `toastApiError(err, 'Could not delete role.')` surfaces "Role is assigned to users. Please change their role before deleting it." and the role stays in the list. Never hide or disable the button from `row.users` — that count is a stale snapshot and would be a second, drifting copy of the rule.
+- Do not re-check the user list, add a lookup call, or add a client-side `ROLE_IN_USE` message constant; `ApiRequestError.message` already carries the backend text.
+- On success `toastApiSuccess` then `await refreshRoles()`; the permission matrix selection (`permRoleId`) is re-resolved by `applyRolesList`, so no extra cleanup is needed when the deleted role was selected.
 
 ---
 
