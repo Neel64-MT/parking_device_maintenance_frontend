@@ -7,6 +7,7 @@ import { ApiRequestError } from '../../services/api'
 import { assignTicket, getTicket } from '../../services/tickets'
 import {
   canPerm,
+  filterAssignableAssignees,
   homePathForUser,
   isDashboardRole,
   isFieldTicketUpdater,
@@ -517,6 +518,11 @@ export default function TicketDetail() {
   const canManageAssign = canAssign && header && header.status !== 'Closed'
   const canReassign = canManageAssign && isAssigned
   const canFirstAssign = canManageAssign && !isAssigned
+  // Hand to shows Technician / Engineer only; the current assignee stays pinned.
+  const assigneeOptions = useMemo(
+    () => filterAssignableAssignees(techOptions, ticket?.assigneeId, assignedTo),
+    [techOptions, ticket?.assigneeId, assignedTo],
+  )
   // Closing needs Update ticket `x`; the backend still enforces ticket access + holder.
   const canCloseTicket = canPerm(user, 'Update ticket', 'x') && header?.status !== 'Closed'
 
@@ -958,7 +964,7 @@ export default function TicketDetail() {
                   <option value="">
                     {techsLoading ? 'Loading workers…' : 'Select worker'}
                   </option>
-                  {techOptions.map((t) => (
+                  {assigneeOptions.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.label || t.name}
                     </option>

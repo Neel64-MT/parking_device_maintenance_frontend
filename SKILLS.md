@@ -220,6 +220,16 @@ Inspect existing code
 - Backend owns skip/upsert validation; FE never creates devices from sync payloads.
 - Device list status tiles filter via `listDevices({ status })` on the same page; do not route Under repair / Not working to `/tickets`.
 
+## Slot Label order + Assign dropdown skills (Phase 44+)
+
+- Device list is ordered by Slot Label **in the backend SQL** (`GET /api/devices` → `ORDER BY slot_number`); do not add client-side sorting there — it would only order the current page and break `LIMIT/OFFSET` pagination.
+- Ticket list order stays `raised_at DESC`; it has no Slot Label column.
+- Assign / Reassign "Hand to" lists `filterAssignableAssignees(listTechnicianLookups(), currentAssigneeId, currentAssigneeName)` from `services/users.js`; role names come from the existing `roles.name` values (`Technician`, `Engineer`) via `ASSIGNABLE_ASSIGNEE_ROLES` — never invent labels or ids.
+- Always keep the ticket's current assignee in the option list, even when their role is not assignable, so an existing Control room / Project manager holder still renders and can be reassigned away.
+- Do **not** narrow `GET /api/lookups/technicians` server-side: Work report Person filter needs Control room / Project manager. Do not delete users or change roles to achieve this.
+- Both dropdowns (TicketList inline modal and TicketDetail) must use the same helper; do not filter inline in the components.
+- Backend `assertEligibleAssignee` stays the final source of truth — the frontend filter is a UX guard, not authorization.
+
 ## Notification skills (Phase 39+)
 
 - Consume `services/notifications.js` and the existing backend `/api/notifications` endpoints; preserve backend pagination with `apiEnvelope`.

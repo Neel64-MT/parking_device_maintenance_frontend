@@ -428,6 +428,17 @@ The notification UI is an authenticated-shell addition; it does not add a new me
 | Empty / loading | EmptyState when no people; SkeletonTable while first load |
 | Add / Edit device | Form fields: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location; Edit via `/devices/add?id=` |
 
+## Phase 44 — Slot Label order and Assign dropdown role filter
+
+| Item | Pattern |
+|------|---------|
+| Device list order | No frontend sorting. `GET /api/devices` orders Slot Label ascending in SQL, so order is already correct across pages |
+| Assign dropdown source | Unchanged: `listTechnicianLookups()` → `GET /api/lookups/technicians` (returns `role` per row) |
+| Assign dropdown filter | `filterAssignableAssignees(techOptions, currentAssigneeId, currentAssigneeName)` from `services/users.js`, with `ASSIGNABLE_ASSIGNEE_ROLES = ['Technician', 'Engineer']` |
+| Current assignee | Always kept in the option list, even when its role is not assignable, so an existing Control room / Project manager holder still shows their selection and can be reassigned away |
+| Work report | Person filter keeps the full lookup (Control room / Project manager are valid report actors) |
+| Authorization | Unchanged — `canPerm(user, 'All tickets', 'a')` in the UI, `authorize('All tickets', 'a')` + `assertEligibleAssignee` on the server |
+
 ## Phase 27 — QR → device → raise / update
 
 | Item | Pattern |
@@ -443,7 +454,7 @@ The notification UI is an authenticated-shell addition; it does not add a new me
 | Update Ticket (`/tickets/update`) | Live scan or `?ticketId=`; assignee gate; **Add Update form on page**; free → Raise (+ `qr`) |
 | Manual QR Number | Raise/Update: scan or type QR Number only (no Road/Slot selects); Find device → `resolveScan` |
 | Detail actions | Ops **or** assignee → **Add update** (Modal); field non-assignee → QR **Update Ticket** → `/tickets/update` |
-| Assign / Reassign | Inline Hand to (technicians lookup UUID) + optional note → `POST /api/tickets/:id/assign`; reload trail |
+| Assign / Reassign | Inline Hand to (technicians lookup UUID, narrowed to Technician / Engineer) + optional note → `POST /api/tickets/:id/assign`; reload trail |
 
 ## Phase 28 — QR lookup → Update Ticket
 
