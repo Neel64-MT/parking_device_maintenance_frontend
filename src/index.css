@@ -2933,11 +2933,25 @@ td a:not(.btn):not(.code):hover {
 }
 
 /* ---------- Toast (original §§13) ---------- */
+/*
+ * The toast is the topmost layer on purpose. It is a sibling of the app tree
+ * (see context/ToastContext.jsx), not a child of any overlay, so it competes
+ * directly with the modal layer and used to sit *below* it at z-index 60 —
+ * an error raised from inside a modal (e.g. "Role is assigned to users" while
+ * the Delete role confirm is open) was painted under the scrim and dimmed by it.
+ *
+ * Layer order, low -> high:
+ *   topbar 20 · rail 30 · notification-popover 60 · modal-root 80
+ *   · photo-source-menu--portal 90 · modal-root--elevated 95
+ *   · part-select-menu 1001 · toast 1200
+ * 1200 clears the transient portaled menus (1001) as well. Do not lower it
+ * without re-checking that an open modal cannot cover it.
+ */
 .toast {
   position: fixed;
   top: 24px;
   left: 50%;
-  z-index: 60;
+  z-index: 1200;
   background: var(--navy);
   color: #fff;
   border: 1px solid transparent;

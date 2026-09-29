@@ -655,6 +655,34 @@ canPerm → action visibility (Raise c, Update e, Close x, …)
 | Phase 35 hierarchy dropdown unchanged | Pass |
 | Backend remains authoritative (401/403 toasts) | Pass |
 
+### Phase 46 — Role delete, Inactive exemption, and user hard delete
+
+```text
+Roles d → danger Delete button (Action cell) → confirm Modal
+       → deleteRole(id) → DELETE /api/roles/:id
+       → 200: toastApiSuccess + refreshRoles()
+       → 409 ROLE_IN_USE: toastApiError → backend message, role stays in the list
+
+GET /api/users → role: null + roleMissing: true  → "No role — select one"
+Edit user → status Active without a role          → prompt, backend 409 ROLE_REQUIRED
+
+Users d → Delete on every row → confirm Modal → deleteUser(id) → DELETE /api/users/:id
+       → 200: toastApiSuccess + refreshUsers()   (row gone; past tickets lose the name)
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Unassigned role is deleted and leaves the roles table | Pass |
+| Role held by an Active or Pending account is rejected and stays in the list | Pass |
+| Toast shows "Role is assigned to users. Please change their role before deleting it." | Pass (backend `error` text, no generic fallback) |
+| Inactive accounts do not block a role delete | Pass |
+| Account left without a role still appears in the Users table | Pass (LEFT JOIN + `roleMissing`) |
+| Reactivating a role-less account is refused until a role is chosen | Pass (client prompt + backend `409 ROLE_REQUIRED`) |
+| No client-side `row.users` pre-check that could drift from the backend | Pass |
+| Roles `d` gate preserved; no other role gains Delete | Pass |
+| User delete removes the account permanently and works on Inactive rows too | Pass |
+| Self-delete and last-Active-Admin guards unchanged | Pass |
+
 ### Phase 37 — Multi-issue tickets + Site attendant Sync / Issue Master
 
 ```text
