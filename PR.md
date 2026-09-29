@@ -809,3 +809,24 @@ POST /api/tickets
 | Count is independent of technician, engineer, admin, project manager, or control room role | Pass |
 | Backend TypeScript build | Pass |
 
+
+### Phase 44 — Slot Label ascending order + Assign dropdown role filter
+
+| Criterion | Result |
+|-----------|--------|
+| Device list rows are ordered by Slot Label ascending | Pass (backend SQL) |
+| Order is correct across pages 1 → 2 (server `LIMIT`/`OFFSET`) | Pass |
+| No client-side sorting added to `DeviceList.jsx` | Pass |
+| Search, road / status / repeat-fault filters, and status tiles unchanged | Pass |
+| Pagination envelope and `TablePagination` behavior unchanged | Pass |
+| Ticket list order unchanged (`raised_at DESC`) | Pass |
+| Assign / Reassign "Hand to" lists Technician users | Pass |
+| Assign / Reassign "Hand to" lists Engineer users | Pass |
+| Admin, Project manager, Control room, Site attendant are hidden | Pass |
+| Role values come from the API response via `ASSIGNABLE_ASSIGNEE_ROLES`, not hardcoded labels | Pass |
+| No second users API and no duplicate fetch (reuses `listTechnicianLookups`) | Pass |
+| Existing assignee still displays and can be reassigned (current assignee pinned) | Pass |
+| Work report Person filter unchanged (CR / PM still listed) | Pass |
+| No user deleted, no role changed, global Users list untouched | Pass |
+| Backend `assertEligibleAssignee` unchanged — still the final source of truth | Pass |
+| `npm run lint` / `npm run build` | Pass |

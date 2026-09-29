@@ -9,7 +9,13 @@ import { ROAD_OPTIONS } from '../../data/slots'
 import { TICKET_TAB_META } from '../../data/tickets'
 import { ApiRequestError } from '../../services/api'
 import { assignTicket, listTickets } from '../../services/tickets'
-import { canPerm, homePathForUser, isFieldTicketUpdater, listTechnicianLookups } from '../../services/users'
+import {
+  canPerm,
+  filterAssignableAssignees,
+  homePathForUser,
+  isFieldTicketUpdater,
+  listTechnicianLookups,
+} from '../../services/users'
 import { Button } from '../../components/ui/Button'
 import { Field, FilterBar } from '../../components/ui/FilterBar'
 import { JumpLinks } from '../../components/ui/JumpLinks'
@@ -98,6 +104,12 @@ export default function TicketList() {
   const meta = TICKET_TAB_META[tab]
   const assignOpen = Boolean(assignRow)
   const assignIsReassign = Boolean(assignRow?.assignedTo)
+  // Hand to shows Technician / Engineer only; the row's current assignee stays pinned.
+  const assigneeOptions = filterAssignableAssignees(
+    techOptions,
+    assignRow?.assigneeId,
+    assignRow?.assignedTo,
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -608,7 +620,7 @@ export default function TicketList() {
                   <option value="">
                     {techsLoading ? 'Loading workers…' : 'Select worker'}
                   </option>
-                  {techOptions.map((t) => (
+                  {assigneeOptions.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.label || t.name}
                     </option>

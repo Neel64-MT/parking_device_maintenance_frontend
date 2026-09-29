@@ -62,6 +62,7 @@ Admin and Project manager keep existing city-wide ticket visibility.
 Do not AND ticket list/export with assigned_roads in a way that hides tickets the user raised on other roads (Phase 18). Device lists may still use road scope.
 Detail access: raiser and assignee always allowed, even outside user_roads; then road check; otherwise forbid.
 Assign (All tickets a) uses road access only — do not apply ownership filter on assign (Control room must assign others’ tickets). Detail Save → `POST /api/tickets/:id/assign` with `assigneeId` (UUID) from technicians lookup; optional note as `reason`.
+Assign / Reassign "Hand to" shows only `Technician` and `Engineer` via `filterAssignableAssignees` + `ASSIGNABLE_ASSIGNEE_ROLES` in `services/users.js` (roles come from the API response, never hardcoded labels). Keep the ticket's current assignee in the list so an existing non-assignable holder still shows their selection. Work report Person filter keeps the full lookup. Never delete users, change roles, or alter the global Users list for this; backend `assertEligibleAssignee` stays authoritative.
 Project Manager signup approval reuses PATCH /api/users/:id + Users e (PM seeded vce...); do not duplicate Admin logic.
 User create/edit role dropdowns must filter to same-or-below the actor using `ROLE_HIERARCHY` / `filterAssignableRoles` in `services/users.js` (mirrors backend Phase 36). Users `c`/`e` still gate the forms. Omit `roleId` on PATCH when unchanged. Backend remains authoritative for higher-role attempts (`403`).
 
@@ -238,6 +239,7 @@ On sync complete, toast only returned device stats keys (`devicesCreated` / `dev
 Preserve device list pagination, search, filters, and current page on post-sync refresh.
 Existing devices must retain ticket Raise / Update / Detail flows after sync.
 Device list table columns for this phase: Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location only.
+Device list rows arrive sorted by Slot Label ascending from `GET /api/devices` (Phase 44). Do not sort rows in React — server-side `LIMIT/OFFSET` pagination means a client sort would only order one page. Filters, search, tiles, and the pagination envelope are unchanged.
 Device list status tiles (Working / Under repair / Not working / Total) must apply the existing `status` filter via `listDevices` and stay on `/devices`. Do not link Under repair / Not working to `/tickets`.
 Do not invent client-only sync locking as a replacement for backend single-flight.
 Do not modify unrelated Device Detail / Scan / Add flows when wiring sync.

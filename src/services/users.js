@@ -127,6 +127,41 @@ export function canPerm(user, screen, flag) {
 }
 
 /**
+ * Roles offered in the Assign / Reassign "Hand to" dropdown.
+ *
+ * `GET /api/lookups/technicians` also returns Control room and Project manager
+ * because the Work report Person filter needs them. A ticket is only ever held
+ * by field staff, so the assign dropdown narrows to the two field roles.
+ *
+ * This is a presentation guard; the backend `assertEligibleAssignee` remains the
+ * final source of truth and is intentionally left unchanged.
+ */
+export const ASSIGNABLE_ASSIGNEE_ROLES = ['Technician', 'Engineer']
+
+/**
+ * Narrow a technicians lookup list to the assignable roles for the Hand to select.
+ *
+ * The ticket's current assignee is always kept so a ticket already held by a
+ * non-assignable user (Control room / Project manager) still renders its
+ * selection and can still be reassigned away from them.
+ *
+ * @param {{ id: string, name: string, role: string, label: string }[]} options
+ * @param {string|null|undefined} currentAssigneeId
+ * @param {string} [currentAssigneeName] fallback label when the current assignee
+ *   is not in the lookup list (e.g. inactive user)
+ */
+export function filterAssignableAssignees(options, currentAssigneeId, currentAssigneeName) {
+  if (!Array.isArray(options)) return []
+  const currentId = currentAssigneeId == null ? '' : String(currentAssigneeId)
+  const keep = options.filter(
+    (o) => ASSIGNABLE_ASSIGNEE_ROLES.includes(o?.role) || String(o?.id) === currentId,
+  )
+  if (!currentId || keep.some((o) => String(o.id) === currentId)) return keep
+  const name = (currentAssigneeName || '').trim()
+  return [...keep, { id: currentId, name, role: '', label: name || `Current assignee ${currentId}` }]
+}
+
+/**
  * Notification-eligible roles.
  *
  * - New-ticket ("ticket.raised") alerts stay limited to the oversight roles.

@@ -934,10 +934,30 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 44: Slot Label ascending order and Assign dropdown role filter
+
+**Objective:** Show the Device List in ascending Slot Label order and limit the Assign / Reassign "Hand to" dropdown to Technician and Engineer users, without breaking pagination, filters, search, assignment, or reassignment.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. **Slot Label order — backend, no frontend sorting.** `GET /api/devices` now orders by `devices.slot_number` ascending through one shared `DEVICE_LIST_ORDER_BY` constant, so the order is correct on every page instead of within a page only. Client-side sorting was rejected because pagination is `LIMIT/OFFSET`. Nothing changes in `DeviceList.jsx`.
+2. **Assign dropdown role filter.** Add `ASSIGNABLE_ASSIGNEE_ROLES = ['Technician', 'Engineer']` (the real `roles.name` values) and `filterAssignableAssignees(options, currentAssigneeId, currentAssigneeName)` to `services/users.js`, next to the existing `NOTIFICATION_ROLES` list — no new users API, role values come from the API response.
+3. Apply the helper to both dropdowns: the `TicketList.jsx` inline Assign/Reassign modal and the `TicketDetail.jsx` Hand to select. Reuse the already-loaded `listTechnicianLookups()` result; no extra fetch.
+4. Always pin the ticket's current assignee into the option list so a ticket held by a Control room / Project manager user still renders its selection and can still be reassigned away (no silent blank prefill).
+5. Leave `WorkReport.jsx` on the full lookup — Control room / Project manager are valid report actors — and leave backend `assertEligibleAssignee` untouched so the server remains the final source of truth.
+
+**Out of scope:** Deleting users, changing user roles, editing the global Users list, a new users/roles endpoint, a natural-sort dependency, client-side device sorting, or any change to ticket ordering, permissions, notifications, or authentication.
+
+**Verification:** `npm run lint` and `npm run build` pass; backend `npm run build` passes and its smoke suite now asserts `OK devices Slot Label ascending` across page 1 and page 2.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43
+Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 ──► Phase 43 ──► Phase 44
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.
