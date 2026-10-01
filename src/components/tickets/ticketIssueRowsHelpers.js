@@ -85,8 +85,9 @@ export function categoryById(categories, categoryId) {
 /**
  * Group API/display issues by category for Detail classification.
  * Preserves first-seen category order; subs keep API order within a group.
- * @param {{ categoryId?: string, category?: string, subCategoryId?: string, sub?: string }[]} issues
- * @returns {{ key: string, category: string, subs: { key: string, label: string }[] }[]}
+ * `tickets` is passed through for Slot View (the tickets holding each open issue).
+ * @param {{ categoryId?: string, category?: string, subCategoryId?: string, sub?: string, tickets?: { id: string }[] }[]} issues
+ * @returns {{ key: string, category: string, subs: { key: string, label: string, status: string | null, tickets: { id: string }[] }[] }[]}
  */
 export function groupIssuesForDisplay(issues) {
   if (!Array.isArray(issues) || !issues.length) return []
@@ -102,7 +103,12 @@ export function groupIssuesForDisplay(issues) {
     }
     const group = groups[indexByKey.get(key)]
     const subKey = i.subCategoryId || `${key}:${sub}:${group.subs.length}`
-    group.subs.push({ key: subKey, label: sub, status: i.status || null })
+    group.subs.push({
+      key: subKey,
+      label: sub,
+      status: i.status || null,
+      tickets: Array.isArray(i.tickets) ? i.tickets : [],
+    })
   }
   return groups
 }

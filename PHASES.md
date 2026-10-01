@@ -1104,10 +1104,35 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 53: Slot View
+
+**Objective:** Wire backend Phase 53. A slot-centric view of existing tickets: a **Slot View** sidebar item right after Dashboard opens the list of slots that have at least one ticket (Slot Id, Slot Label, Road, ticket count); clicking a Slot Id or Slot Label opens one slot with its **Unresolved issues** and **all of its tickets**.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `config/nav.js`: `MENU` item `{ id: 'slot-view', label: 'Slot View', icon: 'slot', path: '/slot-view', match: ['slot-detail'], screen: 'Slot View' }` directly after Dashboard. Same `filterMenuByView` gate, same collapsed rail / ≤820 drawer, active by `pageId`.
+2. `NavIcons.jsx`: new `slot` stroke icon (parking bays + location marker), 24×24 like the others. No icon library.
+3. `routes.jsx`: `slot-view` and `slot-view/:slotId`, both `<RequirePerm screen="Slot View">` (backend enforces the same flag).
+4. `services/slotView.js`: `listSlots({ q, page, limit })` → `GET /api/slot-view`; `getSlot(slotId)` → `GET /api/slot-view/:slotId`. `services/tickets.js` `listTickets` accepts `device`.
+5. `components/tickets/TicketTable.jsx`: the All tickets table moved out of `TicketList` unchanged (props `rows`, `loading`, `showDaysOpen`, `showDaysAfterClose`, `showSlot`, `linkState`, `emptyText`). `TicketList` renders it with its previous props, so All tickets looks the same.
+6. `pages/slots/SlotList.jsx` (`pageId="slot-view"`): `FilterBar` search (Enter / Apply / Reset), table Slot Id · Slot Label · Road · Tickets · Open, both id and label link to `/slot-view/:id`, `TablePagination` (10/25/50/100, default 25), `SkeletonTable` while loading, `EmptyState` "No tickets raised yet" (or "No slots match this search."), inline error strip. Order comes from the server (natural Slot Label) — no client sort.
+7. `pages/slots/SlotDetail.jsx` (`pageId="slot-detail"`): `.record` header (Slot Label, Slot Id, Road, Tickets, Unresolved issues); **Unresolved issues** panel groups the server's Open Sub Issues by Main Issue with `groupIssuesForDisplay` (now passes `tickets` through), each row = sub label · ticket links · red `Open` pill, `EmptyState` "No unresolved issues"; **Tickets** panel = `TicketTable` (`showSlot={false}`, Days open) fed by `listTickets({ device, page, limit })` with no tab, so Closed tickets stay; links carry `state.from = /slot-view/:id`. Topbar crumb `Slot View › Road, Slot X`, **Device history** action when allowed. `404` → "Slot not found.", `403` → "You do not have access to this slot."
+8. `TicketDetail`: `ticketsListReturnPath` keeps `/slot-view/...`; back link reads "← Back to slot" and the crumb "Slot View" when opened from a slot.
+9. CSS (`index.css`): `.slot-issue-tickets` (wrapping ticket links), `.slot-table .slot-cell` (no wrap), issue row wraps at ≤560px when it carries ticket links.
+10. Permission: new matrix screen **Slot View** — `data/users.js` `PERM_SCREENS` group `Slot View` after Dashboard and `DEFAULT_ROLE_PERMS` (Project manager `v.....`, every other role `......`; Admin is full access). Backend defaults: Admin + Project manager only; Admins grant or revoke it per role in Users → Roles & permissions, and the sidebar item, routes and `SlotList` / `SlotDetail` all read `canPerm(user, 'Slot View', 'v')`. `SlotDetail` loads the Tickets panel and links ticket ids only with `All tickets` `v`; without it the panel shows "Ticket list not available" and issue ticket ids render as plain text.
+
+**Out of scope:** Device list order (still plain text, see MEMORY known gaps); Dashboard unchanged.
+
+**Verification:** `npm run lint` and `npm run build` pass; backend `test:smoke:slot-view` passes. Browser walkthrough (Admin): Slot View sits between Dashboard and Tickets with its icon and active highlight on both pages; list shows Page 1 of 8 in natural label order; search `SV` → 2 rows, Reset restores; Slot Id `6520` and Slot Label `3-12` both open `/slot-view/6520`; detail header Tickets 1 / Unresolved 1, Communication › Communication module faulty → TK-1103 with Open pill; TK-1103 opens Ticket Detail with "← Back to slot" returning to `/slot-view/6520`; All tickets table unchanged; 820px and 390px readable with no page overflow, drawer lists Slot View; `/slot-view/NO-SUCH-SLOT` → "Slot not found."; no console errors.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46 -> Phase 47 -> Phase 49 -> Phase 50 -> Phase 51 -> Phase 52
+Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46 -> Phase 47 -> Phase 49 -> Phase 50 -> Phase 51 -> Phase 52 -> Phase 53
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

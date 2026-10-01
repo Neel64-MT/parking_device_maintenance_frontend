@@ -361,6 +361,7 @@ function ViewUpdateDetails({ item, reportedIssues, foundIssues }) {
 function ticketsListReturnPath(from) {
   if (typeof from !== 'string') return '/tickets'
   const [pathname, query = ''] = from.split('?')
+  if (pathname.startsWith('/slot-view/')) return pathname
   if (pathname !== '/tickets') return '/tickets'
   return query ? `/tickets?${query}` : '/tickets'
 }
@@ -418,6 +419,7 @@ export default function TicketDetail() {
   const canUpdateTicketView = canPerm(user, 'Update ticket', 'v')
   const canUpdateTicketEdit = canPerm(user, 'Update ticket', 'e')
   const backToTickets = ticketsListReturnPath(location.state?.from)
+  const backFromSlot = backToTickets.startsWith('/slot-view/')
 
   const [ticket, setTicket] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -522,12 +524,12 @@ export default function TicketDetail() {
     if (!header) return null
     return (
       <>
-        <Link to={backToTickets}>Tickets</Link> ›{' '}
+        <Link to={backToTickets}>{backFromSlot ? 'Slot View' : 'Tickets'}</Link> ›{' '}
         <Link to={`/devices/${header.deviceId}`}>{header.deviceId}</Link> › {header.road}, Slot{' '}
         {header.slot}
       </>
     )
-  }, [header, backToTickets])
+  }, [header, backToTickets, backFromSlot])
 
   const actions = useMemo(() => {
     if (!header) return null
@@ -563,7 +565,7 @@ export default function TicketDetail() {
 
       <main className="page">
         <Link className="back-link" to={backToTickets}>
-          ← Back to tickets
+          {backFromSlot ? '← Back to slot' : '← Back to tickets'}
         </Link>
 
         {loadError ? (

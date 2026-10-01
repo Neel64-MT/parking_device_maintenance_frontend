@@ -572,4 +572,31 @@ The notification UI is an authenticated-shell addition; it does not add a new me
 | Panel slide | Panel keyed by tab; `.tab-pane-next` / `.tab-pane-prev` animate head + body from `translateX(±18px)` + opacity 0, 240ms; panel `overflow-x: clip` so no horizontal scrollbar |
 | Reduced motion | `prefers-reduced-motion: reduce` → no ink transition, no panel animation |
 
+## Phase 53 — Slot View
+
+```text
+Sidebar: Dashboard · Slot View · Tickets ▸ · Devices · Masters ▸ · Users
+
+/slot-view                                  /slot-view/:slotId
+[Search  Slot Id, slot label or road] Reset Apply    ← Back to Slot View
+Slots with tickets                          Slot 3-12            (record header)
+Slot Id │ Slot Label │ Road    │ Tickets │   Slot Label · Slot Id · Road · Tickets · Unresolved issues
+6520    │ 3-12       │ CG Road │       1 │ Open   Unresolved issues
+…                         Page 1 of 8 ‹ ›     Communication                 1 open
+                                              [Communication module faulty  TK-1103  (Open)]
+                                            Tickets   (All tickets table, no Slot columns, Days open)
+```
+
+| Item | Pattern |
+|------|---------|
+| Sidebar | `Slot View` with the `slot` NavIcon (parking bays + marker), top-level, directly after Dashboard; highlighted on `slot-view` and `slot-detail` pages; hidden without `Slot View` v (Admin + Project manager by default, toggled per role in Roles & permissions) |
+| Slot list | Existing `FilterBar` + `Panel` + `.table-wrap` table + `TablePagination`; Slot Id and Slot Label are both `.code` links to the same detail; Tickets is a `.num` column; Slot Id / Label cells never wrap (`.slot-table .slot-cell`) |
+| Slot list empty | `EmptyState` "No tickets raised yet" (no search) or muted "No slots match this search." |
+| Slot header | Reuses `.record` / `.record-head` / `.facts` (5 facts; 2 columns on small screens) — same card as Ticket / Device detail |
+| Unresolved issues | Reuses the Ticket Detail issue styles: `.issue-groups` → `.issue-group-head` (Main Issue, "N open") → `.issue-row` (Sub Issue label, ticket links in `.slot-issue-tickets`, red `Open` pill). Row wraps at ≤560px |
+| No unresolved issues | `EmptyState` "No unresolved issues" |
+| Tickets | Shared `TicketTable` (same markup as All tickets) without Slot Id / Road columns; Days open column for every status; empty row "No tickets raised for this slot yet." |
+| Loading / errors | `SkeletonTable` / `SkeletonText` in a `.record`; inline `.hint-strip.auth-error` ("Slot not found.", "You do not have access to this slot.") |
+| Ticket Detail from a slot | Back link "← Back to slot", crumb "Slot View › …" |
+
 

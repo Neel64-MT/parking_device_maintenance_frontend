@@ -4084,6 +4084,25 @@ a.rank-row:hover .name {
   flex-shrink: 0;
 }
 
+/* Slot View (Phase 53) — ticket links beside each open issue; slot keys never wrap */
+.slot-issue-tickets {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 8px;
+  font-size: 12px;
+}
+
+.slot-table .slot-cell {
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .issue-row:has(.slot-issue-tickets) {
+    flex-wrap: wrap;
+  }
+}
+
 .issue-row.is-resolved .issue-row-label {
   color: var(--ink-3);
 }

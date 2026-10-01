@@ -162,6 +162,7 @@ frontend/
     │   ├── Settings.jsx        # profile + password forms
     │   ├── UiKitDemo.jsx       # /dev/ui scratch (not in menu)
     │   ├── tickets/            # TicketList tab columns + state.from; TicketDetail Modal update / gallery / backToTickets
+    │   ├── slots/              # Slot View: SlotList (ticketed slots), SlotDetail (unresolved issues + tickets)
     │   ├── devices/
     │   └── masters/
     └── hooks/
@@ -423,3 +424,29 @@ Tabs.jsx    → .tabs-ink positioned from the active [role=tab] (useLayoutEffect
 ```
 
 The backend owns tab membership (`open` = no update yet, `urp` = at least one update, `cls`); the page never filters rows itself. Status only varies on Under Repair; Open and Closed always send `All`.
+
+### Slot View (Phase 53)
+
+```text
+Sidebar MENU: dashboard → slot-view (screen Slot View, match slot-detail) → Tickets ▸ …
+
+/slot-view            SlotList    → listSlots({ q, page, limit })      → GET /api/slot-view
+  Slot Id | Slot Label link → /slot-view/:id   (id = Slot Id, or PD-xxxx when no Slot Id)
+
+/slot-view/:slotId    SlotDetail  → getSlot(slotId)                     → GET /api/slot-view/:slotId
+                                     { slot, ticketCount, unresolvedIssues }
+                                  → listTickets({ device: slotId, page, limit })  (no tab = every status)
+                                     → TicketTable (showSlot=false) → /tickets/:id  state.from=/slot-view/:id
+TicketDetail          ticketsListReturnPath keeps /slot-view/... → "← Back to slot"
+```
+
+| Piece | Location |
+|-------|----------|
+| Menu item + icon | `config/nav.js` (`slot-view`), `components/icons/NavIcons.jsx` (`slot`) |
+| Routes | `routes.jsx` — both behind `RequirePerm screen="All tickets"` |
+| Service | `services/slotView.js` (`listSlots`, `getSlot`); `listTickets({ device })` in `services/tickets.js` |
+| Pages | `pages/slots/SlotList.jsx`, `pages/slots/SlotDetail.jsx` |
+| Shared ticket table | `components/tickets/TicketTable.jsx` (All tickets + Slot View) |
+| Issue grouping | `groupIssuesForDisplay` (`ticketIssueRowsHelpers.js`) — passes `tickets` through |
+
+The backend decides which slots appear (only ticketed), the ticket count (tickets, not issues), which issues are unresolved (persisted Open, unique per Sub Issue) and the order (natural Slot Label). React only renders: no status filtering, grouping by slot, counting or sorting in the browser.
