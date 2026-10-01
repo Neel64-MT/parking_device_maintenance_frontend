@@ -18,7 +18,7 @@ const LEGEND_DOT = {
 }
 
 const LEGEND_TIP = {
-  'Under repair': 'Technician assigned',
+  'Under repair': 'Work in progress',
   'Not working': 'Ticket open, not yet attended',
 }
 
@@ -60,6 +60,7 @@ export default function Dashboard() {
   const [crumb, setCrumb] = useState('Fleet status')
   const [fleet, setFleet] = useState(null)
   const [downReasons, setDownReasons] = useState([])
+  const [openTotals, setOpenTotals] = useState({ issues: 0, tickets: 0 })
   const [roadStatus, setRoadStatus] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -85,12 +86,14 @@ export default function Dashboard() {
         setCrumb(data.crumb || 'Fleet status')
         setFleet(data.fleet || null)
         setDownReasons(data.downReasons || [])
+        setOpenTotals({ issues: data.openIssues || 0, tickets: data.openTicketsCount || 0 })
         setRoadStatus(data.roadStatus || [])
       } catch (err) {
         if (!cancelled) {
           setLoadError(err instanceof ApiRequestError ? err.message : 'Could not load dashboard.')
           setFleet(null)
           setDownReasons([])
+          setOpenTotals({ issues: 0, tickets: 0 })
           setRoadStatus([])
         }
       } finally {
@@ -116,7 +119,7 @@ export default function Dashboard() {
 
   const bar = fleet?.bar || []
   const ariaLabel = legend.map((i) => `${i.value} ${i.label}`).join(', ')
-  const downTotal = downReasons.reduce((s, r) => s + (r.n || 0), 0)
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 
   return (
     <>
@@ -194,9 +197,9 @@ export default function Dashboard() {
           <Panel
             title="Why devices are down"
             subtitle={
-              downTotal
-                ? `${downTotal} open tickets · grouped by issue found on site`
-                : 'Open tickets · grouped by issue found on site'
+              openTotals.issues
+                ? `${plural(openTotals.issues, 'open issue')} across ${plural(openTotals.tickets, 'open ticket')} · grouped by issue`
+                : 'Open issues on open tickets · grouped by issue'
             }
             link="View tickets"
             linkTo="/tickets"

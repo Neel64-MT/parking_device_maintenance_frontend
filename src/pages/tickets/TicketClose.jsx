@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { getTicket } from '../../services/tickets'
 import { TicketCloseForm } from '../../components/tickets/TicketCloseForm'
+import { openReportedIssues } from '../../components/tickets/ticketIssueRowsHelpers'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
 
@@ -56,6 +57,7 @@ export default function TicketClose() {
   const header = ticket?.header
   const ticketRef = header?.id || ticketId
   const status = header?.status || ''
+  const openIssueCount = openReportedIssues(ticket?.issuesReported).length
 
   const crumb = useMemo(
     () => (
@@ -117,7 +119,6 @@ export default function TicketClose() {
                   facts={[
                     { label: 'Raised on', value: formatDate(factValue(header.facts, 'Raised on')) },
                     { label: 'Raised by', value: factValue(header.facts, 'Raised by') || '—' },
-                    { label: 'Assigned to', value: factValue(header.facts, 'Assigned to') || '—' },
                     { label: 'Status', value: status },
                     { label: 'Cost so far', value: factValue(header.facts, 'Cost so far') || '₹0' },
                   ]}
@@ -136,6 +137,14 @@ export default function TicketClose() {
                 </div>
               </div>
               <div className="panel-body">
+                {openIssueCount ? (
+                  <div className="hint-strip" style={{ marginBottom: 12 }}>
+                    <span>
+                      Closing will mark {openIssueCount} open issue{openIssueCount === 1 ? '' : 's'}{' '}
+                      resolved.
+                    </span>
+                  </div>
+                ) : null}
                 <TicketCloseForm
                   ticketId={ticketRef}
                   formId="ticket-close-form"

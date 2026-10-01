@@ -329,7 +329,7 @@ export function useTicketNotifications() {
       if (!notification) return
       await markReadById(notification.id)
       const path = notificationPath(notification.data)
-      if (path) navigate(path, { state: { from: '/tickets?tab=new' } })
+      if (path) navigate(path, { state: { from: '/tickets?tab=open' } })
     },
     [markReadById, navigate],
   )
@@ -339,7 +339,7 @@ export function useTicketNotifications() {
       if (!rememberClick(clickedRef, data?.notificationId)) return
       await markReadById(data?.notificationId)
       const path = notificationPath(data)
-      if (path) navigate(path, { state: { from: '/tickets?tab=new' } })
+      if (path) navigate(path, { state: { from: '/tickets?tab=open' } })
     },
     [markReadById, navigate],
   )

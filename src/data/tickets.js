@@ -11,13 +11,13 @@ export const TICKET_LIST_TILES = [
 ]
 
 export const TICKET_TAB_META = {
-  new: {
+  open: {
     title: 'Open tickets',
-    subtitle: 'Raised but not yet assigned to anyone',
+    subtitle: 'Raised, waiting for the first update',
   },
-  asg: {
-    title: 'Assigned tickets',
-    subtitle: 'Someone is holding these — in progress or waiting for a spare',
+  urp: {
+    title: 'Under repair',
+    subtitle: 'Tickets with at least one update — still being worked on',
   },
   cls: {
     title: 'Closed tickets',
@@ -25,13 +25,16 @@ export const TICKET_TAB_META = {
   },
 }
 
-export const TICKET_TAB_COUNTS = { new: 42, asg: 41, cls: 412 }
+/** Tab order on All tickets (used for the slide direction between tabs). */
+export const TICKET_TABS = ['open', 'urp', 'cls']
+
+export const TICKET_TAB_COUNTS = { open: 42, urp: 41, cls: 412 }
 
 /**
  * @typedef {object} TicketRow
  * @property {string} id
  * @property {string} deviceId
- * @property {'new'|'asg'|'cls'} tab
+ * @property {'open'|'urp'|'cls'} tab
  * @property {string} road
  * @property {string} slot
  * @property {string} issueReported
@@ -54,7 +57,7 @@ export const TICKET_ROWS = [
   {
     id: 'TK-1042',
     deviceId: 'PD-0428',
-    tab: 'asg',
+    tab: 'urp',
     road: 'Science City',
     slot: 'Slot S2-114',
     issueReported: 'Flap not opening',
@@ -74,7 +77,7 @@ export const TICKET_ROWS = [
   {
     id: 'TK-1051',
     deviceId: 'PD-0117',
-    tab: 'asg',
+    tab: 'urp',
     road: 'CG Road',
     slot: 'Slot CG-33',
     issueReported: 'Machine not working',
@@ -94,7 +97,7 @@ export const TICKET_ROWS = [
   {
     id: 'TK-1063',
     deviceId: 'PD-0692',
-    tab: 'asg',
+    tab: 'urp',
     road: 'Science City',
     slot: 'Slot S3-047',
     issueReported: 'Vehicle hit the flap',
@@ -114,7 +117,7 @@ export const TICKET_ROWS = [
   {
     id: 'TK-1070',
     deviceId: 'PD-0805',
-    tab: 'asg',
+    tab: 'urp',
     road: 'Makarba',
     slot: 'Slot MK-12',
     issueReported: 'QR not scanning',
@@ -134,7 +137,7 @@ export const TICKET_ROWS = [
   {
     id: 'TK-1078',
     deviceId: 'PD-0233',
-    tab: 'new',
+    tab: 'open',
     road: 'Sobo – Marigold',
     slot: 'Slot SM-08',
     issueReported: 'Device offline',
@@ -154,7 +157,7 @@ export const TICKET_ROWS = [
   {
     id: 'TK-1090',
     deviceId: 'PD-0571',
-    tab: 'asg',
+    tab: 'urp',
     road: 'Science City',
     slot: 'Slot S1-206',
     issueReported: 'Flap stuck open',
@@ -174,7 +177,7 @@ export const TICKET_ROWS = [
   {
     id: 'TK-1094',
     deviceId: 'PD-0946',
-    tab: 'asg',
+    tab: 'urp',
     road: 'Sindhu Bhavan Road',
     slot: 'Slot SB-21',
     issueReported: 'Water inside pit after rain',
@@ -194,7 +197,7 @@ export const TICKET_ROWS = [
   {
     id: 'TK-1099',
     deviceId: 'PD-0304',
-    tab: 'new',
+    tab: 'open',
     road: 'CG Road',
     slot: 'Slot CG-61',
     issueReported: 'Not detecting vehicle',
@@ -254,7 +257,7 @@ export const TICKET_ROWS = [
   {
     id: 'TK-1101',
     deviceId: 'PD-0740',
-    tab: 'new',
+    tab: 'open',
     road: 'Science City',
     slot: 'Slot S3-095',
     issueReported: 'Flap opens halfway',
@@ -274,7 +277,7 @@ export const TICKET_ROWS = [
   {
     id: 'TK-1102',
     deviceId: 'PD-0861',
-    tab: 'new',
+    tab: 'open',
     road: 'Makarba',
     slot: 'Slot MK-68',
     issueReported: 'No display on the machine',
