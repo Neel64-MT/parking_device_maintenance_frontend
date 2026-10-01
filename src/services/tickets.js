@@ -74,7 +74,8 @@ export async function getTicket(ticketId) {
  *   subCategoryId?: string,
  *   description?: string,
  *   photos?: string[],
- * }} body
+ *   assigneeId?: string,
+ * }} body `assigneeId` is optional (omit = unassigned); backend requires All tickets `a` for it.
  * @returns {Promise<{ id: string, uuid: string, eventId: string, status: string }>}
  */
 export async function createTicket(body) {
@@ -83,6 +84,7 @@ export async function createTicket(body) {
     description: body.description || undefined,
     photos: body.photos || [],
   }
+  if (body.assigneeId) payload.assigneeId = body.assigneeId
   if (Array.isArray(body.issues) && body.issues.length) {
     payload.issues = body.issues.map((i) => ({
       categoryId: i.categoryId,
@@ -129,8 +131,22 @@ export async function attachTicketRaisePhotos(ticketId, eventId, photos) {
  *   issues?: { categoryId: string, subCategoryId: string }[],
  *   categoryId?: string,
  *   subCategoryId?: string,
+ *   closeTicket?: boolean,
+ *   handoverToUserId?: string,
  * }} body
- * @returns {Promise<{ id: string, eventId: string, status: string, resolvedReady?: boolean }>}
+ * - `closeTicket: true` saves the update and closes the ticket in one transaction
+ *   (needs Update ticket `x` + holder); omitted keeps the ticket open.
+ * - Unassigned ticket: a field role is auto-assigned by the backend; Admin/PM must
+ *   send `handoverToUserId` as the new holder.
+ * @returns {Promise<{
+ *   id: string,
+ *   eventId: string,
+ *   status: string,
+ *   resolvedReady?: boolean,
+ *   assigneeId?: string,
+ *   autoAssigned?: boolean,
+ *   closed?: boolean,
+ * }>}
  */
 export async function addTicketUpdate(ticketId, body) {
   return api(`/api/tickets/${encodeURIComponent(ticketId)}/updates`, {

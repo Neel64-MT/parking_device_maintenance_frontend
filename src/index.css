@@ -2597,24 +2597,6 @@ td a:not(.btn):not(.code):hover {
     flex: 1 1 auto;
     height: 44px;
   }
-
-  .tabs-actions .btn {
-    flex: none;
-    white-space: nowrap;
-    min-height: 44px;
-  }
-}
-
-@media (max-width: 480px) {
-  .tabs-row .tabs-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .tabs-actions .btn {
-    width: 100%;
-    justify-content: center;
-  }
 }
 
 .tabs button {

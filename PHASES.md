@@ -995,10 +995,34 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 47: Field roles raise, optional assign, auto-assign on update, Resolve, Close with update
+
+**Objective:** Technician, Engineer and Electrician can raise tickets; assigning at raise is optional; adding an update to an unassigned ticket assigns it; a Resolve action reuses the Add Update form; an update can explicitly close the ticket in the same request. Wires the backend Phase 47 contract.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `services/users.js`: `FIELD_ROLES = ['Technician', 'Engineer', 'Electrician']` + `isFieldRole(user)` (mirrors backend `FIELD_ROLES`). `ASSIGNABLE_ASSIGNEE_ROLES = FIELD_ROLES`; Electrician added to `NOTIFICATION_ROLES`, `ROLE_HIERARCHY` (after Technician) and `isFieldTicketUpdater`.
+2. Raise permission is not hardcoded: Raise stays gated by `canPerm(user, 'Raise ticket', 'c')` from `/api/auth/me`; backend migration `023` grants it to the three field roles.
+3. `TicketRaise`: optional **Assign to** select (default **Assign later**), rendered only with `canPerm(user, 'All tickets', 'a')`; options from `filterAssignableAssignees(listTechnicianLookups(), null)`; no validation; `createTicket` sends `assigneeId` only when picked. Backend rejects `assigneeId` from non-assigners (`403`).
+4. `TicketAddUpdateForm` (single shared form): new props `initialUpdateType`, `canClose`, `pickAssignee`, `onConflict`.
+   - **Close Ticket** Yes / No radios (reuse `update-parts-choice` styling), default **No**, reset to No after save; rendered with Update ticket `x`. Only Yes adds `closeTicket: true` to the payload.
+   - `pickAssignee` (Admin/PM on an unassigned ticket): required **Assign to** select sent as `handoverToUserId`; toast "Select who will hold this ticket." when empty.
+   - Success toast "Update saved and ticket closed." when the response has `closed`; `409 TICKET_ALREADY_ASSIGNED` → error toast + `onConflict`.
+5. `TicketDetail`: Add update also shows on an unassigned ticket for field roles (backend auto-assigns) and Admin/PM (`pickAssignee`). New **Resolve** button (same condition) opens the same modal titled "Resolve ticket" with update type `Site visit — resolved`; Close Ticket still starts at No. Success / conflict reload the ticket so status, assignee and trail come from the backend. `/tickets/close` is unchanged.
+6. `TicketUpdate` (QR): `gateAssigneeUpdate(ticketId, user)` allows an unassigned ticket for field roles (note "Saving will assign this ticket to you.") and Admin/PM (`pickAssignee`); assigned-to-someone-else and Closed still block. Conflict re-runs the gate.
+
+**Out of scope:** New components, routes, or API clients; changes to `/tickets/close` / `TicketCloseForm`; a client-side auto-assign (the backend claims the ticket inside the update transaction).
+
+**Verification:** `npm run lint` and `npm run build` pass. Backend `npm run build`, `test:smoke:ticket-flow` (A–O incl. field-role raise with `assigneeId` → `403`), `test:smoke:close` and `test:smoke:writes` pass on an isolated PGlite DB.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46
+Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46 -> Phase 47
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

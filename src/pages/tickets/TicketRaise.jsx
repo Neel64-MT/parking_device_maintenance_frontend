@@ -15,7 +15,7 @@ import {
   newIssueRow,
   rowsToIssuePairs,
 } from '../../components/tickets/ticketIssueRowsHelpers'
-import { canPerm } from '../../services/users'
+import { canPerm, filterAssignableAssignees, listTechnicianLookups } from '../../services/users'
 import { TicketIssueRows } from '../../components/tickets/TicketIssueRows'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
@@ -59,6 +59,8 @@ export default function TicketRaise() {
   const location = useLocation()
   const navigate = useNavigate()
   const canCreate = canPerm(user, 'Raise ticket', 'c')
+  // Assigning at raise is optional and needs All tickets `a`; field roles raise unassigned.
+  const canAssign = canPerm(user, 'All tickets', 'a')
   const canScan = canScanWithCamera(user)
   const resolveGen = useRef(0)
   const prefillDone = useRef(false)
@@ -76,6 +78,9 @@ export default function TicketRaise() {
   const [resolving, setResolving] = useState(false)
   const [issueCategories, setIssueCategories] = useState([])
   const [issuesLoading, setIssuesLoading] = useState(true)
+  const [assigneeId, setAssigneeId] = useState('')
+  const [techOptions, setTechOptions] = useState([])
+  const [techsLoading, setTechsLoading] = useState(false)
 
   const fromHere = `${location.pathname}${location.search}`
   const blocked = Boolean(device?.dup)
@@ -121,10 +126,39 @@ export default function TicketRaise() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!canAssign) return undefined
+    let cancelled = false
+    // Defer setState so the effect does not synchronously cascade (react-hooks/set-state-in-effect).
+    const id = window.setTimeout(() => {
+      setTechsLoading(true)
+      listTechnicianLookups()
+        .then((list) => {
+          if (!cancelled) setTechOptions((list || []).filter((t) => t.id))
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setTechOptions([])
+            toastApiError(err, 'Could not load workers.')
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setTechsLoading(false)
+        })
+    }, 0)
+    return () => {
+      cancelled = true
+      window.clearTimeout(id)
+    }
+  }, [canAssign])
+
+  const assigneeOptions = useMemo(() => filterAssignableAssignees(techOptions, null), [techOptions])
+
   function clearProblemFields() {
     setIssueRows([newIssueRow()])
     setDescription('')
     setPhotos([])
+    setAssigneeId('')
   }
 
   function clearDeviceState() {
@@ -229,6 +263,7 @@ export default function TicketRaise() {
         issues,
         description: description.trim() || undefined,
         photos: [],
+        assigneeId: canAssign && assigneeId ? assigneeId : undefined,
       })
 
       if (photos.length) {
@@ -443,6 +478,22 @@ export default function TicketRaise() {
                   disabled={busy || !device}
                 />
               </Field>
+              {canAssign ? (
+                <Field label="Assign to" hint="Optional — leave as Assign later to route it afterwards.">
+                  <select
+                    value={assigneeId}
+                    onChange={(e) => setAssigneeId(e.target.value)}
+                    disabled={busy || !device || techsLoading}
+                  >
+                    <option value="">{techsLoading ? 'Loading workers…' : 'Assign later'}</option>
+                    {assigneeOptions.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.label || t.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              ) : null}
             </div>
             <div className="foot-note">
               Guessing the category wrong costs nothing. If the engineer finds something else, they

@@ -232,7 +232,11 @@
 45. Phase 29: Update Ticket form renders on `/tickets/update` via shared `TicketAddUpdateForm` (no navigate to Detail for Update). Detail keeps Modal Add Update for trail. Prefer `?ticketId=` for refresh.
 46. Phase 30: Work report is live (`getWorkReport` / `exportWorkReport`); mock `workReport.js` removed; close rate stays client-side from closed/worked.
 47. Phase 31: Detail Assign/Reassign → `assignTicket` + technicians Hand to; trail from GET ticket after save.
-48. Phase 44: Device list is Slot Label ascending **from the backend** (no client sort). Assign / Reassign Hand to shows only Technician / Engineer via `filterAssignableAssignees`; the ticket's current assignee is always kept in the list.
+48. Phase 44: Device list is Slot Label ascending **from the backend** (no client sort). Assign / Reassign Hand to shows only Technician / Engineer via `filterAssignableAssignees`; the ticket's current assignee is always kept in the list. Phase 47: the list is `FIELD_ROLES` (adds Electrician).
+49. Phase 47: `FIELD_ROLES` / `isFieldRole` in `users.js` mirror backend `FIELD_ROLES` (Technician, Engineer, Electrician); Electrician added to `ROLE_HIERARCHY`, `NOTIFICATION_ROLES`, `isFieldTicketUpdater`. Raise stays `Raise ticket` `c` (backend migration 023 grants field roles).
+50. Phase 47: Raise **Assign to** is optional (default **Assign later**), only with All tickets `a`; `createTicket` sends `assigneeId` only when picked; backend `403` for non-assigners.
+51. Phase 47: Adding an update to an **unassigned** ticket is allowed for field roles (backend claims it for the updater inside the update transaction, trail "Auto-assigned on update") and for Admin/PM with a required **Assign to** (`handoverToUserId`). Supersedes item 44's "unassigned → toast" for those roles. An assigned ticket's assignee never changes on update. `409 TICKET_ALREADY_ASSIGNED` → toast + reload. The self-assign is silent (no notification, push, or sound); only an Admin / PM / Control room assignment notifies.
+52. Phase 47: `TicketAddUpdateForm` has **Close Ticket** Yes / No (default No, reset to No, Update ticket `x` only). Yes sends `closeTicket: true` → backend saves the update and closes in one transaction; photos still attach afterwards. **Resolve** on Detail reuses the same modal with `Site visit — resolved` preset and Close still No. `/tickets/close` unchanged.
 
 ### Phase 30 — Work Report API (complete)
 

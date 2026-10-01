@@ -6,7 +6,7 @@ import { toast, toastApiError } from '../../context/ToastContext'
 import { scanDeviceFacts } from '../../data/scanDevice'
 import { canScanWithCamera, resolveScan } from '../../services/devices'
 import { getTicket } from '../../services/tickets'
-import { canPerm, isDashboardRole } from '../../services/users'
+import { canPerm, isDashboardRole, isFieldRole } from '../../services/users'
 import { TicketAddUpdateForm } from '../../components/tickets/TicketAddUpdateForm'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
@@ -33,28 +33,33 @@ function applyScanToDevice(scan) {
 }
 
 /**
- * Open ticket + assigned to current user.
+ * Open ticket + assigned to current user, or unassigned and claimable.
  * Assignee comes from getTicket (scan payload has no assignee id).
+ * Unassigned: a field role is auto-assigned by the backend on save; Admin/PM
+ * pick the holder in the form. The backend stays the final authority.
  */
-async function gateAssigneeUpdate(ticketId, userId) {
+async function gateAssigneeUpdate(ticketId, user) {
   const data = await getTicket(ticketId)
   const status = data?.header?.status
   if (!status || status === 'Closed') {
     return { ok: false, message: 'That ticket is closed and cannot be updated here.', data: null }
   }
   if (!data?.assigneeId) {
+    if (isFieldRole(user)) return { ok: true, data, claim: true, pickAssignee: false }
+    if (isDashboardRole(user)) return { ok: true, data, claim: false, pickAssignee: true }
     return { ok: false, message: 'This ticket has no assignee. Assign it before adding an update.', data: null }
   }
-  if (data.assigneeId !== userId) {
+  if (data.assigneeId !== user.id) {
     return { ok: false, message: 'This ticket is not assigned to you.', data: null }
   }
-  return { ok: true, data }
+  return { ok: true, data, claim: false, pickAssignee: false }
 }
 
 export default function TicketUpdate() {
   const { user } = useAuth()
   const canScan = canScanWithCamera(user)
   const canSubmitUpdate = canPerm(user, 'Update ticket', 'e')
+  const canCloseTicket = canPerm(user, 'Update ticket', 'x')
   const pickVisitedBy = isDashboardRole(user)
   const location = useLocation()
   const navigate = useNavigate()
@@ -76,6 +81,7 @@ export default function TicketUpdate() {
   const [resolving, setResolving] = useState(false)
   const [gating, setGating] = useState(false)
   const [activeTicket, setActiveTicket] = useState(null)
+  const [activeGate, setActiveGate] = useState({ claim: false, pickAssignee: false })
   const [formBusy, setFormBusy] = useState(false)
 
   const fromHere = `${location.pathname}${location.search}`
@@ -126,12 +132,13 @@ export default function TicketUpdate() {
     gatingRef.current = true
     setGating(true)
     try {
-      const result = await gateAssigneeUpdate(ticketId, user.id)
+      const result = await gateAssigneeUpdate(ticketId, user)
       if (!result.ok) {
         toast(result.message, 'error')
         setActiveTicket(null)
         return
       }
+      setActiveGate({ claim: result.claim, pickAssignee: result.pickAssignee })
       setActiveTicket(result.data)
       syncTicketQuery(ticketId)
     } catch (err) {
@@ -315,7 +322,13 @@ export default function TicketUpdate() {
                 </div>
               </div>
               <div className="panel-body">
+                {activeGate.claim ? (
+                  <div className="hint-strip" style={{ marginBottom: 12 }}>
+                    <span>This ticket has no assignee. Saving will assign this ticket to you.</span>
+                  </div>
+                ) : null}
                 <TicketAddUpdateForm
+                  key={header.id}
                   ticketId={header.id}
                   user={user}
                   pickVisitedBy={pickVisitedBy}
@@ -327,7 +340,12 @@ export default function TicketUpdate() {
                   photoPickerKey={`upd-page-${header.id}`}
                   hideActions
                   canSubmit={canSubmitUpdate}
+                  canClose={canCloseTicket}
+                  pickAssignee={activeGate.pickAssignee}
                   onBusyChange={setFormBusy}
+                  onConflict={() => {
+                    void activateTicket(header.id)
+                  }}
                   onSuccess={() => {
                     navigate(backTo)
                   }}

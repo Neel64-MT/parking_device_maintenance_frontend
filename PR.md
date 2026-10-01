@@ -28,6 +28,7 @@ Where scope and code differ, see **Gaps vs Claude scope** below.
 |------|-------------|
 | **Site attendant** | Scan QR / pick road+slot, raise tickets on assigned roads |
 | **Technician** | Update visits on site, close tickets they hold, mobile-first flows |
+| **Engineer / Electrician** | Same field rules as Technician (Phase 47): raise, claim an unassigned ticket by adding an update, close tickets they hold |
 | **Control room** | Raise and assign tickets; cannot close |
 | **Project manager** | Dashboard, reports, masters, assign/close; manage users / approve signups (Users `vce...`) |
 | **Admin** | Full control including users and roles |
@@ -682,6 +683,38 @@ Users d → Delete on every row → confirm Modal → deleteUser(id) → DELETE 
 | Roles `d` gate preserved; no other role gains Delete | Pass |
 | User delete removes the account permanently and works on Inactive rows too | Pass |
 | Self-delete and last-Active-Admin guards unchanged | Pass |
+
+### Phase 47 — Field roles raise, optional assign, auto-assign on update, Resolve, Close with update
+
+```text
+Raise (Raise ticket c: Technician / Engineer / Electrician / …)
+  → Assign to (All tickets a only, optional, default Assign later)
+  → POST /api/tickets { …, assigneeId? }        non-assigner + assigneeId → 403
+
+Add update / Resolve (Detail modal) or QR /tickets/update
+  → TicketAddUpdateForm (Close Ticket: ( ) Yes (•) No)
+  → POST /api/tickets/:id/updates { …, closeTicket?: true, handoverToUserId? }
+      assigned ticket      → assignee unchanged
+      unassigned + field   → auto-assigned to the updater (backend, row-locked)
+      unassigned + Admin/PM → required Assign to → handoverToUserId
+      closeTicket: true    → update + close in one transaction
+  → upload photos → PATCH …/updates/:eventId/photos → reload ticket
+```
+
+| Criterion | Result |
+|-----------|--------|
+| A/B/C Technician, Engineer, Electrician can raise (`Raise ticket` `c`, no role hardcode) | Pass (backend smoke) |
+| D Raise without an assignee → created, unassigned | Pass |
+| E Raise with an assignee (assigners only) → existing assignment behavior | Pass; field role + `assigneeId` → `403` |
+| F Scan an open ticket → Update Ticket form opens (unassigned allowed for field roles) | Pass |
+| G Assigned ticket keeps its assignee on update | Pass |
+| H Unassigned ticket → logged-in field user becomes the assignee (user id, trail row) | Pass |
+| I Add Update opens with Close Ticket = No | Pass |
+| J Close Ticket = No → update saved, ticket stays open | Pass |
+| K Close Ticket = Yes → update saved and ticket closed in one request | Pass |
+| L Resolve → same Add Update modal (`Site visit — resolved`, Close = No) | Pass |
+| M Existing Visited by / issue / parts / labour / photo validation and toasts | Pass (unchanged code paths) |
+| No new components / routes / API clients; `/tickets/close` unchanged | Pass |
 
 ### Phase 37 — Multi-issue tickets + Site attendant Sync / Issue Master
 

@@ -10,6 +10,7 @@ import {
   filterAssignableAssignees,
   homePathForUser,
   isDashboardRole,
+  isFieldRole,
   isFieldTicketUpdater,
   isOpsTicketUpdater,
   listTechnicianLookups,
@@ -183,7 +184,7 @@ function ViewUpdateIssueList({ item, reportedIssues, foundIssues }) {
 
   if (!groups.length) return null
 
-  return (
+    return (
     <div className="view-update-issues">
       <div className="view-update-issues-head">
         <div>
@@ -204,7 +205,7 @@ function ViewUpdateIssueList({ item, reportedIssues, foundIssues }) {
                 {group.subs.map((sub) => (
                   <span className="view-update-sub" key={sub.key}>
                     {sub.label}
-                  </span>
+      </span>
                 ))}
               </div>
             </div>
@@ -232,7 +233,7 @@ function ViewUpdateDetails({ item, reportedIssues, foundIssues }) {
   const whatWasDone = !isRaised ? item.workDone || item.body || '' : ''
   const note = item.note || ''
 
-  return (
+    return (
     <div className="view-update-facts">
       {whenLabel ? (
         <div>
@@ -308,14 +309,14 @@ function ViewUpdateDetails({ item, reportedIssues, foundIssues }) {
       {extraMeta.length ? (
         <div>
           <small>Other</small>
-          <span>
+      <span>
             {extraMeta.map((m, i) => (
               <span key={i}>
                 {i > 0 ? ' · ' : ''}
                 <TimelineMeta item={m} />
               </span>
             ))}
-          </span>
+      </span>
         </div>
       ) : null}
     </div>
@@ -391,6 +392,8 @@ export default function TicketDetail() {
   const [loadError, setLoadError] = useState('')
 
   const [updOpen, setUpdOpen] = useState(false)
+  // 'update' = Add update, 'resolve' = same form with the resolved update type preset.
+  const [updMode, setUpdMode] = useState('update')
   const [assignOpen, setAssignOpen] = useState(() => Boolean(location.state?.openAssign))
   const [assigneeId, setAssigneeId] = useState('')
   const [assignReason, setAssignReason] = useState('')
@@ -402,7 +405,8 @@ export default function TicketDetail() {
   const [previewImages, setPreviewImages] = useState(null)
   const [viewingUpdate, setViewingUpdate] = useState(null)
 
-  function openAddUpdateModal() {
+  function openAddUpdateModal(mode = 'update') {
+    setUpdMode(mode)
     setUpdOpen(true)
   }
 
@@ -507,12 +511,15 @@ export default function TicketDetail() {
     (header?.facts || []).find((f) => f.label === 'Assigned to')?.value || ''
   const isAssigned = Boolean(assignedTo && assignedTo !== 'Not assigned')
   const isTicketAssignee = Boolean(user?.id && ticket?.assigneeId === user.id)
+  // Unassigned ticket: a field role is auto-assigned by the backend on save;
+  // Admin/PM must pick the holder in the form (they cannot hold tickets).
+  const pickUpdateAssignee = !isAssigned && isDashboardRole(user)
+  const canUpdateUnassigned = !isAssigned && (isFieldRole(user) || pickUpdateAssignee)
   const showAddUpdate =
     canUpdateTicketView &&
     canUpdateTicketEdit &&
     header?.status !== 'Closed' &&
-    isAssigned &&
-    (isOpsTicketUpdater(user) || isTicketAssignee)
+    ((isAssigned && (isOpsTicketUpdater(user) || isTicketAssignee)) || canUpdateUnassigned)
   const showFieldUpdateTicket =
     isFieldTicketUpdater(user) && canUpdateTicketView && isAssigned && !isTicketAssignee
   const canManageAssign = canAssign && header && header.status !== 'Closed'
@@ -584,8 +591,8 @@ export default function TicketDetail() {
     if (!header) return null
     return (
       <Link className="btn" to={`/devices/${header.deviceId}`}>
-        Device history
-      </Link>
+          Device history
+        </Link>
     )
   }, [header])
 
@@ -663,24 +670,27 @@ export default function TicketDetail() {
 
         {!loading && header ? (
           <>
-            <section className="record">
-              <div className="record-top">
-                <div>
+        <section className="record">
+          <div className="record-top">
+            <div>
                   <h3>{header.id}</h3>
-                  <div className="sub">
+              <div className="sub">
                     Slot Id{' '}
                     <Link className="code" to={`/devices/${header.deviceId}`}>
                       {header.deviceId}
-                    </Link>{' '}
+                </Link>{' '}
                     · <Link to="/devices">{header.road}</Link> · Slot <b>{header.slot}</b>
-                  </div>
-                </div>
-                <div style={{ marginLeft: 20 }}>
+              </div>
+            </div>
+            <div style={{ marginLeft: 20 }}>
                   <Pill tone={header.statusTone}>{header.status}</Pill>
-                </div>
-                <div className="push">
+            </div>
+            <div className="push">
                   {showAddUpdate ? (
-                    <Button onClick={openAddUpdateModal}>Add update</Button>
+                    <>
+                      <Button onClick={() => openAddUpdateModal('update')}>Add update</Button>
+                      <Button onClick={() => openAddUpdateModal('resolve')}>Resolve</Button>
+                    </>
                   ) : null}
                   {showFieldUpdateTicket && header?.id ? (
                     <Link
@@ -698,63 +708,63 @@ export default function TicketDetail() {
                       {canFirstAssign ? (
                         <Button variant="primary" onClick={openAssignForm}>
                           Assign
-                        </Button>
+              </Button>
                       ) : null}
                   {canCloseTicket ? (
                     <Link
                       className="btn btn-primary"
                       to={`/tickets/close?ticketId=${encodeURIComponent(header.id)}`}
                     >
-                      Close ticket
-                    </Link>
+                Close ticket
+              </Link>
                   ) : null}
-                </div>
-              </div>
+            </div>
+          </div>
 
-              <div className="facts">
+          <div className="facts">
                 {(header.facts || []).map((f) => (
-                  <div key={f.label}>
-                    <small>{f.label}</small>
+              <div key={f.label}>
+                <small>{f.label}</small>
                     <span className={f.bad ? 'strong-bad' : undefined}>{factDisplayValue(f)}</span>
-                  </div>
-                ))}
               </div>
-            </section>
+            ))}
+          </div>
+        </section>
 
             {showReclass ? (
-              <div className="reclass">
-                <div>
+        <div className="reclass">
+          <div>
                   <b>The issue changed after inspection.</b> Reported as <b>{reportedLabel}</b>
-                  <span className="arrow">→</span>
+            <span className="arrow">→</span>
                   found to be <b>{foundLabel}</b>.
-                </div>
-              </div>
+          </div>
+        </div>
             ) : null}
 
-            <div className="grid-2">
-              <section className="panel">
-                <div className="panel-head">
-                  <div>
-                    <h3>Work history</h3>
+        <div className="grid-2">
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <h3>Work history</h3>
                     <p>Every visit and update on this ticket, oldest first — newest at the bottom</p>
-                  </div>
                 </div>
+            </div>
 
-                <div className="panel-body">
-                  <div className="tl">
+            <div className="panel-body">
+              <div className="tl">
                     {!workHistory.length ? <p className="muted">No updates yet.</p> : null}
-                    {workHistory.map((item) => (
+                {workHistory.map((item) => (
                       <div
                         key={`${item.when}-${item.title}`}
                         className={`tl-item${item.tone ? ` ${item.tone}` : ''}`}
                       >
                         <div className="when">{formatRaisedOn(item.when)}</div>
-                        <h4>
-                          {item.title}
+                    <h4>
+                      {item.title}
                           {item.status ? (
-                            <span className={`log-status ${item.statusClass}`}>{item.status}</span>
+                      <span className={`log-status ${item.statusClass}`}>{item.status}</span>
                           ) : null}
-                        </h4>
+                    </h4>
                         {item.body ? <p>{item.body}</p> : null}
                         {!item.isAssignmentEvent || item.photos?.length ? (
                           <p className="tl-trail-actions">
@@ -778,109 +788,109 @@ export default function TicketDetail() {
                             ) : null}
                           </p>
                         ) : null}
-                        {item.meta ? (
-                          <div className="tl-meta">
-                            {item.meta.map((m, i) => (
-                              <TimelineMeta key={i} item={m} />
-                            ))}
-                          </div>
-                        ) : null}
+                    {item.meta ? (
+                      <div className="tl-meta">
+                        {item.meta.map((m, i) => (
+                          <TimelineMeta key={i} item={m} />
+                        ))}
                       </div>
-                    ))}
+                    ) : null}
                   </div>
-                </div>
-                <div className="foot-note">
-                  A visit that fixes nothing is still recorded. Three visits with no repair is what
-                  tells you a spare-parts problem, not a technician problem.
-                </div>
-              </section>
+                ))}
+              </div>
+            </div>
+            <div className="foot-note">
+              A visit that fixes nothing is still recorded. Three visits with no repair is what
+              tells you a spare-parts problem, not a technician problem.
+            </div>
+          </section>
 
-              <div>
-                <section className="panel">
-                  <div className="panel-head">
-                    <div>
-                      <h3>Issue classification</h3>
-                      <p>What was reported against what was found</p>
-                    </div>
-                  </div>
-                  <div className="class-pair">
-                    <div>
+          <div>
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <h3>Issue classification</h3>
+                  <p>What was reported against what was found</p>
+                </div>
+              </div>
+              <div className="class-pair">
+                <div>
                       <small>As reported</small>
                       <IssueClassificationList issues={reportedIssues} />
-                    </div>
-                    <div>
+                </div>
+                <div>
                       <small>As found</small>
                       <IssueClassificationList
                         issues={foundIssues}
                         emptyBig="Not inspected yet"
                         emptySub="—"
                       />
-                    </div>
-                  </div>
-                  <div className="foot-note">
-                    Reports and analytics use the found category, never the reported one.
-                  </div>
-                </section>
+                </div>
+              </div>
+              <div className="foot-note">
+                Reports and analytics use the found category, never the reported one.
+              </div>
+            </section>
 
-                <section className="panel">
-                  <div className="panel-head">
-                    <div>
-                      <h3>Assignment trail</h3>
-                      <p>Who has held this ticket, in order</p>
-                    </div>
-                    <div className="actions">
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <h3>Assignment trail</h3>
+                  <p>Who has held this ticket, in order</p>
+                </div>
+                <div className="actions">
                       {canReassign ? (
                         <Button size="sm" onClick={openAssignForm}>
-                          Reassign
-                        </Button>
+                    Reassign
+                  </Button>
                       ) : null}
                       {canFirstAssign ? (
                         <Button size="sm" variant="primary" onClick={openAssignForm}>
                           Assign
                         </Button>
                       ) : null}
-                    </div>
                   </div>
+              </div>
 
-                  <div className="panel-body">
-                    <div className="tl">
+              <div className="panel-body">
+                <div className="tl">
                       {!assignmentTrail.length ? (
                         <p className="muted">No assignment history.</p>
                       ) : null}
-                      {assignmentTrail.map((item) => (
+                  {assignmentTrail.map((item) => (
                         <div key={`${item.when}-${item.title}`} className="tl-item">
                           <div className="when">{formatRaisedOn(item.when)}</div>
                           <h4>{item.title}</h4>
                           {item.body ? <p>{item.body}</p> : null}
-                        </div>
-                      ))}
                     </div>
-                  </div>
-                </section>
+                  ))}
+                </div>
+              </div>
+            </section>
 
-                <section className="panel">
-                  <div className="panel-head">
-                    <div>
-                      <h3>This device before today</h3>
-                      <p>
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <h3>This device before today</h3>
+                  <p>
                         Slot Id {header.deviceId}, {header.road}, Slot {header.slot}
-                      </p>
-                    </div>
+                  </p>
+                </div>
                     <Link className="link" to={`/devices/${header.deviceId}`}>
-                      Full history
-                    </Link>
-                  </div>
-                  <div className="panel-body flush">
-                    <div className="table-wrap">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Ticket</th>
-                            <th>Issue found</th>
-                            <th className="num">Days</th>
-                          </tr>
-                        </thead>
-                        <tbody>
+                  Full history
+                </Link>
+              </div>
+              <div className="panel-body flush">
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Ticket</th>
+                        <th>Issue found</th>
+                        <th className="num">Days</th>
+                      </tr>
+                    </thead>
+                    <tbody>
                           {!devicePreviousTickets.length ? (
                             <tr>
                               <td colSpan={3}>
@@ -888,32 +898,36 @@ export default function TicketDetail() {
                               </td>
                             </tr>
                           ) : null}
-                          {devicePreviousTickets.map((t) => (
-                            <tr key={t.id}>
-                              <td>
-                                <Link className="code" to={`/tickets/${t.id}`}>
-                                  {t.id}
-                                </Link>
-                              </td>
-                              <td>{t.issue}</td>
-                              <td className="num">{t.days}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </section>
+                      {devicePreviousTickets.map((t) => (
+                        <tr key={t.id}>
+                          <td>
+                            <Link className="code" to={`/tickets/${t.id}`}>
+                              {t.id}
+                            </Link>
+                          </td>
+                          <td>{t.issue}</td>
+                          <td className="num">{t.days}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            </section>
+          </div>
+        </div>
           </>
         ) : null}
       </main>
 
       <Modal
         open={updOpen}
-        title="Add update"
-        subtitle="Record a visit or progress note on this ticket"
+        title={updMode === 'resolve' ? 'Resolve ticket' : 'Add update'}
+        subtitle={
+          updMode === 'resolve'
+            ? 'Record the fix on this ticket'
+            : 'Record a visit or progress note on this ticket'
+        }
         onClose={() => {
           setUpdOpen(false)
         }}
@@ -921,13 +935,21 @@ export default function TicketDetail() {
       >
         {updOpen && ticketId ? (
           <TicketAddUpdateForm
+            key={updMode}
             ticketId={ticketId}
             user={user}
             pickVisitedBy={pickVisitedBy}
             defaultVisitedBy={isAssigned ? assignedTo : ''}
             photoPickerKey="upd-photos-open"
             canSubmit={showAddUpdate}
+            canClose={canPerm(user, 'Update ticket', 'x')}
+            pickAssignee={pickUpdateAssignee}
+            initialUpdateType={updMode === 'resolve' ? 'Site visit — resolved' : undefined}
             onCancel={() => setUpdOpen(false)}
+            onConflict={async () => {
+              setUpdOpen(false)
+              await reloadTicket()
+            }}
             onSuccess={async () => {
               setUpdOpen(false)
               await reloadTicket()

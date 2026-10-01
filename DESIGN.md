@@ -474,7 +474,7 @@ The notification UI is an authenticated-shell addition; it does not add a new me
 | Update Ticket (`/tickets/update`) | Live scan or `?ticketId=`; assignee gate; **Add Update form on page**; free → Raise (+ `qr`) |
 | Manual QR Number | Raise/Update: scan or type QR Number only (no Road/Slot selects); Find device → `resolveScan` |
 | Detail actions | Ops **or** assignee → **Add update** (Modal); field non-assignee → QR **Update Ticket** → `/tickets/update` |
-| Assign / Reassign | Inline Hand to (technicians lookup UUID, narrowed to Technician / Engineer) + optional note → `POST /api/tickets/:id/assign`; reload trail |
+| Assign / Reassign | Inline Hand to (technicians lookup UUID, narrowed to field roles — Technician / Engineer / Electrician) + optional note → `POST /api/tickets/:id/assign`; reload trail |
 
 ## Phase 28 — QR lookup → Update Ticket
 
@@ -482,7 +482,7 @@ The notification UI is an authenticated-shell addition; it does not add a new me
 |------|---------|
 | Raise open ticket | Primary button label **Update Ticket** (not Raise) |
 | Preload | `?ticketId=` + optional `state.qr` / `from` |
-| Assignee gate | `getTicket` → open + `assigneeId === user.id` or toast |
+| Assignee gate | `getTicket` → open + `assigneeId === user.id`, or unassigned for field role / Admin-PM (Phase 47); otherwise toast |
 
 ## Phase 29 — Update form on Update page
 
@@ -492,5 +492,19 @@ The notification UI is an authenticated-shell addition; it does not add a new me
 | Form | Shared `TicketAddUpdateForm` inline (not Detail redirect) |
 | Ready | After gate, form visible — no second Update click |
 | Detail | Trail/history unchanged; Modal Add Update still for ops/assignee |
+
+## Phase 47 — Raise roles, optional assign, Resolve, Close with update
+
+| Item | Pattern |
+|------|---------|
+| Raise roles | Technician / Engineer / Electrician via `Raise ticket` `c` (backend matrix) — no role-name gate |
+| Raise Assign to | Optional `<select>` in step 2 after "What is happening"; first option **Assign later**; only with All tickets `a`; no required marker |
+| Unassigned update (field role) | QR page `.hint-strip`: "This ticket has no assignee. Saving will assign this ticket to you."; Detail Add update visible |
+| Unassigned update (Admin/PM) | Required **Assign to** select in the form row after Visited by / Date |
+| Form order | Visited by + Date → (Assign to) → Issues → Parts → Photos → What was done today → **Update type** → **Close Ticket** → footer hint |
+| Close Ticket | Yes / No radios using `.update-parts-choice` / `.update-parts-choice-option` (42px min-height, wraps on mobile); default **No**; directly after Update type, above the footer hint |
+| Footer hint | "The ticket stays open unless Close Ticket is set to Yes." |
+| Resolve | Secondary button beside **Add update** on Detail; same Modal titled **Resolve ticket**, update type preset `Site visit — resolved`, Close Ticket still **No** |
+| Success toast | "Update saved and ticket closed." when the response has `closed`; otherwise "Update saved." (+ visit cost) |
 
 

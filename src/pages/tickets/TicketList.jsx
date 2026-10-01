@@ -436,21 +436,16 @@ export default function TicketList() {
             { id: 'cls', label: 'Closed', count: tabCounts.cls },
           ]}
           actions={
-            <>
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') applyFilters()
-                }}
-                placeholder="Ticket, slot id or road"
-                aria-label="Search tickets"
-              />
-              <Link className="btn btn-primary" to="/tickets/raise" state={ticketLinkState}>
-                Raise ticket
-              </Link>
-            </>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') applyFilters()
+              }}
+              placeholder="Ticket, slot id or road"
+              aria-label="Search tickets"
+            />
           }
         />
 

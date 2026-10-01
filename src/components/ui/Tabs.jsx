@@ -1,6 +1,6 @@
 /**
  * Tab strip — .tabs
- * Optional `actions` render on the right (e.g. search + Raise ticket).
+ * Optional `actions` render on the right (e.g. search).
  * @param {{ tabs: { id: string, label: string, count?: number|string }[], value: string, onChange: (id: string) => void, actions?: import('react').ReactNode }} props
  */
 export function Tabs({ tabs, value, onChange, actions = null }) {

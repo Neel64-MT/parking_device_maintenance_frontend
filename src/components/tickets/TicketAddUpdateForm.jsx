@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
-import { TEAM } from '../../data/team'
+import { useEffect, useState } from 'react'
 import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { ApiRequestError } from '../../services/api'
 import { listIssueCategories } from '../../services/issues'
 import { listParts, sumSelectedPartsAmount } from '../../services/parts'
 import { addTicketUpdate, attachTicketUpdatePhotos } from '../../services/tickets'
 import { uploadImages } from '../../services/uploads'
+import { FIELD_ROLES, filterAssignableAssignees, listTechnicianLookups } from '../../services/users'
 import {
   hasDuplicateSubCategories,
   hasIncompleteIssueRows,
@@ -31,10 +31,14 @@ function formatMoney(value) {
   return `₹${Number(value || 0).toLocaleString('en-IN')}`
 }
 
+const DEFAULT_UPDATE_TYPE = 'Site visit — not resolved'
+
 /**
- * Shared Add Update form (Detail modal + /tickets/update page).
- * Submit order: update → upload photos → attach URLs.
+ * Shared Add Update form (Detail modal — Add update and Resolve — + /tickets/update page).
+ * Submit order: update (+ optional close in the same request) → upload photos → attach URLs.
  * Issue rows intentionally start blank; the user selects the category and sub-category.
+ * Close Ticket always starts at No; only an explicit Yes sends `closeTicket: true`.
+ * `pickAssignee` (Admin/PM on an unassigned ticket) adds a required holder sent as `handoverToUserId`.
  */
 export function TicketAddUpdateForm({
   ticketId,
@@ -49,9 +53,17 @@ export function TicketAddUpdateForm({
   onCancel,
   onSuccess,
   onBusyChange,
+  onConflict,
   canSubmit = true,
+  canClose = false,
+  pickAssignee = false,
+  initialUpdateType = DEFAULT_UPDATE_TYPE,
 }) {
-  const [updType, setUpdType] = useState('Site visit — not resolved')
+  const [updType, setUpdType] = useState(initialUpdateType)
+  const [closeTicket, setCloseTicket] = useState(false)
+  const [holderId, setHolderId] = useState('')
+  const [holderOptions, setHolderOptions] = useState([])
+  const [holdersLoading, setHoldersLoading] = useState(false)
   const [issueRows, setIssueRows] = useState(() => [newIssueRow()])
   const [updPhotos, setUpdPhotos] = useState([])
   const [updWorkDone, setUpdWorkDone] = useState('')
@@ -68,30 +80,27 @@ export function TicketAddUpdateForm({
   const [partsError, setPartsError] = useState('')
   const [issueCategories, setIssueCategories] = useState([])
   const [issuesLoading, setIssuesLoading] = useState(true)
-
-  // The assignee is listed first so the pre-selected value is always an option,
-  // even when it is not part of the static TEAM list.
-  const visitedByOptions = useMemo(() => {
-    const seen = new Set()
-    const options = []
-    for (const name of [assigneeName, user?.name, ...TEAM]) {
-      const value = (name || '').trim()
-      if (!value || seen.has(value)) continue
-      seen.add(value)
-      options.push(value)
-    }
-    return options
-  }, [assigneeName, user?.name])
+  // Only field staff (Technician / Engineer / Electrician) make site visits.
+  const [visitedByOptions, setVisitedByOptions] = useState([])
+  const [visitedByLoading, setVisitedByLoading] = useState(false)
 
   function resetUpdateForm() {
-    setUpdType('Site visit — not resolved')
+    setUpdType(initialUpdateType)
+    setCloseTicket(false)
+    setHolderId('')
     setIssueRows([newIssueRow()])
     setUpdPhotos([])
     setUpdWorkDone('')
     setUpdCost('')
     setUpdPartIds([])
     setUpdPartsChanged(false)
-    setUpdVisitedBy(pickVisitedBy ? assigneeName : user?.name || '')
+    setUpdVisitedBy(
+      pickVisitedBy
+        ? visitedByOptions.some((o) => o.name === assigneeName)
+          ? assigneeName
+          : ''
+        : user?.name || '',
+    )
   }
 
   function changePartsChanged(nextValue) {
@@ -176,6 +185,69 @@ export function TicketAddUpdateForm({
     }
   }, [ticketId])
 
+  useEffect(() => {
+    if (!pickVisitedBy) return undefined
+    let cancelled = false
+    const id = window.setTimeout(() => {
+      if (cancelled) return
+      setVisitedByLoading(true)
+      listTechnicianLookups()
+        .then((list) => {
+          if (cancelled) return
+          const seen = new Set()
+          const options = []
+          for (const t of list || []) {
+            const name = t.name.trim()
+            if (!name || !FIELD_ROLES.includes(t.role) || seen.has(name)) continue
+            seen.add(name)
+            options.push({ name, label: t.label || name })
+          }
+          setVisitedByOptions(options)
+          // The assignee default only survives when they are field staff.
+          setUpdVisitedBy((prev) => (options.some((o) => o.name === prev) ? prev : ''))
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setVisitedByOptions([])
+            toastApiError(err, 'Could not load workers.')
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setVisitedByLoading(false)
+        })
+    }, 0)
+    return () => {
+      cancelled = true
+      window.clearTimeout(id)
+    }
+  }, [pickVisitedBy])
+
+  useEffect(() => {
+    if (!pickAssignee) return undefined
+    let cancelled = false
+    const id = window.setTimeout(() => {
+      if (cancelled) return
+      setHoldersLoading(true)
+      listTechnicianLookups()
+        .then((list) => {
+          if (!cancelled) setHolderOptions(filterAssignableAssignees((list || []).filter((t) => t.id), null))
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setHolderOptions([])
+            toastApiError(err, 'Could not load workers.')
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setHoldersLoading(false)
+        })
+    }, 0)
+    return () => {
+      cancelled = true
+      window.clearTimeout(id)
+    }
+  }, [pickAssignee])
+
   const partsHintTotal = sumSelectedPartsAmount(partsItems, updPartIds)
   const labourHint =
     updPartsChanged && updCost !== '' && Number.isFinite(Number(updCost))
@@ -193,6 +265,10 @@ export function TicketAddUpdateForm({
     }
     if (pickVisitedBy && !updVisitedBy.trim()) {
       toast('Select who visited.', 'error')
+      return
+    }
+    if (pickAssignee && !holderId) {
+      toast('Select who will hold this ticket.', 'error')
       return
     }
 
@@ -219,6 +295,8 @@ export function TicketAddUpdateForm({
       if (issues.length) {
         body.issues = issues
       }
+      if (pickAssignee) body.handoverToUserId = holderId
+      if (canClose && closeTicket) body.closeTicket = true
 
       const saved = await addTicketUpdate(ticketId, body)
 
@@ -239,15 +317,19 @@ export function TicketAddUpdateForm({
       }
 
       resetUpdateForm()
+      const savedLabel = saved?.closed ? 'Update saved and ticket closed.' : 'Update saved.'
       const visitCost = saved?.cost != null ? Number(saved.cost) : null
       if (visitCost != null && !Number.isNaN(visitCost)) {
-        toastApiSuccess(`Update saved. Visit cost ₹${visitCost.toLocaleString('en-IN')}.`)
+        toastApiSuccess(`${savedLabel} Visit cost ₹${visitCost.toLocaleString('en-IN')}.`)
       } else {
-        toastApiSuccess('Update saved.')
+        toastApiSuccess(savedLabel)
       }
       onSuccess?.(saved)
     } catch (err) {
       toastApiError(err, 'Could not save update.')
+      if (err instanceof ApiRequestError && err.code === 'TICKET_ALREADY_ASSIGNED') {
+        onConflict?.()
+      }
     } finally {
       setUpdSubmitting(false)
       onBusyChange?.(false)
@@ -263,31 +345,18 @@ export function TicketAddUpdateForm({
   return (
     <form id={formId} className={formClassName} onSubmit={submitUpdate}>
       <div className="row">
-        <Field label="Update type">
-          <select
-            value={updType}
-            onChange={(e) => setUpdType(e.target.value)}
-            disabled={updSubmitting}
-          >
-            <option>Site visit — not resolved</option>
-            <option>Site visit — resolved</option>
-            <option>Remote check</option>
-            <option>Waiting for spare</option>
-            <option>Waiting for traffic police / AMC</option>
-          </select>
-        </Field>
         <Field label="Visited by">
           {pickVisitedBy ? (
             <select
               value={updVisitedBy}
               onChange={(e) => setUpdVisitedBy(e.target.value)}
-              disabled={updSubmitting}
+              disabled={updSubmitting || visitedByLoading}
               required
             >
-              <option value="">Select who visited</option>
-              {visitedByOptions.map((name) => (
-                <option key={name} value={name}>
-                  {name}
+              <option value="">{visitedByLoading ? 'Loading workers…' : 'Select who visited'}</option>
+              {visitedByOptions.map((o) => (
+                <option key={o.name} value={o.name}>
+                  {o.label}
                 </option>
               ))}
             </select>
@@ -306,6 +375,29 @@ export function TicketAddUpdateForm({
           />
         </Field>
       </div>
+
+      {pickAssignee ? (
+        <div className="row" style={{ marginTop: 12 }}>
+          <Field
+            label="Assign to"
+            required
+            hint="This ticket has no assignee. Pick who will hold it; it is assigned when the update saves."
+          >
+            <select
+              value={holderId}
+              onChange={(e) => setHolderId(e.target.value)}
+              disabled={updSubmitting || holdersLoading}
+            >
+              <option value="">{holdersLoading ? 'Loading workers…' : 'Select worker'}</option>
+              {holderOptions.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label || t.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      ) : null}
 
       <div style={{ marginTop: 12 }}>
         {issuesLoading ? (
@@ -431,8 +523,58 @@ export function TicketAddUpdateForm({
         </Field>
       </div>
 
+      <div className="row" style={{ marginTop: 12 }}>
+        <Field label="Update type">
+          <select
+            value={updType}
+            onChange={(e) => setUpdType(e.target.value)}
+            disabled={updSubmitting}
+          >
+            <option>Site visit — not resolved</option>
+            <option>Site visit — resolved</option>
+            <option>Remote check</option>
+            <option>Waiting for spare</option>
+            <option>Waiting for traffic police / AMC</option>
+          </select>
+        </Field>
+      </div>
+
+      {canClose ? (
+        <div style={{ marginTop: 12 }}>
+          <Field label="Close Ticket" hint="Select Yes only if this update finishes the work on this ticket.">
+            <div className="update-parts-choice" role="radiogroup" aria-label="Close Ticket">
+              {[
+                { value: true, label: 'Yes' },
+                { value: false, label: 'No' },
+              ].map((opt) => (
+                <label
+                  key={opt.label}
+                  className={`update-parts-choice-option${closeTicket === opt.value ? ' is-selected' : ''}${updSubmitting ? ' is-disabled' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name={`${formId || photoPickerKey}-close-ticket`}
+                    checked={closeTicket === opt.value}
+                    onChange={() => setCloseTicket(opt.value)}
+                    disabled={updSubmitting}
+                    aria-label={`Close Ticket: ${opt.label}`}
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </Field>
+        </div>
+      ) : null}
+
       <p className="muted modal-update-hint">
-        The ticket closes only when the update type is <b>resolved</b>. Everything else keeps it open.
+        {canClose ? (
+          <>
+            The ticket stays open unless <b>Close Ticket</b> is set to <b>Yes</b>.
+          </>
+        ) : (
+          'This update keeps the ticket open.'
+        )}
       </p>
 
       {!hideActions ? (

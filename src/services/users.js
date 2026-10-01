@@ -11,6 +11,7 @@ export const ROLE_HIERARCHY = [
   'Control room',
   'Engineer',
   'Technician',
+  'Electrician',
   'Site attendant',
   'AMC officer',
 ]
@@ -150,16 +151,27 @@ export function canPerm(user, screen, flag) {
 }
 
 /**
+ * Field staff who attend devices on site (mirrors backend `FIELD_ROLES`).
+ * They may raise, hold, update and close tickets, and claim an unassigned
+ * ticket by adding an update. Names must match `roles.name` exactly.
+ */
+export const FIELD_ROLES = ['Technician', 'Engineer', 'Electrician']
+
+export function isFieldRole(user) {
+  return FIELD_ROLES.includes(user?.role)
+}
+
+/**
  * Roles offered in the Assign / Reassign "Hand to" dropdown.
  *
  * `GET /api/lookups/technicians` also returns Control room and Project manager
  * because the Work report Person filter needs them. A ticket is only ever held
- * by field staff, so the assign dropdown narrows to the two field roles.
+ * by field staff, so the assign dropdown narrows to the field roles.
  *
  * This is a presentation guard; the backend `assertEligibleAssignee` remains the
  * final source of truth and is intentionally left unchanged.
  */
-export const ASSIGNABLE_ASSIGNEE_ROLES = ['Technician', 'Engineer']
+export const ASSIGNABLE_ASSIGNEE_ROLES = FIELD_ROLES
 
 /**
  * Narrow a technicians lookup list to the assignable roles for the Hand to select.
@@ -189,12 +201,12 @@ export function filterAssignableAssignees(options, currentAssigneeId, currentAss
  *
  * - New-ticket ("ticket.raised") alerts stay limited to the oversight roles.
  * - Assignment alerts add the roles that can actually be made a ticket assignee
- *   (Technician / Engineer), so an assignee is never un-alertable.
+ *   (FIELD_ROLES), so an assignee is never un-alertable.
  *
  * Site attendant and AMC officer are excluded because they are never eligible
  * assignees. This is a presentation guard; the backend remains the source of truth.
  */
-const NOTIFICATION_ROLES = ['Admin', 'Project manager', 'Control room', 'Technician', 'Engineer']
+const NOTIFICATION_ROLES = ['Admin', 'Project manager', 'Control room', ...FIELD_ROLES]
 
 export function canReceiveTicketNotifications(user) {
   return canPerm(user, 'All tickets', 'v') && NOTIFICATION_ROLES.includes(user?.role)
@@ -207,11 +219,11 @@ export function isDashboardRole(user) {
 
 /**
  * Field roles that update tickets via QR / Update Ticket flow (not Detail Add Update).
- * "Engineer" matches role names containing Engineer (e.g. Dy. Engineer) and AMC officer.
+ * FIELD_ROLES plus AMC officer; "Engineer" also matches role names containing Engineer (e.g. Dy. Engineer) and AMC officer.
  */
 export function isFieldTicketUpdater(user) {
   const role = user?.role || ''
-  if (role === 'Technician') return true
+  if (isFieldRole(user)) return true
   if (role === 'AMC officer') return true
   return /engineer/i.test(role)
 }

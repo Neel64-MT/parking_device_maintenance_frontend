@@ -142,7 +142,7 @@ Inspect existing code
 - Reuse `appendTicketVisibilitySql` / `assertTicketAccess` from backend `lib/ticket-access.ts`.
 - Read paths filter by ownership; **assign** uses road scope only.
 - Detail Assign/Reassign: `assignTicket` → `POST /api/tickets/:id/assign` with `assigneeId` from `listTechnicianLookups`; optional note as `reason`; reload ticket for trail/facts.
-- Hand to / assignee options come from `listTechnicianLookups()` (`GET /api/lookups/technicians`) and are **Technician and Engineer only**. Neither Project manager nor Control room may hold a ticket: a PM routes and closes work, Control room raises and routes — neither attends it. Do not re-filter or append to this list in the browser; the backend `ASSIGNABLE_ROLES` constant is the single source and such an assignee is rejected with `400 INVALID_ASSIGNEE`. Note this is narrower than who may *perform* an assign (Control room / Admin / PM can still route), so do not "fix" the dropdown by re-adding those roles. The same lookup also feeds the All Tickets assignee filter and the Work report person dropdown, so the narrowing applies consistently everywhere.
+- Hand to / assignee options come from `listTechnicianLookups()` (`GET /api/lookups/technicians`) and are **field roles only** (`FIELD_ROLES`: Technician, Engineer, Electrician — Phase 47). Neither Project manager nor Control room may hold a ticket: a PM routes and closes work, Control room raises and routes — neither attends it. Do not re-filter or append to this list in the browser; the backend `ASSIGNABLE_ROLES` constant is the single source and such an assignee is rejected with `400 INVALID_ASSIGNEE`. Note this is narrower than who may *perform* an assign (Control room / Admin / PM can still route), so do not "fix" the dropdown by re-adding those roles. The same lookup also feeds the All Tickets assignee filter and the Work report person dropdown, so the narrowing applies consistently everywhere.
 - PM signup approval = Users `e` on existing PATCH — sync FE `ROLES` matrix with `DEFAULT_ROLE_PERMS`.
 
 ## Frontend ticket API skills (Phase 16+)
@@ -159,10 +159,19 @@ Inspect existing code
 - Resolve scans through `services/devices.resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy PD/QR/slot → `GET /api/devices/scan?q=` (404 → null). Never call SmartPark from the browser.
 - Site attendant Raise: map scan fields; block create when `openTicketId` is set; create via `createTicket` (`photos: []`) + `issues[]` from `TicketIssueRows` / `listIssueCategories`, then optional `uploadImages` → `attachTicketRaisePhotos`.
 - Raise open-ticket primary **Update Ticket** → `/tickets/update?ticketId=` (+ `qr` state); secondary Open → Detail.
-- Update Ticket page: live `resolveScan` or entry `ticketId`; gate with `getTicket` (open + assignee); show `TicketAddUpdateForm` with a blank issue row for user selection; free → Raise (+ `qr`).
+- Update Ticket page: live `resolveScan` or entry `ticketId`; gate with `getTicket` (open + assignee, or unassigned for a field role / Admin-PM — Phase 47); show `TicketAddUpdateForm` with a blank issue row for user selection; free → Raise (+ `qr`).
 - Multi-issue: reuse `TicketIssueRows` + `IssueSelects`; Update starts blank and sends the selected `issues[]`; Sub-category is stacked below category; Detail prefers `issuesReported` / `issuesFound`. Parts were changed uses one radio with a single Yes option; order the searchable PartChips dropdown, removable selected tags, Labour / other charges, then the Parts Total / optional Labour / Total Amount summary. Reject negative labour; do not add a payload field.
 - Site attendant Sync / Issue Master: rely on `/api/auth/me` permissions after migration 018; do not hardcode the role.
-- Detail header: ops **or** assignee → Add update Modal (shared form); field non-assignee → QR Update Ticket link.
+- Detail header: ops **or** assignee (or unassigned + field role / Admin-PM) → Add update + Resolve Modal (shared form); field non-assignee of an assigned ticket → QR Update Ticket link.
+
+## Ticket raise / update / close skills (Phase 47+)
+
+- Field roles: use `FIELD_ROLES` / `isFieldRole` from `services/users.js`; never write `role === 'Technician' || role === 'Engineer'` chains. Raise access is `canPerm(user, 'Raise ticket', 'c')`.
+- Raise **Assign to**: optional select, default **Assign later**, only with All tickets `a`; options via `filterAssignableAssignees(listTechnicianLookups(), null)`; send `assigneeId` only when picked; no required validation.
+- Auto-assign on update is the backend's job (`resolveUpdateAssignee`). Do not call `assignTicket` first or patch the assignee in local state — reload the ticket after save. Admin/PM on an unassigned ticket use the form's `pickAssignee` select (`handoverToUserId`).
+- **Close Ticket** Yes / No is part of `TicketAddUpdateForm` (`canClose` = Update ticket `x`), defaults to **No** everywhere, and only Yes adds `closeTicket: true` — one POST, no second close call. Reuse `.update-parts-choice` radio styling.
+- **Resolve** = the same Add Update modal with `initialUpdateType="Site visit — resolved"`; it never closes by itself.
+- Handle `409 TICKET_ALREADY_ASSIGNED` via `onConflict` (toast + reload / re-gate).
 
 ## Ticket detail / list UI skills (Phase 19+)
 
@@ -244,6 +253,7 @@ Inspect existing code
 - Scope the patch to the viewed ticket only, apply the backend's authoritative `updated` with a `Math.max(0, …)` floor, then re-read `unread-count`; never decrement by guesswork.
 - Dedupe per ticket so rerenders and re-entry do not re-request. Keep mark-read failures non-blocking (`listError`), and never bypass 401/403.
 - Render `ticket.assigned` / `ticket.reassigned` from the same popover as `ticket.raised`; attribute by type (`raisedBy` then `assignedBy`) and omit the line when neither exists. Do not hardcode ticket details in the frontend.
+- `ticket.assigned` only exists when Admin / Project manager / Control room assign (Phase 47). A field user's self-assign on Add Update is silent by design — the backend writes no row, so the bell, badges and sound correctly stay still. Do not "fix" this with a client-side toast, sound, or count bump.
 
 ## Users delete + visibility skills (Phase 44+)
 
