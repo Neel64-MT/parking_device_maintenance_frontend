@@ -177,11 +177,16 @@ export default function DeviceDetail() {
           <>
             <section className="record">
               <div className="record-top">
-                <div>
-                  <h3>{header.id}</h3>
+                <div className="record-head">
+                  <div className="record-title">
+                    <h3>{header.id}</h3>
+                    <Pill tone={header.statusTone}>{header.status}</Pill>
+                  </div>
                   <div className="sub">
-                    <b>{header.road || header.parkingLocation}</b> · Slot{' '}
-                    <b>{header.slot || header.slotLabel}</b>
+                    <b>{header.road || header.parkingLocation}</b> ·{' '}
+                    <span className="sub-part">
+                      Slot <b>{header.slot || header.slotLabel}</b>
+                    </span>
                     {header.qr || header.qrNumber ? (
                       <>
                         {' '}
@@ -196,9 +201,6 @@ export default function DeviceDetail() {
                       </>
                     ) : null}
                   </div>
-                </div>
-                <div style={{ marginLeft: 20 }}>
-                  <Pill tone={header.statusTone}>{header.status}</Pill>
                 </div>
                 <div className="push">
                   <Link

@@ -30,7 +30,7 @@ export const FLEET = {
       to: '/tickets',
       value: '41',
       label: 'Under repair',
-      tip: 'Technician assigned',
+      tip: 'Work in progress',
     },
     {
       dot: 'seg-bad',

@@ -139,17 +139,15 @@ Inspect existing code
 
 ## Ticket access skills (Phase 15+)
 
-- Reuse `appendTicketVisibilitySql` / `assertTicketAccess` from backend `lib/ticket-access.ts`.
-- Read paths filter by ownership; **assign** uses road scope only.
-- Detail Assign/Reassign: `assignTicket` → `POST /api/tickets/:id/assign` with `assigneeId` from `listTechnicianLookups`; optional note as `reason`; reload ticket for trail/facts.
-- Hand to / assignee options come from `listTechnicianLookups()` (`GET /api/lookups/technicians`) and are **Technician and Engineer only**. Neither Project manager nor Control room may hold a ticket: a PM routes and closes work, Control room raises and routes — neither attends it. Do not re-filter or append to this list in the browser; the backend `ASSIGNABLE_ROLES` constant is the single source and such an assignee is rejected with `400 INVALID_ASSIGNEE`. Note this is narrower than who may *perform* an assign (Control room / Admin / PM can still route), so do not "fix" the dropdown by re-adding those roles. The same lookup also feeds the All Tickets assignee filter and the Work report person dropdown, so the narrowing applies consistently everywhere.
+- Phase 51 "Every Ticket, Every Road": All tickets `v` → every ticket; Update ticket `e` → Add Update on any open ticket; `x` → close. Gate UI with `canPerm` only — no assignee, holder, ops-role or field-role checks.
+- There is no assignment API or UI: `assignTicket`, `filterAssignableAssignees`, `ASSIGNABLE_ASSIGNEE_ROLES`, `isOpsTicketUpdater`, the Assign Modal, the raise Assign to and the All Tickets assignee filter were removed. `listTechnicianLookups()` still feeds Visited by and the Work report person dropdown.
 - PM signup approval = Users `e` on existing PATCH — sync FE `ROLES` matrix with `DEFAULT_ROLE_PERMS`.
 
 ## Frontend ticket API skills (Phase 16+)
 
 - Wire list/dashboard/detail to `/api/tickets` and `/api/dashboard`; render API payload as-is.
 - Reuse `canPerm` + Users loading/empty/error; do not add React Query or a role store.
-- Ticket list envelope includes `tiles` / `tabCounts` beside `data` — use `apiEnvelope` (or equivalent), not `api()` alone.
+- Ticket list envelope includes `tiles` / `tabCounts` / `over3Counts` beside `data` — use `apiEnvelope` (or equivalent), not `api()` alone.
 - Never treat client-side row filtering as authorization.
 
 ## QR scan skills (Phase 17+ / 27+)
@@ -157,19 +155,48 @@ Inspect existing code
 - Use `QrScannerModal` + `html5-qrcode`; stop the camera on close.
 - Gate camera with `canScanWithCamera(user)` — any signed-in user.
 - Resolve scans through `services/devices.resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy PD/QR/slot → `GET /api/devices/scan?q=` (404 → null). Never call SmartPark from the browser.
-- Site attendant Raise: map scan fields; block create when `openTicketId` is set; create via `createTicket` (`photos: []`) + `issues[]` from `TicketIssueRows` / `listIssueCategories`, then optional `uploadImages` → `attachTicketRaisePhotos`.
-- Raise open-ticket primary **Update Ticket** → `/tickets/update?ticketId=` (+ `qr` state); secondary Open → Detail.
-- Update Ticket page: live `resolveScan` or entry `ticketId`; gate with `getTicket` (open + assignee); show `TicketAddUpdateForm` with a blank issue row for user selection; free → Raise (+ `qr`).
+- Site attendant Raise: map scan fields; create via `createTicket` (`photos: []`) + `issues[]` from `TicketIssueRows` / `listIssueCategories`, then optional `uploadImages` → `attachTicketRaisePhotos`. An open ticket on the device does **not** block Raise (Phase 50) — only the same Open issue does.
+- Raise open tickets (Phase 50): `scanOpenTickets(scan)` → one `.reclass` row per ticket ("Open issues: …" via `openTicketIssueLabel`) with primary **Update Ticket** → `/tickets/update?ticketId=` (+ `qr` state) and secondary Open → Detail. Copy: "Same problem? Update that ticket. Different problem? Raise a new ticket below."
+- Raise duplicate check: `findOpenIssueDuplicates(scan, rowsToIssuePairs(rows))` before `createTicket`; every selected issue on one ticket → toast + `goToUpdateTicket`; otherwise toast the duplicate names and stop. `409 OPEN_TICKET_EXISTS` → same branching from `err.details.issues`, then re-resolve the scan without clearing the form.
+- Update Ticket page: live `resolveScan` or entry `ticketId`; one open ticket → auto `activateTicket`; several → pick list with each ticket's open issues and **Update this ticket** (same `activateTicket`) plus "Raise a ticket for a different issue" (`/tickets/raise` + `qr`); `loadUpdatableTicket` (`getTicket`; only Closed is refused); show `TicketAddUpdateForm` with `reportedIssues`; free → Raise (+ `qr`).
+- DeviceCard facts / tone come from `scanDeviceFacts` / `scanStatusTone`, which read `openTickets` ("Open tickets: TK-1 — Motor failure (2 days); TK-2 — …"). Do not rebuild that string in pages.
 - Multi-issue: reuse `TicketIssueRows` + `IssueSelects`; Update starts blank and sends the selected `issues[]`; Sub-category is stacked below category; Detail prefers `issuesReported` / `issuesFound`. Parts were changed uses one radio with a single Yes option; order the searchable PartChips dropdown, removable selected tags, Labour / other charges, then the Parts Total / optional Labour / Total Amount summary. Reject negative labour; do not add a payload field.
 - Site attendant Sync / Issue Master: rely on `/api/auth/me` permissions after migration 018; do not hardcode the role.
-- Detail header: ops **or** assignee → Add update Modal (shared form); field non-assignee → QR Update Ticket link.
+- Detail header: Update ticket `v` + `e` and not Closed → Add update + Resolve Modal (shared form). No QR-only fallback link (Phase 51).
+
+## Ticket raise / update / close skills (Phase 47+)
+
+- Field roles: use `FIELD_ROLES` / `isFieldRole` from `services/users.js`; never write `role === 'Technician' || role === 'Engineer'` chains. Raise access is `canPerm(user, 'Raise ticket', 'c')`.
+- **Close Ticket** Yes / No is part of `TicketAddUpdateForm` (`canClose` = Update ticket `x`), defaults to **No** everywhere, and only Yes adds `closeTicket: true` — one POST, no second close call. Reuse `.update-parts-choice` radio styling.
+- **Resolve** = the same Add Update modal with `initialUpdateType="Site visit — resolved"`; it never closes by itself.
+
+## Per-issue resolution skills (Phase 49+)
+
+- Only **reported** issues have Open/Resolved. Derive resolvable issues with `openReportedIssues(ticket.issuesReported)` from the latest `getTicket`, then pass them as `TicketAddUpdateForm` `openIssues` — Detail (Add update + Resolve) and `/tickets/update` (QR) both do this; never add a QR- or role-specific copy.
+- Resolve via the form's chips (existing `.chip-row` / `.chip on` pattern) → `resolveIssueIds` on the same Add Update POST. No separate issue-status API, no client-side "resolved" cache.
+- Backend is the source of truth: `400 INVALID_ISSUES` / `409 ISSUE_ALREADY_RESOLVED`; the 409 goes through `onConflict` (reload).
+- Resolving the last issue never closes the ticket; Close Ticket keeps its default **No**. Closing resolves leftovers on the server — show the hint, do not pre-resolve.
+- Keep the found-on-site `TicketIssueRows` separate from the Resolve issues chips.
+- Dashboard "Why devices are down" is issue-level (`downReasons`, `openIssues`, `openTicketsCount` from the API); everything else on the Dashboard stays ticket/device-level.
+- Several users may resolve different issues of the same ticket (Phase 50); each sees only the remaining Open issues because every entry point re-reads `getTicket`. Do not cache issue status between users or tickets.
+- Device status with several open tickets is decided by the backend (worst ticket). Dashboard, Device list and Device detail render the API values — never derive device status from a ticket list in React.
+
+## Main/Sub issue panels skills (Phase 51+)
+
+- `TicketResolveIssues` (`components/tickets/`) renders the Resolve Issues block inside `TicketAddUpdateForm`. Input: `reportedIssues` (every reported issue from `getTicket`, Open and Resolved). Group with `groupIssuesForResolve` (`components/tickets/ticketIssueRowsHelpers.js`) — never re-group by category name strings in a page.
+- Every raised group is listed at once and starts **expanded** (Phase 52; the Phase 51 collapsed start and **Another Issue** reveal are gone). **Add another issue** is always shown below them and opens the "New issues" block built from `TicketIssueRows` / `IssueSelects`.
+- Main checkbox → `resolveCategoryIds`; sub checkbox → `resolveIssueIds`. When a main is checked, its subs render checked + disabled and are not sent separately. Resolved subs and fully resolved mains are filtered out after `groupIssuesForResolve` (Phase 52 follow-up), so a second scan / update shows only Open issues.
+- New rows → `addIssues: [{ categoryId, subCategoryId }]`; skip incomplete rows; no client duplicate guard beyond UX — the backend answers `409 ISSUE_ALREADY_ON_TICKET` / `OPEN_TICKET_EXISTS` (toast + `onConflict` reload).
+- Every entry point (Detail Add update / Resolve, `/tickets/update`, QR) passes the same `reportedIssues` prop; no role- or QR-specific branches.
 
 ## Ticket detail / list UI skills (Phase 19+)
 
 - TicketList: one table with `showUpdates` / `showDaysOpen` / `showDaysAfterClose` from `tab` — do not fork three tables.
 - List→detail: pass `state={{ from: `/tickets?tab=${tab}` }}`; detail resolves Back/crumb with `ticketsListReturnPath(state.from)`.
-- Tabs come from API `tab` / `tabCounts` (`tabForStatus`: unassigned → Open, assignee → Assigned). Do not re-filter Open in React for security.
-- Tiles come from API; Open not attended equals Open tab; assigned+Open may appear as Under repair via backend `listStatus`.
+- Tabs come from API `tab` / `tabCounts` — `open` (no update yet), `urp` (at least one update) and `cls` (Phase 52). `parseTab` sends `asg` to `urp` and other unknown values to `open`. Do not re-filter in React for security.
+- Clickable summary cards (Phase 52): wrap `Tile` in `button.tile-link` with `aria-pressed` + `tile-selected` (same as Device list). Map a card to `{ tab, status, age }` in one helper (`viewForTile`) and derive the highlight from the applied state (`isTileSelected`); set the URL tab and `applied` together so one fetch runs.
+- Tab slide (Phase 52): the shared `Tabs` owns the `.tabs-ink` underline (DOM-positioned in `useLayoutEffect`, `ResizeObserver`, `data-ready` turns the transition on after first placement). For a sliding pane, key the content by tab and pick `tab-pane-next|prev` from the tab order; adjust state during render (not in an effect) so the new pane never shows the old rows. Always add a `prefers-reduced-motion` override.
+- Tiles come from API; a historical assigned+Open ticket may appear as Under repair via backend `listStatus`.
 - Add Update: open existing form in `Modal`; keep toast submit until POST is wired.
 - Work history: reverse mapped events for chronological display; pass `photos`, `actor`, `parts` through.
 - Gallery: `ImagePreviewModal` on `Modal` — main image + thumbnail row; Zoom in / Zoom out / Reset / Rotate via CSS `transform` only; desktop hover zooms toward pointer; pinch + drag pan on touch; reset on thumbnail change; no new deps.
@@ -221,15 +248,11 @@ Inspect existing code
 - Backend owns skip/upsert validation; FE never creates devices from sync payloads.
 - Device list status tiles filter via `listDevices({ status })` on the same page; do not route Under repair / Not working to `/tickets`.
 
-## Slot Label order + Assign dropdown skills (Phase 44+)
+## Slot Label order skills (Phase 44+)
 
 - Device list is ordered by Slot Label **in the backend SQL** (`GET /api/devices` → `ORDER BY slot_number`); do not add client-side sorting there — it would only order the current page and break `LIMIT/OFFSET` pagination.
 - Ticket list order stays `raised_at DESC`; it has no Slot Label column.
-- Assign / Reassign "Hand to" lists `filterAssignableAssignees(listTechnicianLookups(), currentAssigneeId, currentAssigneeName)` from `services/users.js`; role names come from the existing `roles.name` values (`Technician`, `Engineer`) via `ASSIGNABLE_ASSIGNEE_ROLES` — never invent labels or ids.
-- Always keep the ticket's current assignee in the option list, even when their role is not assignable, so an existing Control room / Project manager holder still renders and can be reassigned away.
-- Do **not** narrow `GET /api/lookups/technicians` server-side: Work report Person filter needs Control room / Project manager. Do not delete users or change roles to achieve this.
-- Both dropdowns (TicketList inline modal and TicketDetail) must use the same helper; do not filter inline in the components.
-- Backend `assertEligibleAssignee` stays the final source of truth — the frontend filter is a UX guard, not authorization.
+- *(The Phase 44 Assign dropdown helpers were removed with assignment in Phase 51.)*
 
 ## Notification skills (Phase 39+)
 
@@ -243,7 +266,8 @@ Inspect existing code
 - Opening a ticket is the read receipt: `POST /api/notifications/ticket/:ticketId/read` marks the caller's own rows for that ticket. Drive it from a route-scoped effect in the one `useTicketNotifications` owner — do not add a second mark-read path, endpoint, or counter.
 - Scope the patch to the viewed ticket only, apply the backend's authoritative `updated` with a `Math.max(0, …)` floor, then re-read `unread-count`; never decrement by guesswork.
 - Dedupe per ticket so rerenders and re-entry do not re-request. Keep mark-read failures non-blocking (`listError`), and never bypass 401/403.
-- Render `ticket.assigned` / `ticket.reassigned` from the same popover as `ticket.raised`; attribute by type (`raisedBy` then `assignedBy`) and omit the line when neither exists. Do not hardcode ticket details in the frontend.
+- Render historical `ticket.assigned` / `ticket.reassigned` rows from the same popover as `ticket.raised`; attribute by type (`raisedBy` then `assignedBy`) and omit the line when neither exists. Do not hardcode ticket details in the frontend.
+- Since Phase 51 the backend never creates assignment notifications; only `ticket.raised` arrives. Do not add a client-side toast, sound, or count bump for updates or resolves.
 
 ## Users delete + visibility skills (Phase 44+)
 

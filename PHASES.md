@@ -995,10 +995,119 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 47: Field roles raise, optional assign, auto-assign on update, Resolve, Close with update
+
+**Objective:** Technician, Engineer and Electrician can raise tickets; assigning at raise is optional; adding an update to an unassigned ticket assigns it; a Resolve action reuses the Add Update form; an update can explicitly close the ticket in the same request. Wires the backend Phase 47 contract.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `services/users.js`: `FIELD_ROLES = ['Technician', 'Engineer', 'Electrician']` + `isFieldRole(user)` (mirrors backend `FIELD_ROLES`). `ASSIGNABLE_ASSIGNEE_ROLES = FIELD_ROLES`; Electrician added to `NOTIFICATION_ROLES`, `ROLE_HIERARCHY` (after Technician) and `isFieldTicketUpdater`.
+2. Raise permission is not hardcoded: Raise stays gated by `canPerm(user, 'Raise ticket', 'c')` from `/api/auth/me`; backend migration `023` grants it to the three field roles.
+3. `TicketRaise`: optional **Assign to** select (default **Assign later**), rendered only with `canPerm(user, 'All tickets', 'a')`; options from `filterAssignableAssignees(listTechnicianLookups(), null)`; no validation; `createTicket` sends `assigneeId` only when picked. Backend rejects `assigneeId` from non-assigners (`403`).
+4. `TicketAddUpdateForm` (single shared form): new props `initialUpdateType`, `canClose`, `pickAssignee`, `onConflict`.
+   - **Close Ticket** Yes / No radios (reuse `update-parts-choice` styling), default **No**, reset to No after save; rendered with Update ticket `x`. Only Yes adds `closeTicket: true` to the payload.
+   - `pickAssignee` (Admin/PM on an unassigned ticket): required **Assign to** select sent as `handoverToUserId`; toast "Select who will hold this ticket." when empty.
+   - Success toast "Update saved and ticket closed." when the response has `closed`; `409 TICKET_ALREADY_ASSIGNED` → error toast + `onConflict`.
+5. `TicketDetail`: Add update also shows on an unassigned ticket for field roles (backend auto-assigns) and Admin/PM (`pickAssignee`). New **Resolve** button (same condition) opens the same modal titled "Resolve ticket" with update type `Site visit — resolved`; Close Ticket still starts at No. Success / conflict reload the ticket so status, assignee and trail come from the backend. `/tickets/close` is unchanged.
+6. `TicketUpdate` (QR): `gateAssigneeUpdate(ticketId, user)` allows an unassigned ticket for field roles (note "Saving will assign this ticket to you.") and Admin/PM (`pickAssignee`); assigned-to-someone-else and Closed still block. Conflict re-runs the gate.
+
+**Out of scope:** New components, routes, or API clients; changes to `/tickets/close` / `TicketCloseForm`; a client-side auto-assign (the backend claims the ticket inside the update transaction).
+
+**Verification:** `npm run lint` and `npm run build` pass. Backend `npm run build`, `test:smoke:ticket-flow` (A–O incl. field-role raise with `assigneeId` → `403`), `test:smoke:close` and `test:smoke:writes` pass on an isolated PGlite DB.
+
+---
+
+## Phase 49: Per-issue Open/Resolved on multi-issue tickets
+
+**Objective:** Each reported issue has its own Open/Resolved state; an update can resolve specific Open issues; resolved issues never reappear as resolvable. Wires the backend Phase 49 contract (`issuesReported[].id/status`, `resolveIssueIds`, `workHistory[].resolvedIssues`, dashboard `openIssues` / `openTicketsCount`).
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `ticketIssueRowsHelpers.js`: `openReportedIssues(issues)` (entries with `id` and `status !== 'Resolved'`); `groupIssuesForDisplay` passes `status` through.
+2. `TicketAddUpdateForm`: new `openIssues` prop rendered as a **Resolve issues** field with the existing `chip-row` / `chip on` toggles (`Category › Sub`), after the found-issue rows. Multi-select; selection sent as `resolveIssueIds`, reset after save. Empty list → muted "No open issues left to resolve on this ticket." (+ Close Ticket hint with `canClose`). `409 ISSUE_ALREADY_RESOLVED` → toast, clear selection, `onConflict` (same path as `TICKET_ALREADY_ASSIGNED`).
+3. `TicketDetail`: passes `openReportedIssues(ticket.issuesReported)` to the Add update / Resolve modal; "As reported" shows an Open / Resolved `Pill` per sub-category; View Update shows **Resolved issues** from `resolvedIssues`.
+4. `TicketUpdate` (QR + `/tickets/update`): passes the same `openIssues` from the gated `getTicket` payload — no QR-specific logic. Conflict re-runs the gate, refreshing the chips.
+5. `TicketClose`: hint strip "Closing will mark N open issues resolved." when Open issues remain.
+6. `Dashboard`: "Why devices are down" subtitle uses `openIssues` / `openTicketsCount` ("N open issues across M open tickets · grouped by issue"). Rows already come from the backend; the page refetches on mount, so no extra state.
+
+**Out of scope:** new components/routes/API clients, auto-close when the last issue is resolved, issue status in the ticket list.
+
+**Verification:** `npm run lint` and `npm run build` pass. Backend `test:smoke:issue-resolution` (A–O), `test:smoke:ticket-flow`, `test:smoke:close`, `test:smoke:writes` pass.
+
+---
+
+## Phase 50: Several open tickets per device (issue-level duplicates)
+
+**Objective:** Wire backend Phase 50 — duplicates are detected per issue, a device may hold several open tickets, a raise after close always creates a new ticket. Raise and QR Update stop assuming one open ticket per device.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `data/scanDevice.js`: `scanOpenTickets(scan)` (scan `openTickets[]`, legacy fallback to `openTicketId`), `openTicketIssueLabel(ticket)`, `findOpenIssueDuplicates(scan, pairs)`; `scanDeviceFacts` lists every open ticket; `scanStatusTone` uses the open-ticket count; JSDoc (`ScanOpenTicket`, `ScanOpenIssue`) + mocks.
+2. `TicketRaise`: remove the device-level `dup` / `blocked` gate (step 2 + Raise always available); `.reclass` lists each open ticket with its Open issues (Update Ticket / Open); pre-submit `findOpenIssueDuplicates` — all on one ticket → toast + `goToUpdateTicket`, otherwise toast naming them; `409 OPEN_TICKET_EXISTS` → same branching from `details.issues` + silent scan refresh; drop the `REOPEN_SAME_TICKET` handler.
+3. `TicketUpdate` (QR): auto-`activateTicket` only for exactly one open ticket; several → pick list with open issues and **Update this ticket**; "Raise a ticket for a different issue" link (`/tickets/raise` + `qr`). Gate and form unchanged.
+
+**Out of scope:** Dashboard / DeviceList / DeviceDetail (backend now counts a device once by its worst open ticket), new routes or API clients, client-side device-status logic.
+
+**Verification:** `npm run lint` and `npm run build` pass. Backend `test:smoke:multi-ticket` (1–12), `test:smoke:issue-resolution`, `test:smoke:ticket-flow`, `test:smoke:close`, `test:smoke:writes` pass.
+
+---
+
+## Phase 51: Main/Sub issue resolution and removal of ticket assignment
+
+**Objective:** Wire backend Phase 51. (1) Add Update resolves the ticket's raised issues by Main Issue (category → all its Open sub issues) or by single Sub Issue, in collapsible per-Main-Issue panels, and can add new Open issues to the same ticket. (2) Remove every ticket Assign / Reassign / assignee surface — "Every Ticket, Every Road": All tickets `v` sees every ticket, Update ticket `e` updates any open ticket, `x` closes.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `components/tickets/TicketResolveIssues.jsx` (new) + `groupIssuesForResolve` (`ticketIssueRowsHelpers.js`): one `.issue-panel` per Main Issue, collapsed by default; Issue 1 visible, **Another Issue** reveals the next raised group; Main checkbox → `selection.categoryIds`, Sub chip → `selection.issueIds`; Resolved subs / mains disabled; **Add another issue** hidden until a panel is opened, reuses `TicketIssueRows`. CSS `.resolve-issues`, `.issue-panel*`, `.issue-main-check`, `.resolve-issues-add*`, `.resolve-issues-actions`, `.chip.is-resolved`.
+2. `TicketAddUpdateForm`: `reportedIssues` prop (all reported issues) replaces `openIssues`; posts `resolveCategoryIds` / `resolveIssueIds` / `addIssues`; drops `pickAssignee`, `handoverToUserId`, the found-on-site rows and the unassigned hint; `409 ISSUE_ALREADY_RESOLVED | ISSUE_ALREADY_ON_TICKET | OPEN_TICKET_EXISTS` → toast + `onConflict`. Panel remounts (collapsed) after save / reset.
+3. `TicketDetail`: delete the Assign / Reassign Modal and "Assigned to" fact; Add update + Resolve whenever Update ticket `v`+`e` and not Closed; pass `reportedIssues`. Historical `assigned` events still render.
+4. `TicketList`: tabs `open` / `cls` (`parseTab`), crumb "N open · M closed", Updates column always on, action column = **Open** link; remove assignee filter, Assigned to column and Assign modal. `TICKET_TAB_META` updated.
+5. `TicketRaise`: remove Assign to and its state; `createTicket` never sends `assigneeId`. `TicketUpdate`: `loadUpdatableTicket` replaces the assignee gate (only Closed refused); pass `reportedIssues`. `TicketClose`: remove Assigned to fact.
+6. Services / misc: `services/tickets.js` drops `assignTicket` + `assignee` param (JSDoc for new fields / errors); `services/users.js` drops `ASSIGNABLE_ASSIGNEE_ROLES`, `filterAssignableAssignees`, `isOpsTicketUpdater` (`NOTIFICATION_ROLES` keeps `FIELD_ROLES`); `useTicketNotifications` uses `tab=open`; Dashboard "Under repair" tooltip "Work in progress"; role help text no longer mentions assigning; `.btn-reassign` removed; UiKitDemo tabs.
+
+**Out of scope:** backend migrations (historical `assignee_id` / `ticket_assignments` untouched), Users-page per-user open-ticket count (still historical assignee-based), notification UI changes beyond tab names.
+
+**Verification:** `npm run lint` and `npm run build` pass. Backend `test:smoke:issue-groups`, `test:smoke:no-assignment`, `test:smoke:issue-resolution`, `test:smoke:multi-ticket`, `test:smoke:ticket-flow`, `test:smoke:writes`, `test:smoke:close` pass. Browser walkthrough (TK-1283 / PD-1777): All tickets has only Open / Closed tabs and no Assign UI; Detail has no Assign; Add Update shows Issue 1 collapsed with only **Another Issue**; Another Issue reveals Issue 2 then hides; **Add another issue** appears after expanding a panel; a resolved sub shows disabled; ticking a main resolves its subs; Power / MCB tripped added as Open; QR path shows no assignment text; no `/assign` requests.
+
+---
+
+## Phase 52: Under Repair tab, clickable cards, tab transition
+
+**Objective:** Wire backend Phase 52. (1) All Tickets gets a third tab between Open and Closed: **Open** = raised, no update yet; **Under Repair** = at least one update (Waiting for spare included, with its own pill); **Closed** unchanged. (2) Clicking a summary card refetches with the matching filter and selects the matching tab. (3) Switching tabs slides smoothly.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `services/tickets.js` `listTickets`: `age` param (`over3`); returns `tabCounts { open, urp, cls }` and `over3Counts { open, urp }`.
+2. `TicketList`: tabs Open / Under Repair / Closed (`open` / `urp` / `cls`); `parseTab` maps legacy `asg` → `urp`, anything else → `open`. Status select only on Under Repair (`All under repair` / `Under repair` / `Waiting for spare`); Open and Closed send `All`. `applied.age` sent on Open / Under Repair only. Tab click resets status to `All`, keeps `age` on Open / Under Repair, clears it on Closed. Crumb "N open · M under repair · K closed"; Days open on Open + Under Repair; panel subtitle adds "· raised more than 3 days ago" while `age` is on.
+3. Clickable cards (Device list `.tile-link` pattern, `aria-pressed` + `.tile-selected`): Open, not attended → `open`; Under repair → `urp` + `Under repair`; Waiting for spare → `urp` + `Waiting for spare`; Open over 3 days → `age=over3` on `open` if `over3Counts.open > 0`, else `urp`. Card skeletons only on the first load, so cards stay put while switching.
+4. Transition: `Tabs` renders a `.tabs-ink` underline positioned from the active tab via refs (`useLayoutEffect` + `ResizeObserver`, DOM style — no extra renders) that slides between tabs; TicketList keys the Panel by tab with `tab-pane-next` / `tab-pane-prev` (from `TICKET_TABS` order) so its head and body slide in from the side being moved toward. Rows are cleared in the same render as the tab change so the old tab's rows never flash in the new pane. `prefers-reduced-motion` turns both off.
+5. `data/tickets.js`: `TICKET_TAB_META.urp`, Open subtitle "Raised, waiting for the first update", `TICKET_TABS`, mock `tab` ids `open` / `urp` / `cls`.
+6. Follow-up (user request): Add Update "Resolve Issues" (`TicketResolveIssues`) lists every raised Main Issue at once, expanded by default (still collapsible); the **Another Issue** reveal is removed; **Add another issue** is always shown and opens the Issue category → Sub-category picker (`TicketIssueRows`). Form hint updated. Verified on TK-1283 (Mechanical / Electrical / Power all visible; Add another issue opens the picker).
+7. Follow-up (user request): Resolve Issues hides fully resolved Main Issues and Resolved sub issues, so a second scan / update shows only what is still Open. Verified on TK-1283: Electrical (resolved) and "Flap plate bent" (resolved) are gone; Mechanical (2 open) and Power (1 open) remain as Issue 1 / Issue 2.
+8. Follow-up (user request): **Visited by** is selectable for every user (removed the `pickVisitedBy` / `isDashboardRole` branch in TicketDetail and TicketUpdate); field staff default to themselves, everyone must pick a field worker. The issue block is renamed **Reported Issues**. Verified as Technician on TK-1283: Visited by enabled with 5 workers, defaulted to "Ramesh Vaghela (Technician)"; label reads Reported Issues.
+9. Follow-up (user request): View Update shows resolved issues as a green "Fixed in this update · N issue(s) resolved" card grouped by main issue with ✓ sub chips (`ViewUpdateResolvedIssues` in TicketDetail, `.view-update-resolved*` CSS); "Status" relabelled "Ticket status". Verified on TK-1283 (Mechanical ✓ Flap plate bent).
+10. Follow-up (user request): Ticket detail stacked layout (≤1080px) shows **Issue classification** first, then **Work history**, then **This device before today**. CSS only — `.ticket-detail-side { display: contents }` plus `order` on `.ticket-detail-class` / `.ticket-detail-history` / `.ticket-detail-device` inside `.ticket-detail-grid`; desktop two-column layout unchanged. Verified on TK-1283 at 390px.
+11. Follow-up (user request): Issue classification card redesigned. Each sub issue is a bordered `.issue-row` (label left, status pill pinned right — no wrapping under long names); category header `.issue-group-head` shows "N/M resolved" (green when all resolved); "As reported" / "As found" labels are small caps; empty "As found" is a dashed `.issue-empty` card ("Not inspected yet" + hint). The panel is a size container — `.class-pair` stacks to one column when the card is ≤480px wide (desktop side column, tablet and phone alike). Verified on TK-1283 at 582px (two columns) and 390px (stacked, no horizontal overflow).
+12. Follow-up (user request): Ticket detail header card responsive fix (laptop → 320px). Status pill moved next to the ticket id (`.record-head` > `.record-title`, same structure as Device history, which now gets the styles too); "Slot …" is a `.sub-part` that wraps as one unit; `.record-top .push` wraps. ≤760px: card padding 16px, actions take the full row with `.btn` flex-grow (three across at 425px; Add update + Resolve then full-width Close ticket at 375 / 320px — previously Close ticket overflowed the card at 320px). "Raised on" keeps "02:19 PM" together (non-breaking space). Ticket detail skeleton mirrors the layout. Verified at 1024 / 768 (title + pill left, actions right on one row), 425, 375, 320 (no horizontal overflow) and Device history at 425.
+
+**Verification:** `npm run lint` and `npm run build` pass; backend `test:smoke:no-assignment` (Phase 52 block) and the other ticket smokes pass. Browser walkthrough: three tabs with counts 14 / 7 / 95; Open tab lists 14 Open rows; Under repair card → Under Repair tab + status "Under repair" + 7 rows; Open over 3 days card → Under Repair (Open had none over 3 days), badges 0 / 1, one row; Closed clears the age filter and hides the status select; ink bar slides (`translateX` 0 → 179 → 358 px) and the panel animates `tab-in-next` / `tab-in-prev`; no horizontal overflow; desktop row layout checked.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46
+Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46 -> Phase 47 -> Phase 49 -> Phase 50 -> Phase 51 -> Phase 52
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

@@ -86,7 +86,7 @@ company/version footer and is not part of the main `MENU` list.
 
 | Flow | Path |
 |------|------|
-| Raise | Tickets list → Raise ticket → back to list |
+| Raise | Dashboard / Device detail → Raise ticket (not from the Tickets list) |
 | Attend | Tickets list → Ticket detail → Update on site → Close |
 | Field | Devices → Scan QR → device found → raise or update |
 | Add device | Devices → Add device (link to Add road if the road is missing) |
@@ -211,7 +211,7 @@ ticket” instead.
 
 - Tabs: New, Assigned, Closed, with counts
 - Columns include **Slot Id** (link to device history), issue reported, issue found, updates count
-- Raise ticket is a flow button, not a menu item
+- No Raise ticket button or Go-to link on this page (any role); search sits alone in the tab strip
 
 ### Tickets — raise (mobile-first)
 

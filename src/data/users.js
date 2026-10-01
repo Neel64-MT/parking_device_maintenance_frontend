@@ -18,23 +18,23 @@ export const ROLE_HELP = [
   },
   {
     role: 'Project manager',
-    can: 'All screens, assign tickets, close tickets, edit masters',
+    can: 'All screens, update and close any ticket, edit masters',
     cannot: 'Add or remove users',
   },
   {
     role: 'Control room',
-    can: 'Raise tickets, assign to technicians, view dashboard and all devices',
+    can: 'Raise and update tickets, view dashboard and all devices',
     cannot: 'Close tickets, edit masters',
   },
   {
     role: 'Technician',
-    can: 'See only tickets assigned to them, update and close with cause and photo',
-    cannot: 'Raise tickets for other roads, see cost reports',
+    can: 'See every ticket, update and close any open ticket with cause and photo',
+    cannot: 'See cost reports',
   },
   {
     role: 'Site attendant',
     can: 'Scan QR, raise tickets, Device Sync, and manage Issue master',
-    cannot: 'Assign or close tickets; Update ticket',
+    cannot: 'Update or close tickets',
   },
   {
     role: 'AMC officer',
@@ -282,7 +282,7 @@ export const DEFAULT_ROLE_PERMS = {
     },
   },
   Technician: {
-    note: 'Sees only devices and tickets on the roads assigned to them, and only the tickets they currently hold. May run Device Sync. May edit and delete unused Issue sub-categories.',
+    note: 'Sees every ticket and may update or close any open ticket. May run Device Sync. May edit and delete unused Issue sub-categories.',
     p: {
       Dashboard: '......',
       'Raise ticket': 'vc....',
@@ -318,7 +318,7 @@ export const DEFAULT_ROLE_PERMS = {
     },
   },
   'Site attendant': {
-    note: 'Can scan and raise on any road; Device Sync and Issue master CRUD. Cannot update, assign, or close tickets.',
+    note: 'Can scan and raise on any road; Device Sync and Issue master CRUD. Cannot update or close tickets.',
     p: {
       Dashboard: '......',
       'Raise ticket': 'vc....',

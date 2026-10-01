@@ -3,10 +3,10 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast, toastApiError } from '../../context/ToastContext'
-import { scanDeviceFacts } from '../../data/scanDevice'
+import { openTicketIssueLabel, scanDeviceFacts, scanOpenTickets } from '../../data/scanDevice'
 import { canScanWithCamera, resolveScan } from '../../services/devices'
 import { getTicket } from '../../services/tickets'
-import { canPerm, isDashboardRole } from '../../services/users'
+import { canPerm } from '../../services/users'
 import { TicketAddUpdateForm } from '../../components/tickets/TicketAddUpdateForm'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
@@ -33,20 +33,14 @@ function applyScanToDevice(scan) {
 }
 
 /**
- * Open ticket + assigned to current user.
- * Assignee comes from getTicket (scan payload has no assignee id).
+ * Any open ticket can be updated by anyone with Update ticket `e` — tickets have no holder.
+ * Only a Closed ticket is refused here; the backend stays the final authority.
  */
-async function gateAssigneeUpdate(ticketId, userId) {
+async function loadUpdatableTicket(ticketId) {
   const data = await getTicket(ticketId)
   const status = data?.header?.status
   if (!status || status === 'Closed') {
     return { ok: false, message: 'That ticket is closed and cannot be updated here.', data: null }
-  }
-  if (!data?.assigneeId) {
-    return { ok: false, message: 'This ticket has no assignee. Assign it before adding an update.', data: null }
-  }
-  if (data.assigneeId !== userId) {
-    return { ok: false, message: 'This ticket is not assigned to you.', data: null }
   }
   return { ok: true, data }
 }
@@ -55,7 +49,7 @@ export default function TicketUpdate() {
   const { user } = useAuth()
   const canScan = canScanWithCamera(user)
   const canSubmitUpdate = canPerm(user, 'Update ticket', 'e')
-  const pickVisitedBy = isDashboardRole(user)
+  const canCloseTicket = canPerm(user, 'Update ticket', 'x')
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -126,7 +120,7 @@ export default function TicketUpdate() {
     gatingRef.current = true
     setGating(true)
     try {
-      const result = await gateAssigneeUpdate(ticketId, user.id)
+      const result = await loadUpdatableTicket(ticketId)
       if (!result.ok) {
         toast(result.message, 'error')
         setActiveTicket(null)
@@ -159,10 +153,12 @@ export default function TicketUpdate() {
       setQrInput(scan.qrNumber || scan.qr || String(raw || '').trim())
       setDevice(applyScanToDevice(scan))
       setLookupState('hit')
-      // Open ticket found — gate assignee and show form without a second click
-      if (scan.openTicketId) {
+      // One open ticket — show the form without a second click.
+      // Several (different issues) — the user picks which one to update.
+      const open = scanOpenTickets(scan)
+      if (open.length === 1) {
         if (gen === resolveGen.current) setResolving(false)
-        await activateTicket(scan.openTicketId)
+        await activateTicket(open[0].id)
       }
     } catch (err) {
       if (gen !== resolveGen.current) return
@@ -215,12 +211,12 @@ export default function TicketUpdate() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once for entry navigation
   }, [])
 
-  const openTicketId = device?.scan?.openTicketId
+  const openTickets = scanOpenTickets(device?.scan)
+  const singleOpenId = openTickets.length === 1 ? openTickets[0].id : null
   const busy = resolving || gating
   const raiseQr = qrInput.trim() || device?.scan?.qrNumber || device?.scan?.qr || ''
   const header = activeTicket?.header
   const formReady = Boolean(activeTicket?.header?.id)
-  const assignedToName = (header?.facts || []).find((f) => f.label === 'Assigned to')?.value || ''
 
   return (
     <>
@@ -276,7 +272,7 @@ export default function TicketUpdate() {
 
               {resolving || gating ? (
                 <p className="muted" style={{ marginTop: 12 }}>
-                  {gating ? 'Checking assignment…' : 'Fetching device…'}
+                  {gating ? 'Opening ticket…' : 'Fetching device…'}
                 </p>
               ) : null}
             </div>
@@ -316,18 +312,20 @@ export default function TicketUpdate() {
               </div>
               <div className="panel-body">
                 <TicketAddUpdateForm
+                  key={header.id}
                   ticketId={header.id}
                   user={user}
-                  pickVisitedBy={pickVisitedBy}
-                  defaultVisitedBy={
-                    assignedToName && assignedToName !== 'Not assigned' ? assignedToName : ''
-                  }
                   formClassName="modal-update-form"
                   formId="ticket-update-page-form"
                   photoPickerKey={`upd-page-${header.id}`}
                   hideActions
                   canSubmit={canSubmitUpdate}
+                  canClose={canCloseTicket}
+                  reportedIssues={activeTicket.issuesReported || []}
                   onBusyChange={setFormBusy}
+                  onConflict={() => {
+                    void activateTicket(header.id)
+                  }}
                   onSuccess={() => {
                     navigate(backTo)
                   }}
@@ -341,15 +339,23 @@ export default function TicketUpdate() {
           <section className="panel">
             <div className="panel-head">
               <div>
-                <h3>{openTicketId ? 'Open ticket on this device' : 'Device found'}</h3>
+                <h3>
+                  {openTickets.length > 1
+                    ? 'Open tickets on this device'
+                    : singleOpenId
+                      ? 'Open ticket on this device'
+                      : 'Device found'}
+                </h3>
                 <p>
-                  {openTicketId
-                    ? `${openTicketId}${device.scan.openTicketAge ? ` · raised ${device.scan.openTicketAge} ago` : ''}`
-                    : 'There is no open ticket to update on this machine'}
+                  {openTickets.length > 1
+                    ? `${openTickets.length} open tickets for different issues — pick the one to update`
+                    : singleOpenId
+                      ? `${singleOpenId}${openTickets[0].age ? ` · raised ${openTickets[0].age} ago` : ''}`
+                      : 'There is no open ticket to update on this machine'}
                 </p>
               </div>
-              {openTicketId ? (
-                <Link className="link" to={openTicketPath(openTicketId)} state={{ from: fromHere }}>
+              {singleOpenId ? (
+                <Link className="link" to={openTicketPath(singleOpenId)} state={{ from: fromHere }}>
                   Full history
                 </Link>
               ) : null}
@@ -360,28 +366,46 @@ export default function TicketUpdate() {
                 location={device.location}
                 facts={scanDeviceFacts(device.scan)}
               />
-              {openTicketId ? (
+              {openTickets.length ? (
                 <div className="reclass" style={{ display: '', marginTop: 12 }}>
                   <div>
-                    <b>Update this ticket instead of raising another.</b>{' '}
-                    {device.scan.openTicketIssue
-                      ? `Current issue: ${device.scan.openTicketIssue}.`
-                      : ''}
-                    <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        disabled={gating}
-                        onClick={() => activateTicket(openTicketId)}
-                      >
-                        {gating ? 'Opening…' : 'Update Ticket'}
-                      </Button>
-                      <Link
-                        className="btn btn-sm"
-                        to={openTicketPath(openTicketId)}
-                        state={{ from: fromHere }}
-                      >
-                        Open {openTicketId}
+                    <b>
+                      {openTickets.length > 1
+                        ? 'Update the ticket that matches the problem.'
+                        : 'Update this ticket instead of raising another.'}
+                    </b>
+                    {openTickets.map((t) => (
+                      <div key={t.id} style={{ marginTop: 10 }}>
+                        <div>
+                          <b>{t.id}</b>
+                          {t.age ? ` · raised ${t.age} ago` : ''} · Open issues:{' '}
+                          {openTicketIssueLabel(t)}
+                        </div>
+                        <div style={{ marginTop: 6, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            disabled={gating}
+                            onClick={() => activateTicket(t.id)}
+                          >
+                            {gating ? 'Opening…' : 'Update this ticket'}
+                          </Button>
+                          <Link
+                            className="btn btn-sm"
+                            to={openTicketPath(t.id)}
+                            state={{ from: fromHere }}
+                          >
+                            Open {t.id}
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                    <div
+                      style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}
+                    >
+                      <span>Different problem?</span>
+                      <Link className="btn btn-sm" to="/tickets/raise" state={{ from: fromHere, qr: raiseQr }}>
+                        Raise a ticket for a different issue
                       </Link>
                     </div>
                   </div>

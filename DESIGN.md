@@ -99,7 +99,7 @@ Grids: `.grid-2` 1.25fr/1fr; `.grid-2-even` 1fr/1fr; collapse ≤1080. `.grid-ma
 |-------|----------|
 | ≤820px | Sidebar off-canvas; menu button; hide `.topbar-actions`; page padding shrink; facts 2-col; collapse toggle N/A (full labels in drawer) |
 | ≥821px | Sticky bar offset by rail; desktop expand/collapse toggle |
-| ≤760px | Form grid / class-pair stack; filterbar stacks; `.tabs-row` stacks equal-width tabs above search/actions (touch targets) |
+| ≤760px | Form grid / class-pair stack; filterbar stacks; `.tabs-row` stacks equal-width tabs above search/actions (touch targets; the sliding ink follows the stacked tab widths) |
 | ≤900px | Tiles → 2 columns |
 | ≤940px | Master grid stacks |
 | ≤1080px | `.grid-2` stacks |
@@ -229,19 +229,18 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Dashboard nav | Hidden for non–Admin/PM (even if Dashboard permission `v` exists) |
 | All tickets nav | Site attendant / Technician: top-level **All tickets**; other roles: Tickets → All tickets / Work report |
 | All tickets icon | Shared `ticket-list`: ticket stub with list lines (same for all roles; distinct from Tickets parent stub and Work report clipboard) |
-| Ticket tabs | Labels **Open** / Assigned / Closed (tab id `new` unchanged) |
+| Ticket tabs | Labels **Open** / **Under Repair** / Closed, tab ids `open` / `urp` / `cls` (Phase 52; Assigned tab removed in Phase 51) |
 | Status pill | Never show **New**; show **Open** (same tone as before) |
-| Table columns | … Issue found → **Raised by** → Assigned to → Updates … |
+| Table columns | … Issue found → **Raised by** → Updates … (Assigned to removed in Phase 51) |
 | Updates count | Only `visit_open`, `visit_resolved`, `waiting_spare`, and `reclassified` events from Update Ticket; no actor-role filter |
 
 ## Phase 19 — List columns, Add Update modal, trail images
 
 | Item | Pattern |
 |------|---------|
-| Open tab table | Same columns except **no Updates**; rows = **unassigned** only |
+| Open / Under Repair tab table | Updates + Days open (Phase 52: Open = no update yet, Under Repair = at least one update) |
 | Closed tab table | **Days After Close** instead of Days open |
-| Assigned tab | Updates + Days open; rows = **has assignee** |
-| Summary tiles | Open not attended = Open tab; Under repair counts assigned+Open via API `listStatus` |
+| Summary tiles | From the API; Under repair counts historical assigned+Open via `listStatus` |
 | Add Update | `Modal` wide; same form; Cancel / Escape / overlay close |
 | Work history | Always visible; oldest first; newest at bottom |
 | Photos | Text **View Update** (always) + **View Image** when photos exist (no inline imgs) |
@@ -394,7 +393,7 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Sidebar count | Same backend unread count on Tickets parent and All tickets child; hidden at zero, capped visually at `99+` |
 | Read state | Mark one read from the item; Mark all read uses `PATCH /api/notifications/read-all` |
 | Read on open | Opening `/tickets/:ticketId` marks that ticket's notifications read via `POST /api/notifications/ticket/:ticketId/read`; badge and list update in place, no refresh |
-| Assignment alerts | `ticket.assigned` / `ticket.reassigned` render in the same popover; recipient-only, so the holder is the only reader |
+| Assignment alerts | Historical `ticket.assigned` / `ticket.reassigned` rows still render in the same popover; none are created since Phase 51 |
 | Attribution | "Raised by …" for `ticket.raised`; "Assigned by …" for assignment types; line omitted when the payload has neither |
 | Navigation | Uses backend `data.url` only when `canOpen`; opens existing `/tickets/:ticketId` and preserves the Open tab return path |
 | Responsive | Popover becomes a fixed 14px-inset panel below the topbar at ≤820px |
@@ -450,6 +449,8 @@ The notification UI is an authenticated-shell addition; it does not add a new me
 
 ## Phase 44 — Slot Label order and Assign dropdown role filter
 
+> The Assign dropdown rows below are history — assignment was removed in Phase 51.
+
 | Item | Pattern |
 |------|---------|
 | Device list order | No frontend sorting. `GET /api/devices` orders Slot Label ascending in SQL, so order is already correct across pages |
@@ -467,14 +468,14 @@ The notification UI is an authenticated-shell addition; it does not add a new me
 | Device facts | QR Number, Slot Id, Slot Label, Slot Identifier, Parking Location, Status, Open ticket |
 | No open ticket | Raise step 2; issue UUID selects; Raise → `POST /api/tickets` → upload → `PATCH …/raised/:eventId/photos` |
 | Open ticket | `.reclass`; no Create; primary **Update Ticket** → `/tickets/update` (`ticketId` + `qr`); secondary Open → Detail |
-| Create conflict | Toast + refresh blocked state / navigate via `details.openTicketId` |
+| Create conflict | Toast from `details.issues` (one ticket → navigate to Update Ticket; several → name the duplicates) + refresh scan (Phase 50) |
 | Scan miss / error | EmptyState; error does not allow Raise |
 | Camera | Existing `QrScannerModal`; permission error inside modal |
 | Mobile | Existing `.page.mobile` Raise layout; scanner modal wide |
-| Update Ticket (`/tickets/update`) | Live scan or `?ticketId=`; assignee gate; **Add Update form on page**; free → Raise (+ `qr`) |
+| Update Ticket (`/tickets/update`) | Live scan or `?ticketId=`; Closed refused (no assignee gate since Phase 51); **Add Update form on page**; free → Raise (+ `qr`) |
 | Manual QR Number | Raise/Update: scan or type QR Number only (no Road/Slot selects); Find device → `resolveScan` |
-| Detail actions | Ops **or** assignee → **Add update** (Modal); field non-assignee → QR **Update Ticket** → `/tickets/update` |
-| Assign / Reassign | Inline Hand to (technicians lookup UUID, narrowed to Technician / Engineer) + optional note → `POST /api/tickets/:id/assign`; reload trail |
+| Detail actions | Update ticket `v`+`e` and not Closed → **Add update** + **Resolve** (Modal) — Phase 51 |
+| Assign / Reassign | Removed in Phase 51 |
 
 ## Phase 28 — QR lookup → Update Ticket
 
@@ -482,7 +483,7 @@ The notification UI is an authenticated-shell addition; it does not add a new me
 |------|---------|
 | Raise open ticket | Primary button label **Update Ticket** (not Raise) |
 | Preload | `?ticketId=` + optional `state.qr` / `from` |
-| Assignee gate | `getTicket` → open + `assigneeId === user.id` or toast |
+| Ticket check | `getTicket` → Closed → toast "That ticket is closed…"; anything else opens the form (Phase 51) |
 
 ## Phase 29 — Update form on Update page
 
@@ -491,6 +492,84 @@ The notification UI is an authenticated-shell addition; it does not add a new me
 | Route | `/tickets/update` (plural; not `/ticket/update`) |
 | Form | Shared `TicketAddUpdateForm` inline (not Detail redirect) |
 | Ready | After gate, form visible — no second Update click |
-| Detail | Trail/history unchanged; Modal Add Update still for ops/assignee |
+| Detail | Trail/history unchanged; Modal Add Update for anyone with Update ticket `e` |
+
+## Phase 47 — Raise roles, optional assign, Resolve, Close with update
+
+> Raise **Assign to**, the unassigned-update hint strip and the Admin/PM **Assign to** select were removed in Phase 51; the rest stands.
+
+| Item | Pattern |
+|------|---------|
+| Raise roles | Technician / Engineer / Electrician via `Raise ticket` `c` (backend matrix) — no role-name gate |
+| Raise Assign to | Optional `<select>` in step 2 after "What is happening"; first option **Assign later**; only with All tickets `a`; no required marker |
+| Unassigned update (field role) | QR page `.hint-strip`: "This ticket has no assignee. Saving will assign this ticket to you."; Detail Add update visible |
+| Unassigned update (Admin/PM) | Required **Assign to** select in the form row after Visited by / Date |
+| Form order | Visited by + Date → (Assign to) → Issues → Parts → Photos → What was done today → **Update type** → **Close Ticket** → footer hint |
+| Close Ticket | Yes / No radios using `.update-parts-choice` / `.update-parts-choice-option` (42px min-height, wraps on mobile); default **No**; directly after Update type, above the footer hint |
+| Footer hint | "The ticket stays open unless Close Ticket is set to Yes." |
+| Resolve | Secondary button beside **Add update** on Detail; same Modal titled **Resolve ticket**, update type preset `Site visit — resolved`, Close Ticket still **No** |
+| Success toast | "Update saved and ticket closed." when the response has `closed`; otherwise "Update saved." (+ visit cost) |
+
+## Phase 49 — Per-issue Open/Resolved
+
+| Item | Pattern |
+|------|---------|
+| Form order | Visited by + Date → (Assign to) → Issues (found on site) → **Resolve issues** → Parts → Photos → What was done today → Update type → Close Ticket → footer hint |
+| Resolve issues | `Field` with existing `.chip-row` / `.chip` / `.chip.on` toggles (`aria-pressed`), label `Category › Sub`, multi-select; hint "Tap every reported issue this update resolves. Only open issues are listed." |
+| No open issues | Muted line "No open issues left to resolve on this ticket." (+ " Set Close Ticket to Yes when the work is finished." with Update ticket `x`) |
+| Detail "As reported" | Each sub-category followed by `Pill` — `ok` **Resolved** / `bad` **Open**; "As found" has no status |
+| View Update | "Resolved issues" fact row (`Category › Sub, …`) after the issue cards, only when the event resolved something |
+| Close page | `.hint-strip` above the close form: "Closing will mark N open issue(s) resolved." |
+| Dashboard | "Why devices are down" rows = Open reported issues; subtitle "N open issues across M open tickets · grouped by issue" |
+
+## Phase 50 — Several open tickets per device
+
+| Item | Pattern |
+|------|---------|
+| Raise open-tickets block | Existing `.reclass` under the DeviceCard. Heading "This device already has an open ticket." / "… has N open tickets." + "Same problem? Update that ticket. Different problem? Raise a new ticket below." One row per ticket: **TK-xxxx** · raised N days ago · Open issues: Motor failure, … then `btn btn-sm btn-primary` **Update Ticket** + `btn btn-sm` **Open TK-xxxx** |
+| Raise step 2 | Always shown once a device is found (no device-level hide); Raise button enabled |
+| Same-issue toast (one ticket) | warning "Motor failure is already open on TK-1042. Add an update to that ticket instead." → navigates to Update Ticket |
+| Same-issue toast (mixed / several tickets) | warning "Already open on TK-1042, TK-1050: Motor failure, Display blank. Remove them to raise the rest, or update the existing ticket." — stays on Raise |
+| QR Update header | 0 → "Device found"; 1 → "Open ticket on this device" + "TK-xxxx · raised N days ago"; >1 → "Open tickets on this device" + "N open tickets for different issues — pick the one to update" |
+| QR Update pick list | Same `.reclass` row layout as Raise; primary `Button size="sm" variant="primary"` **Update this ticket** (→ `activateTicket`), secondary **Open TK-xxxx**; footer "Different problem? Raise a ticket for a different issue" (`.link` → `/tickets/raise` with `qr`) |
+| DeviceCard fact | "Open tickets: TK-1 — Motor failure (2 days); TK-2 — Sensor failure (now)" (label singular for one ticket) |
+
+## Phase 51 — Main/Sub issue panels and no assignment
+
+| Item | Pattern |
+|------|---------|
+| Form order | Visited by + Date → **Reported Issues** (labelled "Resolve Issues" until Phase 52) → Parts → Photos → What was done today → Update type → Close Ticket → footer hint (no Assign to, no found-on-site rows) |
+| Visited by | Required select of active field staff ("Name (Role)") for **every** user (Phase 52; was Admin/PM only, locked to self for others). Field staff start on themselves and may pick someone else; others start on "Select who visited" |
+| Reported Issues field | `Field` label "Reported Issues" (Phase 52), hint "Tick a main issue to resolve all its open sub issues, or tap single sub issues. Use Add another issue for a new problem found on site." (Phase 52) |
+| Panel | `.issue-panel` — every raised Main Issue listed at once, expanded by default (Phase 52; was collapsed in Phase 51), still collapsible — with `.issue-panel-toggle` header "Issue N · {Main issue}" + `Pill` (`bad` "N open" / `ok` "Resolved") + chevron (`.chev`, rotates when `.open`); body `.issue-panel-body` |
+| Main issue row | `.issue-main-check` checkbox "Main issue: {name} — resolves all N open sub issues" (or "— already resolved", disabled `.is-disabled`) |
+| Sub issues | Existing `.chip-row` / `.chip` / `.chip.on`; Resolved → `.chip.is-resolved` + " · Resolved", disabled; when the main is ticked, subs show on + disabled |
+| Another Issue | Removed in Phase 52 — all raised issues are listed at once |
+| View Update → resolved issues | `.view-update-resolved` green card (Phase 52 follow-up): round check icon, "Fixed in this update" + "N issue(s) resolved", then one white row per main issue with `✓ sub` chips (`--ok` / `--ok-bg`). Replaces the plain "Resolved issues: Category › Sub" text. The "Status" row is labelled **Ticket status** so "Still open" is not read as the issue status |
+| Issue classification card | Phase 52 follow-up: "AS REPORTED" / "AS FOUND" small-caps labels; per category `.issue-group-head` (name + "N/M resolved", `--ok` when all resolved); each sub issue a white bordered `.issue-row` with label (`flex: 1`, wraps) and pill pinned right; resolved rows mute the label. Empty side → dashed `.issue-empty` "Not inspected yet" + "Shows here once a technician records what was found on site." `.ticket-detail-class` is `container-type: inline-size`; `@container (max-width: 480px)` stacks `.class-pair` (border moves to top) |
+| Record header (Ticket detail + Device history) | `.record-top` > `.record-head` (`flex: 1 1 280px`) with `.record-title` (h3 + status `Pill`, wraps) and `.sub` (`.sub-part` keeps "Slot …" together); `.push` actions right-aligned and wrapping. ≤760px: `.record` padding 16px, `.push` full width, buttons `flex: 1 1 auto` (Close ticket drops to its own full-width row on ≤375px) |
+| Ticket detail mobile order | ≤1080px (stacked): Issue classification → Work history → This device before today (Phase 52 follow-up; `.ticket-detail-grid`, right column `display: contents` + `order`). Desktop keeps Work history left, Issue classification + device history right |
+| Resolved issues | Hidden in Resolve Issues (Phase 52 follow-up): fully resolved Main Issues and Resolved sub chips are not rendered; numbering covers only Open groups; all resolved → muted "Every raised issue is already resolved. Use Add another issue if you found a new problem." |
+| Add another issue | `Button size="sm"` in `.resolve-issues-actions`, always shown below the raised issues (Phase 52); opens `.resolve-issues-add` "New issues — added to this ticket as Open" with `TicketIssueRows` ("Select issue category", its own "Add another issue" row button) + **Remove** |
+| Order | Raised issues first (Issue 1…N), new issues after — raised work is the focus |
+| Conflicts | `ISSUE_ALREADY_RESOLVED` / `ISSUE_ALREADY_ON_TICKET` / `OPEN_TICKET_EXISTS` → toast + reload the ticket (panel resets collapsed) |
+| Ticket Detail | No Assign / Reassign button or Modal, no "Assigned to" fact |
+| All Tickets | Tabs Open / Closed; crumb "N open · M closed"; no assignee filter / column; action cell = **Open** link; Open tab subtitle "Every ticket not closed yet — anyone with update access can work on it" |
+| Raise / Update / Close | No Assign to, no assignee hint strips, no "Assigned to" fact |
+| Dashboard | "Under repair" tooltip reads "Work in progress" |
+
+## Phase 52 — Under Repair tab, clickable cards, tab transition
+
+| Item | Pattern |
+|------|---------|
+| Tabs | **Open** (count) → **Under Repair** (count) → **Closed** (count); supersedes the Phase 51 Open / Closed row above |
+| Panel copy | Open: "Open tickets" / "Raised, waiting for the first update"; Under Repair: "Under repair" / "Tickets with at least one update — still being worked on"; Closed unchanged; while the age filter is on the subtitle adds " · raised more than 3 days ago" |
+| Crumb | "N open · M under repair · K closed" |
+| Status filter | Only on Under Repair: All under repair / Under repair / Waiting for spare. Hidden on Open and Closed |
+| Summary cards | `button.tile-link` around `Tile` (Device list pattern); selected → `aria-pressed="true"` + `.tile-selected` (teal border + ring); disabled while loading. Skeleton only on first load |
+| Card → view | Open, not attended → Open; Under repair → Under Repair + "Under repair"; Waiting for spare → Under Repair + "Waiting for spare"; Open over 3 days → age filter, Open tab if it has any such ticket, else Under Repair (badges show the over-3-days split) |
+| Tab ink | `.tabs-ink` 2px teal bar under the active tab; slides with `transform` / `width` 240ms `cubic-bezier(0.4, 0, 0.2, 1)`; no transition on first placement. Replaces the static `border-bottom-color` on `.tabs button.on` (all `Tabs` users) |
+| Panel slide | Panel keyed by tab; `.tab-pane-next` / `.tab-pane-prev` animate head + body from `translateX(±18px)` + opacity 0, 240ms; panel `overflow-x: clip` so no horizontal scrollbar |
+| Reduced motion | `prefers-reduced-motion: reduce` → no ink transition, no panel animation |
 
 

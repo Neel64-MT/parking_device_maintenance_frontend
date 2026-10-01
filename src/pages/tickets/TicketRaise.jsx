@@ -3,7 +3,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
-import { scanDeviceFacts } from '../../data/scanDevice'
+import {
+  findOpenIssueDuplicates,
+  openTicketIssueLabel,
+  scanDeviceFacts,
+  scanOpenTickets,
+} from '../../data/scanDevice'
 import { ApiRequestError } from '../../services/api'
 import { canScanWithCamera, resolveScan } from '../../services/devices'
 import { listIssueCategories } from '../../services/issues'
@@ -37,8 +42,23 @@ function applyScanToDevice(scan) {
     id: scan.deviceId,
     location: `${scan.parkingLocation || scan.locationSite} · Slot ${scan.slotLabel || scan.slot}`,
     scan,
-    dup: Boolean(scan.openTicketId),
   }
+}
+
+/**
+ * Same-issue duplicates block the raise (the API answers 409 OPEN_TICKET_EXISTS).
+ * When every selected issue sits on one open ticket, that ticket is the target to update.
+ * @param {{ ticketId: string, issue: { sub?: string } }[]} dups
+ * @param {number} selectedCount
+ */
+function describeDuplicates(dups, selectedCount) {
+  const ticketIds = [...new Set(dups.map((d) => d.ticketId))]
+  const names = dups.map((d) => d.issue?.sub).filter(Boolean).join(', ')
+  const updateTarget = ticketIds.length === 1 && dups.length >= selectedCount ? ticketIds[0] : null
+  const message = updateTarget
+    ? `${names || 'This issue'} is already open on ${updateTarget}. Add an update to that ticket instead.`
+    : `Already open on ${ticketIds.join(', ')}: ${names}. Remove ${dups.length === 1 ? 'it' : 'them'} to raise the rest, or update the existing ticket.`
+  return { updateTarget, message }
 }
 
 /** Return path for Cancel / crumb: tickets list (with tab) or device detail. */
@@ -78,7 +98,6 @@ export default function TicketRaise() {
   const [issuesLoading, setIssuesLoading] = useState(true)
 
   const fromHere = `${location.pathname}${location.search}`
-  const blocked = Boolean(device?.dup)
   const backTo = raiseReturnPath(location.state?.from)
   const fromDevice = isDeviceReturnPath(backTo)
   const busy = resolving || submitting
@@ -195,6 +214,25 @@ export default function TicketRaise() {
     })
   }
 
+  function stopOnDuplicates(dups, selectedCount) {
+    const { updateTarget, message } = describeDuplicates(dups, selectedCount)
+    toast(message, 'warning')
+    if (updateTarget) goToUpdateTicket(updateTarget)
+  }
+
+  /** Re-read open tickets after a 409 without clearing the problem fields. */
+  async function refreshScan() {
+    const code = device?.scan?.qrNumber || device?.scan?.qr || qrInput.trim()
+    if (!code) return
+    const gen = resolveGen.current
+    try {
+      const scan = await resolveScan(code)
+      if (scan && gen === resolveGen.current) setDevice(applyScanToDevice(scan))
+    } catch {
+      /* the 409 toast already explained the conflict */
+    }
+  }
+
   async function tryRaise() {
     if (!canCreate) {
       toast('You do not have permission to raise tickets.', 'error')
@@ -202,10 +240,6 @@ export default function TicketRaise() {
     }
     if (!device?.scan) {
       toast('Scan or enter a QR number first.', 'error')
-      return
-    }
-    if (blocked) {
-      toast('This device already has an open ticket. Update that ticket instead.', 'warning')
       return
     }
     const issues = rowsToIssuePairs(issueRows)
@@ -219,6 +253,11 @@ export default function TicketRaise() {
     }
     if (hasDuplicateSubCategories(issueRows)) {
       toast('Each issue can only be selected once.', 'error')
+      return
+    }
+    const dups = findOpenIssueDuplicates(device.scan, issues)
+    if (dups.length) {
+      stopOnDuplicates(dups, issues.length)
       return
     }
 
@@ -274,26 +313,15 @@ export default function TicketRaise() {
       }
     } catch (err) {
       if (err instanceof ApiRequestError && err.code === 'OPEN_TICKET_EXISTS') {
-        const openId = err.details?.openTicketId || err.details?.ticketId
-        toast(err.message || 'This device already has an open ticket.', 'warning')
-        if (openId && device?.scan) {
-          setDevice(
-            applyScanToDevice({
-              ...device.scan,
-              openTicketId: openId,
-              openTicketIssue: device.scan.openTicketIssue || 'Open',
-              openTicketAge: device.scan.openTicketAge || 'now',
-            }),
-          )
-        } else if (openId) {
-          goToUpdateTicket(openId)
+        const serverDups = Array.isArray(err.details?.issues)
+          ? err.details.issues.map((i) => ({ ticketId: i.ticketId, issue: i }))
+          : []
+        if (serverDups.length) {
+          stopOnDuplicates(serverDups, issues.length)
+        } else {
+          toast(err.message || 'This issue is already open on this device.', 'warning')
         }
-        return
-      }
-      if (err instanceof ApiRequestError && err.code === 'REOPEN_SAME_TICKET') {
-        const ticketId = err.details?.ticketId || err.details?.openTicketId
-        toast(err.message || 'Reopen the recent ticket instead of creating a new one.', 'warning')
-        if (ticketId) goToUpdateTicket(ticketId)
+        void refreshScan()
         return
       }
       toastApiError(err, 'Could not raise ticket.')
@@ -302,7 +330,8 @@ export default function TicketRaise() {
     }
   }
 
-  const openTicketId = device?.scan?.openTicketId
+  const openTickets = scanOpenTickets(device?.scan)
+  const scanQr = qrInput.trim() || device?.scan?.qrNumber || device?.scan?.qr || ''
 
   return (
     <>
@@ -368,35 +397,42 @@ export default function TicketRaise() {
                   location={device.location}
                   facts={scanDeviceFacts(device.scan)}
                 />
-                {blocked && openTicketId ? (
+                {openTickets.length ? (
                   <div className="reclass" style={{ display: '', marginTop: 12 }}>
                     <div>
-                      <b>This device already has an open ticket.</b>{' '}
-                      {openTicketId} was raised {device.scan.openTicketAge || 'earlier'}
-                      {device.scan.openTicketIssue
-                        ? ` for ${device.scan.openTicketIssue.toLowerCase()}`
-                        : ''}
-                      . Add an update to that ticket instead of opening a second one.
-                      <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <Link
-                          className="btn btn-sm btn-primary"
-                          to={`/tickets/update?ticketId=${encodeURIComponent(openTicketId)}`}
-                          state={{
-                            ticketId: openTicketId,
-                            qr: qrInput.trim() || device.scan.qrNumber || device.scan.qr || '',
-                            from: fromHere,
-                          }}
-                        >
-                          Update Ticket
-                        </Link>
-                        <Link
-                          className="btn btn-sm"
-                          to={openTicketPath(openTicketId)}
-                          state={{ from: fromHere }}
-                        >
-                          Open {openTicketId}
-                        </Link>
-                      </div>
+                      <b>
+                        This device already has{' '}
+                        {openTickets.length === 1
+                          ? 'an open ticket'
+                          : `${openTickets.length} open tickets`}
+                        .
+                      </b>{' '}
+                      Same problem? Update that ticket. Different problem? Raise a new ticket below.
+                      {openTickets.map((t) => (
+                        <div key={t.id} style={{ marginTop: 10 }}>
+                          <div>
+                            <b>{t.id}</b>
+                            {t.age ? ` · raised ${t.age} ago` : ''} · Open issues:{' '}
+                            {openTicketIssueLabel(t)}
+                          </div>
+                          <div style={{ marginTop: 6, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <Link
+                              className="btn btn-sm btn-primary"
+                              to={`/tickets/update?ticketId=${encodeURIComponent(t.id)}`}
+                              state={{ ticketId: t.id, qr: scanQr, from: fromHere }}
+                            >
+                              Update Ticket
+                            </Link>
+                            <Link
+                              className="btn btn-sm"
+                              to={openTicketPath(t.id)}
+                              state={{ from: fromHere }}
+                            >
+                              Open {t.id}
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ) : null}
@@ -405,51 +441,49 @@ export default function TicketRaise() {
           </div>
         </section>
 
-        {!blocked ? (
-          <section className="panel">
-            <div className="panel-head">
-              <div className="step-head">
-                <div className="step-n">2</div>
-                <div>
-                  <h3>What is the problem</h3>
-                  <p>Pick the closest match — the engineer confirms it on site</p>
-                </div>
+        <section className="panel">
+          <div className="panel-head">
+            <div className="step-head">
+              <div className="step-n">2</div>
+              <div>
+                <h3>What is the problem</h3>
+                <p>Pick the closest match — the engineer confirms it on site</p>
               </div>
             </div>
-            <div className="panel-body">
-              {issuesLoading ? (
-                <p className="muted">Loading issue categories…</p>
-              ) : (
-                <TicketIssueRows
-                  rows={issueRows}
-                  onChange={setIssueRows}
-                  categories={issueCategories}
-                  disabled={busy || !device}
-                  minRows={1}
-                />
-              )}
-              <Field label="Photos">
-                <PhotoPicker
-                  hint="Up to 5 photos — the slot, the flap, the display."
-                  onChange={setPhotos}
-                  disabled={busy || !device}
-                />
-              </Field>
-              <Field label="What is happening">
-                <textarea
-                  placeholder="e.g. Flap does not open after payment, two vehicles waiting"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  disabled={busy || !device}
-                />
-              </Field>
-            </div>
-            <div className="foot-note">
-              Guessing the category wrong costs nothing. If the engineer finds something else, they
-              change it on the ticket and both are kept.
-            </div>
-          </section>
-        ) : null}
+          </div>
+          <div className="panel-body">
+            {issuesLoading ? (
+              <p className="muted">Loading issue categories…</p>
+            ) : (
+              <TicketIssueRows
+                rows={issueRows}
+                onChange={setIssueRows}
+                categories={issueCategories}
+                disabled={busy || !device}
+                minRows={1}
+              />
+            )}
+            <Field label="Photos">
+              <PhotoPicker
+                hint="Up to 5 photos — the slot, the flap, the display."
+                onChange={setPhotos}
+                disabled={busy || !device}
+              />
+            </Field>
+            <Field label="What is happening">
+              <textarea
+                placeholder="e.g. Flap does not open after payment, two vehicles waiting"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                disabled={busy || !device}
+              />
+            </Field>
+          </div>
+          <div className="foot-note">
+            Guessing the category wrong costs nothing. If the engineer finds something else, they
+            change it on the ticket and both are kept.
+          </div>
+        </section>
 
         <div className="sticky-bar">
           <div className="sticky-bar-inner">
@@ -459,7 +493,7 @@ export default function TicketRaise() {
             <Button
               variant="primary"
               onClick={tryRaise}
-              disabled={!canCreate || blocked || !device || busy || issuesLoading}
+              disabled={!canCreate || !device || busy || issuesLoading}
             >
               {submitting ? 'Raising…' : resolving ? 'Fetching device…' : 'Raise ticket'}
             </Button>
