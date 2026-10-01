@@ -253,6 +253,15 @@ Inspect existing code
 - Device list is ordered by Slot Label **in the backend SQL** (`GET /api/devices` → `ORDER BY slot_number`); do not add client-side sorting there — it would only order the current page and break `LIMIT/OFFSET` pagination.
 - Ticket list order stays `raised_at DESC`; it has no Slot Label column.
 - *(The Phase 44 Assign dropdown helpers were removed with assignment in Phase 51.)*
+- Slot View list (Phase 53) arrives in **natural** Slot Label order from `GET /api/slot-view` (`3-2` before `3-12`); same rule — never re-sort in React.
+
+## Slot View skills (Phase 53+)
+
+- Slot View is a landing page (sidebar item after Dashboard, own `Slot View` v matrix screen — Admin + Project manager by default), not a flow; its detail is `/slot-view/:slotId`, highlighted through `match: ['slot-detail']`.
+- Trust the backend for every slot rule: which slots appear (only ticketed), `ticketCount` (tickets, not issues), `unresolvedIssues` (persisted Open Sub Issues, unique per Sub Issue). Do not fetch all tickets / devices to group, count or filter in the browser.
+- Slot tickets: `listTickets({ device: slotId })` without `tab` (every status, Closed included) rendered by the shared `TicketTable` — do not copy the ticket table markup into a page.
+- Ticket links from a slot pass `state.from = /slot-view/:slotId` so Ticket Detail's back link returns to the slot; always use the existing `/tickets/:ticketId` route.
+- Unresolved issues reuse `groupIssuesForDisplay` and the Ticket Detail `.issue-*` styles; empty → `EmptyState` "No unresolved issues".
 
 ## Notification skills (Phase 39+)
 

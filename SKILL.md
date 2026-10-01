@@ -70,6 +70,7 @@ Confirm, because it was already removed on purpose.
 
 ```text
 Dashboard
+Slot View      (Phase 53 — slots with tickets → one slot's unresolved issues + tickets)
 Tickets        → All tickets, Work report
 Devices
 Masters        → Issue master, Road master

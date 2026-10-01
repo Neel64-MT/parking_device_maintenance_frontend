@@ -1031,7 +1031,7 @@ export default function Users() {
                                 Permissions
                               </Button>
                             )}{' '}
-                            {canDeleteRoles ? (
+                            {canDeleteRoles && row.name !== 'Admin' ? (
                               <Button
                                 size="sm"
                                 variant="danger"

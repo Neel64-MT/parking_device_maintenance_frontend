@@ -987,3 +987,35 @@ All tickets
 | `prefers-reduced-motion` disables both animations | Pass (CSS) |
 | Legacy `?tab=asg` → Under Repair; anything unknown → Open | Pass |
 | `npm run lint` / `npm run build` | Pass |
+
+### Phase 53 — Slot View
+
+Slot-centric view of existing tickets (backend Phase 53). Gate: own permission screen **Slot View** `v` — Admin and Project manager by default, managed per role in Roles & permissions.
+
+```text
+Sidebar: Dashboard → Slot View → Tickets ▸ …
+/slot-view            Slot Id │ Slot Label │ Road │ Tickets   (only slots with tickets)
+/slot-view/:slotId    Unresolved issues (Open only, one per Sub Issue, grouped by Main Issue)
+                      Tickets (every ticket for the slot, Closed included)
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Sidebar shows Slot View immediately after Dashboard, with icon, active highlight, collapsed rail and mobile drawer | Pass |
+| `/slot-view` lists only slots with at least one ticket (Slot Id, Slot Label, Road, Tickets) | Pass |
+| Ticket count counts tickets, not issues (3-issue ticket = 1) | Pass (backend smoke) |
+| Natural Slot Label ascending order from the server; no client sort | Pass |
+| Search + server pagination (`TablePagination` 10/25/50/100) | Pass |
+| Slot Id and Slot Label both open the same `/slot-view/:slotId` | Pass |
+| Unresolved issues show only Open Sub Issues, unique per Sub Issue, grouped by Main Issue, with ticket links | Pass |
+| Resolved Sub Issue hidden while an Open sibling keeps its Main Issue visible | Pass (backend smoke) |
+| Tickets section lists every ticket for the slot, Closed included, via the shared `TicketTable` | Pass |
+| Clicking a ticket opens the existing Ticket Detail; back link returns to the slot | Pass |
+| Empty states: no ticketed slots, no unresolved issues, no tickets | Pass (backend smoke returns empty sections; not seen in the browser because the local DB always has tickets) |
+| Unknown slot → "Slot not found."; 403 → "You do not have access to this slot."; backend 401 / 403 enforced | Pass |
+| Desktop / 820px / 390px readable, no page overflow, ticket count visible | Pass |
+| All tickets table unchanged after the `TicketTable` extraction | Pass |
+| Slot View hidden for roles without the `Slot View` screen (Technician: no sidebar item, `/slot-view` redirects to `/tickets`) | Pass |
+| Roles & permissions matrix has a Slot View row after Dashboard (Project manager View ticked, Technician empty); backend grant / revoke flips access | Pass (browser + backend smoke) |
+| Slot detail without `All tickets` `v`: Tickets panel shows "Ticket list not available", issue ticket ids are plain text | Pass (backend smoke covers the 403 on `?device=`; UI path not exercised in the browser) |
+| `npm run lint` / `npm run build` | Pass |

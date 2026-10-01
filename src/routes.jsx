@@ -23,6 +23,8 @@ import TicketUpdate from './pages/tickets/TicketUpdate'
 import TicketClose from './pages/tickets/TicketClose'
 import TicketDetail from './pages/tickets/TicketDetail'
 import WorkReport from './pages/tickets/WorkReport'
+import SlotList from './pages/slots/SlotList'
+import SlotDetail from './pages/slots/SlotDetail'
 import { UiKitDemoPage } from './pages/UiKitDemo'
 
 export function AppRoutes() {
@@ -61,6 +63,23 @@ export function AppRoutes() {
           }
         />
         <Route path="dev/ui" element={<UiKitDemoPage />} />
+
+        <Route
+          path="slot-view"
+          element={
+            <RequirePerm screen="Slot View">
+              <SlotList />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="slot-view/:slotId"
+          element={
+            <RequirePerm screen="Slot View">
+              <SlotDetail />
+            </RequirePerm>
+          }
+        />
 
         <Route
           path="tickets"

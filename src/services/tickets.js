@@ -15,6 +15,7 @@ function mapTicketRow(row) {
  * List tickets. Anyone with All tickets `v` sees every ticket (no holder filter).
  * `tab` is `open` (raised, no update yet), `urp` (at least one update) or `cls`.
  * `age: 'over3'` limits Open / Under repair to tickets raised more than 3 days ago.
+ * `device` (Slot View) limits the list to one slot; omit `tab` to include every status.
  * Returns { rows, tiles, tabCounts: { open, urp, cls }, over3Counts: { open, urp }, pagination }
  * from the envelope (tiles / counts sit beside `data`, not inside it).
  */
@@ -25,6 +26,7 @@ export async function listTickets({
   status = '',
   category = '',
   age = '',
+  device = '',
   page = 1,
   limit = DEFAULT_PAGE_SIZE,
 } = {}) {
@@ -32,6 +34,7 @@ export async function listTickets({
   const safePage = Math.max(1, Number(page) || 1)
   const params = new URLSearchParams()
   if (tab) params.set('tab', tab)
+  if (device) params.set('device', device)
   if (q.trim()) params.set('q', q.trim())
   if (road) params.set('road', road)
   if (status) params.set('status', status)

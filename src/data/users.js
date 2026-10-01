@@ -211,6 +211,7 @@ export const ROLE_ROWS = [
 /** Screens grouped the way the menu is grouped */
 export const PERM_SCREENS = [
   ['Dashboard', ['Dashboard']],
+  ['Slot View', ['Slot View']],
   ['Tickets', ['Raise ticket', 'Update ticket', 'All tickets', 'Work report']],
   ['Devices', ['Device list', 'Add device', 'Device history', 'Scan QR']],
   ['Masters', ['Issue master', 'Road master']],
@@ -230,6 +231,7 @@ export const DEFAULT_ROLE_PERMS = {
     p: Object.fromEntries(
       [
         'Dashboard',
+        'Slot View',
         'Raise ticket',
         'Update ticket',
         'All tickets',
@@ -249,6 +251,7 @@ export const DEFAULT_ROLE_PERMS = {
     note: 'City-wide ops; can manage users and approve signups; can hard-delete unused Issue sub-categories.',
     p: {
       Dashboard: 'v.....',
+      'Slot View': 'v.....',
       'Raise ticket': 'vc....',
       'Update ticket': 'vce.x.',
       'All tickets': 'vcea.x',
@@ -267,6 +270,7 @@ export const DEFAULT_ROLE_PERMS = {
     note: 'Raises and routes tickets across all roads, but never closes one — closing belongs to whoever attended it.',
     p: {
       Dashboard: 'v.....',
+      'Slot View': '......',
       'Raise ticket': 'vc....',
       'Update ticket': 'v.....',
       'All tickets': 'vc.a..',
@@ -285,6 +289,7 @@ export const DEFAULT_ROLE_PERMS = {
     note: 'Sees every ticket and may update or close any open ticket. May run Device Sync. May edit and delete unused Issue sub-categories.',
     p: {
       Dashboard: '......',
+      'Slot View': '......',
       'Raise ticket': 'vc....',
       'Update ticket': 'vce.x.',
       'All tickets': 'v.....',
@@ -303,6 +308,7 @@ export const DEFAULT_ROLE_PERMS = {
     note: 'Field engineer: same as Technician for tickets; may run Device Sync; eligible for Visited By; may edit and delete unused Issue sub-categories.',
     p: {
       Dashboard: '......',
+      'Slot View': '......',
       'Raise ticket': 'vc....',
       'Update ticket': 'vce.x.',
       'All tickets': 'v.....',
@@ -321,6 +327,7 @@ export const DEFAULT_ROLE_PERMS = {
     note: 'Can scan and raise on any road; Device Sync and Issue master CRUD. Cannot update or close tickets.',
     p: {
       Dashboard: '......',
+      'Slot View': '......',
       'Raise ticket': 'vc....',
       'Update ticket': '......',
       'All tickets': 'v.....',
@@ -339,6 +346,7 @@ export const DEFAULT_ROLE_PERMS = {
     note: 'View only, everywhere. Nothing on this screen can be ticked for this role.',
     p: {
       Dashboard: 'v.....',
+      'Slot View': '......',
       'Raise ticket': '......',
       'Update ticket': '......',
       'All tickets': 'v.....',

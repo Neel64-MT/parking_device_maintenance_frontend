@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
 import { toast } from '../../context/ToastContext'
@@ -10,12 +10,12 @@ import { TICKET_TAB_META, TICKET_TABS } from '../../data/tickets'
 import { ApiRequestError } from '../../services/api'
 import { listTickets } from '../../services/tickets'
 import { canPerm, homePathForUser, isFieldTicketUpdater } from '../../services/users'
+import { TicketTable } from '../../components/tickets/TicketTable'
 import { Button } from '../../components/ui/Button'
 import { Field, FilterBar } from '../../components/ui/FilterBar'
 import { JumpLinks } from '../../components/ui/JumpLinks'
 import { Panel } from '../../components/ui/Panel'
-import { Pill } from '../../components/ui/Pill'
-import { SkeletonTable, SkeletonTiles } from '../../components/ui/Skeleton'
+import { SkeletonTiles } from '../../components/ui/Skeleton'
 import { TablePagination } from '../../components/ui/TablePagination'
 import { Tabs } from '../../components/ui/Tabs'
 import { Tile } from '../../components/ui/Tile'
@@ -266,7 +266,6 @@ export default function TicketList() {
     : meta.subtitle
   const showDaysOpen = tab !== 'cls'
   const showDaysAfterClose = tab === 'cls'
-  const colCount = 9 + (showDaysOpen || showDaysAfterClose ? 1 : 0)
   const listReturn = `/tickets?tab=${tab}`
   const ticketLinkState = { from: listReturn }
 
@@ -402,99 +401,13 @@ export default function TicketList() {
           subtitle={panelSubtitle}
           flush
         >
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Ticket</th>
-                  <th>Slot Id</th>
-                  <th>Road / slot</th>
-                  <th>Issue reported</th>
-                  <th>Issue found</th>
-                  <th>Raised by</th>
-                  <th className="num">Updates</th>
-                  {showDaysOpen ? <th className="num">Days open</th> : null}
-                  {showDaysAfterClose ? <th className="num">Days After Close</th> : null}
-                  <th>Status</th>
-                  <th className="act" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? <SkeletonTable rows={6} cols={colCount} /> : null}
-                {!loading && !rows.length ? (
-                  <tr>
-                    <td colSpan={colCount}>
-                      <span className="muted">No tickets match this view.</span>
-                    </td>
-                  </tr>
-                ) : null}
-                {!loading
-                  ? rows.map((row) => (
-                      <tr key={row.id}>
-                        <td>
-                          <Link className="code" to={`/tickets/${row.id}`} state={ticketLinkState}>
-                            {row.id}
-                          </Link>
-                        </td>
-                        <td>
-                          <Link className="code" to={`/devices/${row.deviceId}`}>
-                            {row.deviceId}
-                          </Link>
-                        </td>
-                        <td>
-                          {row.road}
-                          <div className="muted">{row.slot}</div>
-                        </td>
-                        <td>
-                          {row.issueReported}
-                          {row.issueReportedDetail ? (
-                            <div className="muted">{row.issueReportedDetail}</div>
-                          ) : null}
-                        </td>
-                        <td>
-                          {row.issueFound ? (
-                            <>
-                              {row.issueFound}
-                              {row.issueFoundDetail ? (
-                                <div className="muted">{row.issueFoundDetail}</div>
-                              ) : null}
-                            </>
-                          ) : (
-                            <span className="muted">Not inspected yet</span>
-                          )}
-                        </td>
-                        <td>
-                          {row.raisedBy || <span className="muted">—</span>}
-                        </td>
-                        <td className="num">{row.updates}</td>
-                        {showDaysOpen ? (
-                          <td className={`num${row.daysBad ? ' strong-bad' : ''}`}>{row.daysOpen}</td>
-                        ) : null}
-                        {showDaysAfterClose ? (
-                          <td className="num">
-                            {row.daysAfterClose != null ? row.daysAfterClose : '—'}
-                          </td>
-                        ) : null}
-                        <td>
-                          <Pill tone={row.statusTone}>{row.status}</Pill>
-                        </td>
-                        <td className="act">
-                          <div className="act-row">
-                            <Link
-                              className="btn btn-sm"
-                              to={`/tickets/${row.id}`}
-                              state={ticketLinkState}
-                            >
-                              Open
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  : null}
-              </tbody>
-            </table>
-          </div>
+          <TicketTable
+            rows={rows}
+            loading={loading}
+            showDaysOpen={showDaysOpen}
+            showDaysAfterClose={showDaysAfterClose}
+            linkState={ticketLinkState}
+          />
           <TablePagination
             page={pagination.page || page}
             limit={limit}
