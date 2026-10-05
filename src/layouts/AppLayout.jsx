@@ -215,7 +215,7 @@ export function AppLayout() {
           menuOpen={menuOpen}
           notificationState={notificationState}
         />
-        <Outlet key={location.pathname} />
+        <Outlet key={location.pathname} context={notificationState} />
       </div>
     </>
   )

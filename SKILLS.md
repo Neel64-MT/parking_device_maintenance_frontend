@@ -269,8 +269,13 @@ Inspect existing code
 - Keep one `useTicketNotifications` owner in `AppLayout`; pass its count to `Topbar` and `Sidebar` so the bell and both ticket badges cannot drift.
 - Gate the UX with the existing role names plus `canPerm(user, 'All tickets', 'v')`; never use client state as authorization.
 - Use `public/sw.js` for `push` and `notificationclick`; the page handles protected mark-read requests because the JWT is in `localStorage`.
-- Play `public/sounds/elevenlabs-achievement-unlock.mp3` for a new push or unread-count increase, including an open background tab; debounce duplicate events and ignore autoplay rejection.
-- Permission is opt-in and user-triggered. Reconcile existing subscriptions through the backend push-config/subscription APIs; do not prompt on load or add a second SW.
+- Play `public/sounds/elevenlabs-achievement-unlock.mp3` for a new push or unread-count increase, including an open background tab; debounce duplicate events and ignore autoplay rejection. Gate it on `soundAllowedRef` (push On and sound On); the OS sound follows the backend's `notification.silent`.
+- Permission is opt-in and user-triggered from Settings only (`requestBrowserPermission` / `setPushEnabled(true)` while `default`). With permission granted, `ensureSubscription` re-registers the existing subscription, or creates one silently when push is On; do not prompt on load or add a second SW. Wait for an active worker before `pushManager.subscribe()`.
+- Settings reads the single hook instance through `useOutletContext()` (`AppLayout` passes `<Outlet context>`); never call `useTicketNotifications` a second time.
+- Preference writes go through `AuthContext.updateNotificationPreferences` (`PATCH /api/auth/me/notification-preferences`, no user id). Save first, then subscribe; on failure keep the switch at the saved value and toast the error. Sound is disabled (value kept) while push is Off.
+- Push Off and logout keep the browser subscription; logout deletes only this browser's server row so the next login re-registers without a prompt.
+- Bell = latest 10 only (Phase 55). "View all notifications" opens `/notifications`, which pages with `listNotifications({ page, limit, unreadOnly })` + `TablePagination` and keeps its own rows (never replaces the hook's `items`).
+- Render rows with `components/notifications/NotificationItem` in both places. On the page, open rows and mark all read through the hook from `useOutletContext()`, and put page actions in the `Panel` head (the topbar hides actions at ≤820px).
 - Use backend `data.url`/`canOpen` with the existing ticket route; rely on TicketDetail for 403/404 handling.
 - Opening a ticket is the read receipt: `POST /api/notifications/ticket/:ticketId/read` marks the caller's own rows for that ticket. Drive it from a route-scoped effect in the one `useTicketNotifications` owner — do not add a second mark-read path, endpoint, or counter.
 - Scope the patch to the viewed ticket only, apply the backend's authoritative `updated` with a `Math.max(0, …)` floor, then re-read `unread-count`; never decrement by guesswork.

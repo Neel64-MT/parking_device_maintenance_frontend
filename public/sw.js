@@ -66,7 +66,8 @@ self.addEventListener('push', (event) => {
   const options = {
     body: notification.body || '',
     tag: notification.tag || (data.notificationId ? `notification.${data.notificationId}` : undefined),
-    silent: false,
+    // The backend sets silent from the user's Play Notification Sound preference.
+    silent: notification.silent === true,
     requireInteraction: true,
     data,
   }

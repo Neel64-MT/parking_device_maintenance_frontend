@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { PageMeta } from '../context/PageMetaContext'
 import { toast, toastApiError, toastApiSuccess } from '../context/ToastContext'
@@ -166,8 +167,176 @@ function PasswordForm({ changePassword }) {
   )
 }
 
+/** Browser (Chrome) permission for this device — separate from the saved app preference. */
+function browserPermissionStatus({ permission, pushState }) {
+  if (pushState === 'unsupported' || permission === 'unsupported') {
+    return { label: 'Unsupported', tone: 'is-muted' }
+  }
+  if (permission === 'granted') return { label: 'Granted', tone: 'is-ok' }
+  if (permission === 'denied') return { label: 'Blocked', tone: 'is-bad' }
+  return { label: 'Not granted', tone: 'is-warn' }
+}
+
+function browserPermissionNote({ pushOn, permission, pushState, pushError }) {
+  if (!pushOn) {
+    return {
+      tone: '',
+      text: 'Push notifications are off, so no browser alerts are sent to any of your devices. New tickets still appear under the bell.',
+    }
+  }
+  if (pushState === 'unsupported' || permission === 'unsupported') {
+    return { tone: '', text: 'This browser does not support background notifications. Alerts under the bell still work.' }
+  }
+  if (pushState === 'unavailable') {
+    return { tone: '', text: 'Browser push is not configured for this deployment. Alerts under the bell still work.' }
+  }
+  if (permission === 'denied') {
+    return {
+      tone: 'is-bad',
+      text: 'Notifications are blocked for this site in your browser, so this device will not show alerts (your other signed-in devices still can). To allow them, click the icon next to the address bar, open Site settings and set Notifications to Allow, then reload this page.',
+    }
+  }
+  if (pushState === 'conflict') {
+    return {
+      tone: 'is-warn',
+      text: 'This browser is registered to another account. Sign out of that account here, then enable browser notifications again.',
+    }
+  }
+  if (pushState === 'error') {
+    return { tone: 'is-warn', text: pushError || 'Browser notifications could not be enabled on this device.' }
+  }
+  if (permission === 'default') {
+    return { tone: 'is-warn', text: 'Allow browser notifications so alerts reach this device even when the tab is closed.' }
+  }
+  if (pushState !== 'enabled') {
+    return { tone: 'is-warn', text: 'This browser is not registered for alerts yet.' }
+  }
+  return null
+}
+
+function NotificationsPanel({ notificationState }) {
+  const {
+    permission,
+    pushState,
+    pushBusy,
+    pushError,
+    preferences,
+    preferencesSaving,
+    setPushEnabled,
+    setPlaySound,
+    requestBrowserPermission,
+  } = notificationState
+  const pushOn = preferences.pushNotificationsEnabled
+  const soundOn = preferences.playNotificationSound
+  const status = browserPermissionStatus({ permission, pushState })
+  const note = browserPermissionNote({ pushOn, permission, pushState, pushError })
+  const canRequest =
+    pushOn &&
+    permission !== 'denied' &&
+    permission !== 'unsupported' &&
+    !['unsupported', 'unavailable', 'conflict', 'enabled'].includes(pushState)
+
+  async function togglePush() {
+    const next = !pushOn
+    try {
+      await setPushEnabled(next)
+      toastApiSuccess(next ? 'Push notifications turned on.' : 'Push notifications turned off.')
+    } catch (err) {
+      toastApiError(err, 'Could not update notification settings.')
+    }
+  }
+
+  async function toggleSound() {
+    const next = !soundOn
+    try {
+      await setPlaySound(next)
+      toastApiSuccess(next ? 'Notification sound turned on.' : 'Notification sound turned off.')
+    } catch (err) {
+      toastApiError(err, 'Could not update notification settings.')
+    }
+  }
+
+  return (
+    <Panel
+      title="Notifications"
+      subtitle="Saved to your account and applied on every device you sign in to"
+      className="settings-panel"
+    >
+      <div className="settings-pref-list">
+        <div className="settings-pref-row">
+          <div className="settings-pref-text">
+            <strong id="pref-push-label">Push Notifications</strong>
+            <p>Receive browser notifications for important updates.</p>
+          </div>
+          <div className="status-switch">
+            <button
+              type="button"
+              className={`status-switch-track${pushOn ? ' is-on' : ''}`}
+              role="switch"
+              aria-checked={pushOn}
+              aria-labelledby="pref-push-label"
+              disabled={preferencesSaving}
+              onClick={togglePush}
+            >
+              <span className="status-switch-knob" />
+            </button>
+            <span className="status-switch-label">{pushOn ? 'On' : 'Off'}</span>
+          </div>
+        </div>
+
+        <div className="settings-pref-row">
+          <div className="settings-pref-text">
+            <strong>Browser Permission</strong>
+            <p>Controlled by your browser for this device only. It does not change the setting above.</p>
+            {note ? <p className={`settings-pref-note${note.tone ? ` ${note.tone}` : ''}`}>{note.text}</p> : null}
+          </div>
+          {canRequest ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="primary"
+              onClick={requestBrowserPermission}
+              disabled={pushBusy || preferencesSaving}
+            >
+              {pushBusy ? 'Enabling…' : 'Enable Browser Notifications'}
+            </Button>
+          ) : (
+            <span className={`settings-permission ${status.tone}`}>{status.label}</span>
+          )}
+        </div>
+
+        <div className={`settings-pref-row${pushOn ? '' : ' is-disabled'}`}>
+          <div className="settings-pref-text">
+            <strong id="pref-sound-label">Play Notification Sound</strong>
+            <p>
+              {pushOn
+                ? 'Play a sound when a push notification is received. Your device may still apply its own sound or Do Not Disturb settings.'
+                : 'Available when Push Notifications are on. Your previous choice is kept.'}
+            </p>
+          </div>
+          <div className="status-switch">
+            <button
+              type="button"
+              className={`status-switch-track${soundOn ? ' is-on' : ''}`}
+              role="switch"
+              aria-checked={soundOn}
+              aria-labelledby="pref-sound-label"
+              disabled={!pushOn || preferencesSaving}
+              onClick={toggleSound}
+            >
+              <span className="status-switch-knob" />
+            </button>
+            <span className="status-switch-label">{soundOn ? 'On' : 'Off'}</span>
+          </div>
+        </div>
+      </div>
+    </Panel>
+  )
+}
+
 export default function Settings() {
   const { user, updateProfile, changePassword } = useAuth()
+  const notificationState = useOutletContext()
   const formKey = user?.id || user?.email || user?.mobile || 'anon'
 
   return (
@@ -177,6 +346,7 @@ export default function Settings() {
         <div className="settings-grid">
           <ProfileForm key={formKey} user={user} updateProfile={updateProfile} />
           <PasswordForm changePassword={changePassword} />
+          {notificationState?.eligible ? <NotificationsPanel notificationState={notificationState} /> : null}
         </div>
       </main>
     </>

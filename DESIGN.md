@@ -387,8 +387,8 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Item | Pattern |
 |------|---------|
 | Browser control | Inline bell in the topbar; stays visible when `.topbar-actions` is hidden on mobile |
-| Notification list | Small anchored popover with latest backend rows, unread dot, ticket reference, message, device/issue/raiser context, and time |
-| Permission state | Explicit Enable / Turn off action; denied and unavailable states explain browser/deployment limits without repeated prompts |
+| Notification list | Small anchored popover with the latest 10 backend rows, unread dot, ticket reference, message, device/issue/raiser context, and time; footer link to the full list (Phase 55) |
+| Permission state | *Moved to Settings → Notifications in Phase 54.* The popover only shows a "Turn on browser alerts in Settings" link while push is On and permission is `default` |
 | Sound | Play the bundled achievement MP3 on a new push/count increase, including an open background tab; debounce duplicates and tolerate autoplay blocking |
 | Sidebar count | Same backend unread count on Tickets parent and All tickets child; hidden at zero, capped visually at `99+` |
 | Read state | Mark one read from the item; Mark all read uses `PATCH /api/notifications/read-all` |
@@ -598,5 +598,53 @@ Slot Id │ Slot Label │ Road    │ Tickets │   Slot Label · Slot Id · Ro
 | Tickets | Shared `TicketTable` (same markup as All tickets) without Slot Id / Road columns; Days open column for every status; empty row "No tickets raised for this slot yet." |
 | Loading / errors | `SkeletonTable` / `SkeletonText` in a `.record`; inline `.hint-strip.auth-error` ("Slot not found.", "You do not have access to this slot.") |
 | Ticket Detail from a slot | Back link "← Back to slot", crumb "Slot View › …" |
+
+## Phase 54 — Settings → Notifications
+
+```text
+Settings  (.settings-grid: Profile │ Password, then Notifications)
+┌ Notifications ─────────────────────────────────────────────┐
+│ Saved to your account and applied on every device you sign in to
+│ Push Notifications                              (●  ) On   │
+│ Receive browser notifications for important updates.       │
+│ ───────────────────────────────────────────────────────────│
+│ Browser Permission                    ● Granted            │
+│ Controlled by your browser for this device only…           │
+│ [note: Blocked / Not granted / error / Push is off …]      │
+│                     or [Enable Browser Notifications]      │
+│ ───────────────────────────────────────────────────────────│
+│ Play Notification Sound                         (●  ) On   │
+│ Play a sound when a push notification is received…         │
+└────────────────────────────────────────────────────────────┘
+```
+
+| Item | Pattern |
+|------|---------|
+| Panel | Existing `Panel` with `.settings-panel`; shown only to notification-eligible users (`canReceiveTicketNotifications`) |
+| Rows | `.settings-pref-row`: title + help text left, control right, `--line-soft` dividers; stacks into one column at ≤560px |
+| Switches | Existing `.status-switch` / `.status-switch-track` (`role="switch"`, `aria-checked`, `aria-labelledby` the row title); "On" / "Off" label |
+| Push Notifications | The primary control and the saved database preference. It never mirrors browser permission |
+| Browser Permission | Read-only dot + label (`.settings-permission`): Granted `--ok`, Not granted `--warn`, Blocked `--bad`, Unsupported `--ink-3`. Shows **Enable Browser Notifications** (`Button` primary, sm) instead of the label when push is On, permission is not denied, and this browser is not registered |
+| Notes | `.settings-pref-note` under the permission row: info (push Off, unsupported, not configured), `is-warn` (not granted, error, other account), `is-bad` (blocked, with site-settings steps). No repeated prompts |
+| Play Notification Sound | Disabled (dimmed title, value kept) while push is Off; help text says the device may still apply its own sound / Do Not Disturb rules |
+| Feedback | No optimistic flip; switches disable while saving; `toastApiSuccess` on save, `toastApiError` on failure (toggle stays at the saved value) |
+| Bell | Push status strip removed; optional `.notification-settings-hint` link (`--info-bg`) to `/settings` |
+| Colors / type | Existing tokens only; 14px titles, 12px help text (12px minimum) |
+
+## Phase 55 — Notifications page (View all)
+
+| Item | Pattern |
+|------|---------|
+| Bell footer | `.notification-popover-foot` under the list: only the **View all notifications** link, no count line (`--teal-dk`, 600, underline on hover); wraps on narrow popovers; replaces `.notification-footnote` |
+| Bell list | Unchanged: latest 10 rows, scrolls inside the popover |
+| Page | `/notifications`, `PageMeta` title "Notifications", crumb "N unread" / "You are all caught up"; no sidebar item |
+| Back | Existing `.back-link` "← Back" above the tabs: returns to the page the bell's View all was clicked on (`state.from`), else `homePathForUser` |
+| Tabs | Existing `Tabs`: All · Unread (count = shared unread count) directly above the panel (`.tabs + .panel`) |
+| Panel | `Panel flush`, title "All notifications" / "Unread notifications", subtitle "Newest first", **Mark all read** (`Button` sm) in the panel head while anything is unread. Not in the topbar, which hides actions at ≤820px |
+| Rows | Shared `NotificationItem` (same markup and `.notification-item*` styles as the bell) inside `.notification-list.notification-page-list`: no inner scroll, last row without border |
+| Loading | Five `SkeletonText` rows in `.notification-item-skeleton`; only on tab, page or page-size change (background refreshes keep the rows) |
+| Empty | `EmptyState` "No notifications yet" (All) / "No unread notifications" (Unread) |
+| Error | Inline `.hint-strip.auth-error` above the tabs; Mark all read failure → error toast |
+| Pagination | Existing `TablePagination` (10/25/50/100, default 25) |
 
 

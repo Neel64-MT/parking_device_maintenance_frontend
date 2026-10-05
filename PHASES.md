@@ -1127,12 +1127,58 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 **Verification:** `npm run lint` and `npm run build` pass; backend `test:smoke:slot-view` passes. Browser walkthrough (Admin): Slot View sits between Dashboard and Tickets with its icon and active highlight on both pages; list shows Page 1 of 8 in natural label order; search `SV` → 2 rows, Reset restores; Slot Id `6520` and Slot Label `3-12` both open `/slot-view/6520`; detail header Tickets 1 / Unresolved 1, Communication › Communication module faulty → TK-1103 with Open pill; TK-1103 opens Ticket Detail with "← Back to slot" returning to `/slot-view/6520`; All tickets table unchanged; 820px and 390px readable with no page overflow, drawer lists Slot View; `/slot-view/NO-SUCH-SLOT` → "Slot not found."; no console errors.
 
+## Phase 54: Push notification settings
+
+**Objective:** Wire backend Phase 54. Move push controls out of the navbar bell into **Settings → Notifications**, with two per-user database preferences, **Push Notifications** and **Play Notification Sound**, kept separate from the browser's notification permission. Fix "push must be re-enabled after every login".
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `services/auth.js` `updateNotificationPreferences` → `PATCH /api/auth/me/notification-preferences`; `AuthContext.updateNotificationPreferences` stores the returned user (`user.notificationPreferences`).
+2. `useTicketNotifications`: `ensureSubscription(config, { create })` (granted only; waits up to 10s for an active service worker; reuses or creates the subscription and registers it). `requestBrowserPermission()` (click only, prompts only while `default`), `setPushEnabled(enabled)` (save first, subscribe when On + granted), `setPlaySound(enabled)`, `preferences`, `preferencesSaving`. The MP3 plays only when push and sound are both On. `disablePush` removed.
+3. Login / reload: with permission granted the hook re-registers the existing subscription, or creates one silently when push is On. It never prompts.
+4. `prepareLogout` deletes only this browser's server row and keeps the browser subscription and permission.
+5. `public/sw.js`: `silent: notification.silent === true` (the backend sets it from Play Notification Sound).
+6. `NotificationBell`: `PushStatus` removed; "Turn on browser alerts in Settings" link only while push is On and permission is `default`. The list, unread count, mark read and polling are unchanged.
+7. `AppLayout` passes the hook state via `<Outlet context>`; `Settings` adds `NotificationsPanel` (`Panel` + `.status-switch`), shown only to notification-eligible users. Rows: Push Notifications switch, Browser Permission (Granted / Not granted / Blocked / Unsupported, plus an **Enable Browser Notifications** button while `default`), Play Notification Sound switch (disabled while push is Off, value kept). Notes cover denied, unsupported, not configured, conflict and error. Success / error toasts; a failed save leaves the switch at the saved value.
+8. CSS: `.notification-settings-hint`, `.settings-pref-list` / `-row` / `-text` / `-note`, `.settings-permission` tones; rows stack at ≤560px.
+
+**Out of scope:** per-type notification preferences, a cross-device "turn off this device only" switch, unsubscribing on logout.
+
+**Verification:** `npm run lint` and `npm run build` pass; backend `test:smoke:notification-prefs` passes. In the browser (Technician): the panel renders; push Off saves and disables sound; refresh and logout/login keep the preference; a simulated 500 keeps the switch and shows the toast; Blocked and Not granted states and the bell link (simulated) render; no push controls are left in the bell; layout at 1280 / 820 / 390 has no overflow. The embedded browser has no push service, so the real Chrome prompt, real push with sound on/off and two-browser delivery are manual checks.
+
+## Phase 55: Notifications — latest 10 in the bell + View all page
+
+**Objective:** Keep the navbar bell popover limited to the latest 10 notifications and add a way to see all of them: a **View all notifications** footer link that opens a full, paginated Notifications page. Frontend only (backend `GET /api/notifications` already supports `page`, `limit`, `unreadOnly`).
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `components/notifications/NotificationItem.jsx`: the row markup, `formatTime` and `notificationAttribution` moved out of `NotificationBell`; props `item`, `onOpen`.
+2. `NotificationBell`: uses `NotificationItem`; `.notification-popover-foot` replaces the "Showing the latest X of N" footnote with only **View all notifications** (`Link` to `/notifications`, closes the popover). The 10-item hook list is unchanged.
+3. `routes.jsx`: `notifications` → `<RequirePerm screen="All tickets"><Notifications /></RequirePerm>`. No sidebar item.
+4. `pages/Notifications.jsx`: `useOutletContext()` for `eligible`, `unreadCount`, `openNotification`, `markAllRead`, `pushBusy` (redirect to `homePathForUser` when not eligible). `PageMeta` crumb "N unread" / "You are all caught up". `Tabs` All / Unread (count). `Panel flush` titled "All notifications" / "Unread notifications" with **Mark all read** in the panel head (error toast on failure). Rows via `NotificationItem`; `TablePagination` 10/25/50/100 (default 25); tab and page-size changes reset to page 1; refetch silently when `unreadCount` changes; step back a page when one comes back empty.
+5. CSS: `.notification-popover-foot`, `.notification-page-list`, `.notification-item-skeleton`; `.notification-footnote` removed.
+6. Back: the bell's View all link passes `state.from` (current path + query; kept as-is when already on `/notifications`). The page shows `.back-link` "← Back" to that path, falling back to `homePathForUser` on direct load or an invalid path.
+
+**Out of scope:** a sidebar Notifications item, deleting notifications, filters beyond All / Unread, backend changes.
+
+**Verification:** `npm run lint` and `npm run build` pass. In the browser (Admin, 242 notifications, 30 unread):
+- The bell shows 10 rows and "View all notifications"; the link opens `/notifications` and closes the popover.
+- Pagination: Page 1 of 10 at 25 per page, then Page 2.
+- Unread tab: Page 1 of 2 with only unread rows, then Page 1 of 3 at 10 per page.
+- Clicking a row opens TK-1479 and drops the badge from 30 to 29.
+- A simulated Mark all read failure shows the error toast.
+- 1280 / 520 / 390 px: no horizontal overflow, and Mark all read is visible at every width.
+
 ---
 
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46 -> Phase 47 -> Phase 49 -> Phase 50 -> Phase 51 -> Phase 52 -> Phase 53
+Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46 -> Phase 47 -> Phase 49 -> Phase 50 -> Phase 51 -> Phase 52 -> Phase 53 -> Phase 54 -> Phase 55
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.
