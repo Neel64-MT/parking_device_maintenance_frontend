@@ -318,13 +318,43 @@ POST /api/tickets
   → active page receives TICKET_NOTIFICATION_PUSH
   → page plays public/sounds/elevenlabs-achievement-unlock.mp3 (2s dedupe; autoplay may block)
   → useTicketNotifications refreshes the shared unread count
-  → NotificationBell renders the list / permission state
+  → NotificationBell renders the list (push controls live in Settings since Phase 54)
   → Sidebar renders the same count on Tickets and All tickets
 ```
 
-`AppLayout` creates one `useTicketNotifications()` instance and passes its state to `Topbar` and `Sidebar`; the two sidebar locations never maintain independent counts. The hook consumes the existing authenticated REST APIs, performs a 30-second fallback poll (subject to browser throttling when hidden), and refreshes on focus/visibility. A newly received push or an increase in the backend unread count attempts to play `public/sounds/elevenlabs-achievement-unlock.mp3`; a 2-second debounce prevents push/poll double playback, and browser autoplay rejection is handled without breaking notifications. The service worker shows a non-silent, interaction-required Chrome notification so it remains visible while the user works in another app. The service worker is the only push client and relays notification IDs to the page; it never reads the JWT from `localStorage` or calls protected APIs directly.
+`AppLayout` creates one `useTicketNotifications()` instance and passes its state to `Topbar` and `Sidebar`; the two sidebar locations never maintain independent counts. The hook consumes the existing authenticated REST APIs, performs a 30-second fallback poll (subject to browser throttling when hidden), and refreshes on focus/visibility. A newly received push or an increase in the backend unread count attempts to play `public/sounds/elevenlabs-achievement-unlock.mp3` when the user's Push Notifications and Play Notification Sound preferences are both On (Phase 54); a 2-second debounce prevents push/poll double playback, and browser autoplay rejection is handled without breaking notifications. The service worker shows an interaction-required Chrome notification so it remains visible while the user works in another app. It is silent only when the payload says so (Play Notification Sound Off). The service worker is the only push client and relays notification IDs to the page; it never reads the JWT from `localStorage` or calls protected APIs directly.
 
-Browser push is opt-in: permission is requested only from the notification dropdown's explicit Enable action. The backend remains authoritative for recipient roles and `All tickets v` access. Notification clicks use the existing `/tickets/:ticketId` route and return state `/tickets?tab=new`; the existing detail 403/404 handling remains authoritative.
+Browser push is opt-in: permission is requested only from an explicit click in **Settings → Notifications** (Phase 54; before that it was the notification dropdown's Enable action). The backend remains authoritative for recipient roles and `All tickets v` access. Notification clicks use the existing `/tickets/:ticketId` route and return state `/tickets?tab=new`; the existing detail 403/404 handling remains authoritative.
+
+#### Notification settings: browser permission vs application preference (Phase 54)
+
+```text
+Login / refresh
+  → /api/auth/login or /me returns user.notificationPreferences (no extra call)
+  → AuthContext.user holds it; useTicketNotifications reads it
+  → Notification.permission === 'granted'?
+       yes → reuse the browser subscription and re-register it (PUT upsert, no prompt)
+             no subscription and push On → subscribe silently (permission already granted)
+       no  → nothing happens on load; never calls requestPermission
+
+Settings → Push Notifications toggle (click)
+  On  → requestPermission() only if 'default' (before any await, so it counts as the user gesture)
+      → PATCH /api/auth/me/notification-preferences { pushNotificationsEnabled: true }
+      → granted → ensureSubscription({ create: true })
+  Off → PATCH { pushNotificationsEnabled: false } only; permission + subscription kept
+        backend stops delivery to every device
+
+Logout
+  → DELETE /api/notifications/push-subscriptions/:id   (this browser's server row only)
+  → browser subscription + permission kept → next login re-registers silently
+```
+
+- **Two layers.** `Notification.permission` is browser state for one device and is shown read-only ("Browser Permission"). `notificationPreferences` is the per-user database preference and is the only ON/OFF switch. Push OFF with permission Granted is a valid state.
+- **One owner.** `useTicketNotifications` (created once in `AppLayout`) owns permission, subscription and preference actions: `setPushEnabled`, `setPlaySound`, `requestBrowserPermission`, `prepareLogout`. `AppLayout` passes the same instance to Settings through `<Outlet context>` / `useOutletContext()`, so no second hook instance or global store exists. Preference saves go through `AuthContext.updateNotificationPreferences`, which updates `user` the same way `updateProfile` does.
+- **Sound.** The in-app MP3 (`playNotificationSound`) is gated on push On **and** sound On through a ref. The system notification sound comes from `sw.js` honouring the backend payload's `notification.silent`. Chromium respects per-notification `silent`; the OS (Focus Assist, macOS notification settings) can still mute or force sound, and autoplay policy can block the MP3 until the user has interacted with the page.
+- **Bell.** The popover keeps the list, count and Mark all read. Its only push UI is a "Turn on browser alerts in Settings" link, shown while push is On and permission is `default`.
+- **Service worker readiness.** `subscribe()` needs an active worker, so `ensureSubscription` waits for `navigator.serviceWorker.ready` (bounded at 10s) when the registration is still installing on first load.
+- **Shared browsers.** Each push endpoint belongs to one user (`409 PUSH_SUBSCRIPTION_OWNED`). Because logout drops the server row, the next account to sign in on that browser can claim the endpoint. If a browser is still registered to someone else, Settings shows a message telling the user to sign that account out.
 
 #### Opening a ticket marks its notifications read
 

@@ -7,6 +7,7 @@ import { canReceiveTicketNotifications } from '../services/users'
 
 const POLL_INTERVAL_MS = 30_000
 const SOUND_DEBOUNCE_MS = 2_000
+const SERVICE_WORKER_READY_TIMEOUT_MS = 10_000
 const SUBSCRIPTION_KEY_PREFIX = 'pdm_push_subscription:'
 const NOTIFICATION_SOUND_URL = '/sounds/elevenlabs-achievement-unlock.mp3'
 
@@ -22,6 +23,19 @@ function pushSupported() {
     'serviceWorker' in navigator &&
     'PushManager' in window
   )
+}
+
+/* `serviceWorker.ready` never settles if the worker fails to activate, so bound the wait. */
+function waitForActiveWorker() {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((_, reject) => {
+      window.setTimeout(
+        () => reject(new Error('Browser notifications are unavailable: the service worker did not start.')),
+        SERVICE_WORKER_READY_TIMEOUT_MS,
+      )
+    }),
+  ])
 }
 
 function subscriptionKey(userId) {
@@ -88,11 +102,14 @@ function rememberClick(clicked, id) {
 }
 
 export function useTicketNotifications() {
-  const { user } = useAuth()
+  const { user, updateNotificationPreferences } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const userId = user?.id || null
   const eligible = canReceiveTicketNotifications(user)
+  /* Saved per-user application preferences; independent of browser permission. */
+  const pushEnabled = user?.notificationPreferences?.pushNotificationsEnabled !== false
+  const soundEnabled = user?.notificationPreferences?.playNotificationSound !== false
 
   const [items, setItems] = useState([])
   const [pagination, setPagination] = useState(null)
@@ -105,6 +122,7 @@ export function useTicketNotifications() {
   const [pushState, setPushState] = useState(() => (pushSupported() ? 'idle' : 'unsupported'))
   const [pushBusy, setPushBusy] = useState(false)
   const [pushError, setPushError] = useState('')
+  const [preferencesSaving, setPreferencesSaving] = useState(false)
 
   const itemsRef = useRef(items)
   const listLoadedRef = useRef(listLoaded)
@@ -119,6 +137,8 @@ export function useTicketNotifications() {
   const countInitializedRef = useRef(false)
   const unreadCountRef = useRef(0)
   const mountedRef = useRef(true)
+  const pushEnabledRef = useRef(pushEnabled)
+  const soundAllowedRef = useRef(pushEnabled && soundEnabled)
 
   useEffect(() => {
     mountedRef.current = true
@@ -135,7 +155,13 @@ export function useTicketNotifications() {
     listLoadedRef.current = listLoaded
   }, [listLoaded])
 
+  useEffect(() => {
+    pushEnabledRef.current = pushEnabled
+    soundAllowedRef.current = pushEnabled && soundEnabled
+  }, [pushEnabled, soundEnabled])
+
   const playNotificationSound = useCallback(() => {
+    if (!soundAllowedRef.current) return
     if (typeof window === 'undefined' || !('Audio' in window)) return
     const now = Date.now()
     if (now - lastSoundAtRef.current < SOUND_DEBOUNCE_MS) return
@@ -271,30 +297,46 @@ export function useTicketNotifications() {
     }
   }, [eligible])
 
-  const reconcileExistingSubscription = useCallback(
-    async (config) => {
-      if (!eligible || !config?.available || readPermission() !== 'granted') return
-      setPushBusy(true)
+  /*
+   * Register this browser's push subscription for the signed-in user without prompting.
+   * Requires permission to already be granted. Reuses the existing browser subscription
+   * (the backend upserts by endpoint) and only creates one when `create` is set.
+   */
+  const ensureSubscription = useCallback(
+    async (config, { create }) => {
+      if (!eligible || !config?.available || !config.publicKey || readPermission() !== 'granted') {
+        return false
+      }
       try {
-        const registration = await getRegistration()
-        const subscription = await registration?.pushManager?.getSubscription()
+        let registration = await getRegistration()
+        if (!registration) return false
+        // subscribe() needs an active worker; right after register() it may still be installing.
+        if (!registration.active) registration = await waitForActiveWorker()
+        let subscription = await registration.pushManager.getSubscription()
         if (!subscription) {
-          if (mountedRef.current) setPushState('idle')
-          return
+          if (!create) {
+            if (mountedRef.current) setPushState('idle')
+            return false
+          }
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: decodeVapidKey(config.publicKey),
+          })
         }
         const saved = await notificationApi.registerPushSubscription(subscription)
         writeSubscriptionId(userId, saved?.id)
         if (mountedRef.current) {
           setPushState('enabled')
+          setPermission('granted')
           setPushError('')
         }
+        return true
       } catch (error) {
         if (mountedRef.current) {
           setPushState(error?.code === 'PUSH_SUBSCRIPTION_OWNED' ? 'conflict' : 'error')
           setPushError(errorMessage(error, 'Could not register browser notifications.'))
         }
-      } finally {
-        if (mountedRef.current) setPushBusy(false)
+        return false
       }
     },
     [eligible, getRegistration, userId],
@@ -364,7 +406,12 @@ export function useTicketNotifications() {
     }
   }, [eligible, refreshUnreadCount])
 
-  const enablePush = useCallback(async () => {
+  /*
+   * Ask the browser for permission (only while it is still "default") and register this
+   * browser. Must be called from a user click: permission is requested before any network
+   * await so the click still counts as the user gesture. Never called on load or login.
+   */
+  const requestBrowserPermission = useCallback(async () => {
     if (!eligible || !pushSupported()) {
       if (mountedRef.current) setPushState('unsupported')
       return false
@@ -373,13 +420,6 @@ export function useTicketNotifications() {
     setPushBusy(true)
     setPushError('')
     try {
-      // This is intentionally called only from the explicit Enable action.
-      const config = pushConfig || (await fetchPushConfig())
-      if (!config?.available || !config.publicKey) {
-        if (mountedRef.current) setPushState('unavailable')
-        return false
-      }
-
       let currentPermission = readPermission()
       if (currentPermission === 'default') {
         currentPermission = await Notification.requestPermission()
@@ -390,73 +430,73 @@ export function useTicketNotifications() {
         return false
       }
 
-      const registration = await getRegistration()
-      if (!registration) return false
-      let subscription = await registration.pushManager.getSubscription()
-      if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: decodeVapidKey(config.publicKey),
-        })
+      const config = pushConfig || (await fetchPushConfig())
+      if (!config?.available || !config.publicKey) {
+        if (mountedRef.current) setPushState('unavailable')
+        return false
       }
-      const saved = await notificationApi.registerPushSubscription(subscription)
-      writeSubscriptionId(userId, saved?.id)
-      if (mountedRef.current) {
-        setPushState('enabled')
-        setPermission('granted')
-      }
-      return true
+      return await ensureSubscription(config, { create: true })
     } catch (error) {
       if (mountedRef.current) {
-        setPushState(error?.code === 'PUSH_SUBSCRIPTION_OWNED' ? 'conflict' : 'error')
+        setPushState('error')
         setPushError(errorMessage(error, 'Could not enable browser notifications.'))
       }
       return false
     } finally {
       if (mountedRef.current) setPushBusy(false)
     }
-  }, [eligible, fetchPushConfig, getRegistration, pushConfig, userId])
+  }, [eligible, ensureSubscription, fetchPushConfig, pushConfig])
 
-  const disablePush = useCallback(async () => {
-    if (!userId) return false
-    setPushBusy(true)
-    setPushError('')
-    const storedId = readSubscriptionId(userId)
-    try {
-      let registration = registrationRef.current
-      if (!registration && pushSupported()) {
-        registration = await navigator.serviceWorker.getRegistration()
+  /*
+   * Application preference (stored per user). Turning it OFF keeps the browser permission
+   * and subscription: the backend stops delivery for every device the user has.
+   * Throws when the save fails so the caller can show the standard error toast.
+   */
+  const setPushEnabled = useCallback(
+    async (enabled) => {
+      if (!eligible) return false
+      setPreferencesSaving(true)
+      try {
+        if (enabled && pushSupported() && readPermission() === 'default') {
+          const result = await Notification.requestPermission()
+          if (mountedRef.current) setPermission(result)
+          if (result === 'denied' && mountedRef.current) setPushState('denied')
+        }
+        await updateNotificationPreferences({ pushNotificationsEnabled: Boolean(enabled) })
+        if (enabled && readPermission() === 'granted') {
+          const config = pushConfig || (await fetchPushConfig())
+          await ensureSubscription(config, { create: true })
+        }
+        return true
+      } finally {
+        if (mountedRef.current) setPreferencesSaving(false)
       }
-      const subscription = await registration?.pushManager?.getSubscription()
-      if (subscription) await subscription.unsubscribe()
-      if (storedId) await notificationApi.removePushSubscription(storedId)
-      writeSubscriptionId(userId, null)
-      if (mountedRef.current) setPushState(readPermission() === 'granted' ? 'off' : 'idle')
-      return true
-    } catch (error) {
-      // Always clear the local browser subscription even if the API cleanup fails.
-      writeSubscriptionId(userId, null)
-      if (mountedRef.current) {
-        setPushState('error')
-        setPushError(errorMessage(error, 'Could not fully turn off browser notifications.'))
-      }
-      return false
-    } finally {
-      if (mountedRef.current) setPushBusy(false)
-    }
-  }, [userId])
+    },
+    [eligible, ensureSubscription, fetchPushConfig, pushConfig, updateNotificationPreferences],
+  )
 
+  const setPlaySound = useCallback(
+    async (enabled) => {
+      if (!eligible) return false
+      setPreferencesSaving(true)
+      try {
+        await updateNotificationPreferences({ playNotificationSound: Boolean(enabled) })
+        return true
+      } finally {
+        if (mountedRef.current) setPreferencesSaving(false)
+      }
+    },
+    [eligible, updateNotificationPreferences],
+  )
+
+  /*
+   * Logout removes only this browser's server record so a signed-out (or shared) browser
+   * receives nothing. The browser subscription and permission are kept, so the next
+   * login re-registers silently instead of asking the user to enable push again.
+   */
   const prepareLogout = useCallback(async () => {
     if (!userId) return
     const storedId = readSubscriptionId(userId)
-    try {
-      let registration = registrationRef.current
-      if (!registration && pushSupported()) registration = await navigator.serviceWorker.getRegistration()
-      const subscription = await registration?.pushManager?.getSubscription()
-      if (subscription) await subscription.unsubscribe()
-    } catch {
-      /* Continue to remove the server record and local pointer. */
-    }
     if (storedId) {
       try {
         await notificationApi.removePushSubscription(storedId)
@@ -486,15 +526,18 @@ export function useTicketNotifications() {
       if (cancelled) return
       await getRegistration()
       if (cancelled) return
+      // No prompt here: only an already-granted browser is (re-)registered.
       if (config?.available && readPermission() === 'granted') {
-        await reconcileExistingSubscription(config)
+        setPushBusy(true)
+        await ensureSubscription(config, { create: pushEnabledRef.current })
+        if (mountedRef.current) setPushBusy(false)
       }
     })()
 
     return () => {
       cancelled = true
     }
-  }, [eligible, fetchPushConfig, getRegistration, reconcileExistingSubscription, refreshUnreadCount, resetState])
+  }, [eligible, ensureSubscription, fetchPushConfig, getRegistration, refreshUnreadCount, resetState])
 
   /* Refresh active-client state without a page reload. Polling is the fallback for clients without push. */
   useEffect(() => {
@@ -604,12 +647,18 @@ export function useTicketNotifications() {
     pushState,
     pushBusy,
     pushError,
+    preferences: {
+      pushNotificationsEnabled: pushEnabled,
+      playNotificationSound: soundEnabled,
+    },
+    preferencesSaving,
     refreshNotifications,
     loadNotifications,
     openNotification,
     markAllRead,
-    enablePush,
-    disablePush,
+    requestBrowserPermission,
+    setPushEnabled,
+    setPlaySound,
     prepareLogout,
   }
 }

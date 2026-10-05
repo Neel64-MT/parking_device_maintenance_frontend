@@ -1019,3 +1019,43 @@ Sidebar: Dashboard → Slot View → Tickets ▸ …
 | Roles & permissions matrix has a Slot View row after Dashboard (Project manager View ticked, Technician empty); backend grant / revoke flips access | Pass (browser + backend smoke) |
 | Slot detail without `All tickets` `v`: Tickets panel shows "Ticket list not available", issue ticket ids are plain text | Pass (backend smoke covers the 403 on `?device=`; UI path not exercised in the browser) |
 | `npm run lint` / `npm run build` | Pass |
+
+### Phase 54 — Push notification settings
+
+Push controls move from the bell popover into **Settings → Notifications**. Two per-user preferences are saved in the database (backend Phase 54): **Push Notifications** and **Play Notification Sound**.
+
+```text
+Settings → Notifications
+  Push Notifications     [On/Off]   the saved application preference (source of truth)
+  Browser Permission     Granted / Not granted / Blocked / Unsupported   (this browser only)
+                         [Enable Browser Notifications]   only when push is On and permission is not denied
+  Play Notification Sound [On/Off]  disabled (value kept) while push is Off
+```
+
+Two separate layers:
+
+| Browser permission | Push Notifications | Result |
+|--------------------|--------------------|--------|
+| Granted | Off | No push to any device (backend filter); the bell still lists new tickets |
+| Granted | On, sound Off | Push delivered as a silent notification; no in-app MP3 |
+| Granted | On, sound On | Push delivered with sound |
+| Denied | On | No prompt; Settings shows Blocked plus how to allow it in browser site settings |
+| Default | On | No automatic prompt; the bell shows a "Turn on browser alerts in Settings" link; Settings has the Enable button |
+
+| Criterion | Result |
+|-----------|--------|
+| Push control removed from the bell; count, list, Mark all read and ticket navigation unchanged | Pass (browser) |
+| Settings Notifications panel uses existing `Panel` + `.status-switch`; accessible switch names | Pass (browser) |
+| Preference saved per user; survives refresh and logout / login | Pass (browser + backend smoke) |
+| `Notification.requestPermission()` only from a click while permission is `default`; never on load or login | Pass |
+| Logout keeps the browser subscription and permission and deletes only its server record; next login re-registers silently | Pass (browser: service worker and permission kept) |
+| Push On with permission granted and no subscription → subscribes without prompting; reuses an existing subscription | Pass (code path; this embedded browser has no push service, so the error state was verified instead) |
+| Push Off keeps permission and subscription; backend stops delivery on every device | Pass (backend smoke, two subscriptions) |
+| Sound toggle disabled while push is Off and keeps its value; in-app MP3 plays only when push and sound are both On | Pass |
+| Service worker honours the payload `silent` flag | Pass (code; real Chrome delivery is a manual check) |
+| Save failure: toggle stays at the saved value and the standard error toast is shown | Pass (browser, simulated 500) |
+| Blocked / Not granted / Unsupported / not configured / other-account / error states each show their own message | Pass (Blocked and Not granted simulated in the browser) |
+| Desktop / tablet / phone: rows stack under 560px, no horizontal overflow | Pass |
+| `npm run lint` / `npm run build` | Pass |
+
+Manual checks that need desktop Chrome with VAPID keys: a real first-time prompt (Allow and Block), real push delivery with sound On and Off, and two browsers signed in to the same account.

@@ -282,10 +282,16 @@ Do not modify unrelated Device Detail / Scan / Add flows when wiring sync.
 - The backend is authoritative for `ticket.raised` recipients, `All tickets v`, ticket visibility, notification ownership, and read state.
 - Show the notification UI only for the backend-supported recipient roles (`Admin`, `Project manager`, `Control room`) with `All tickets v`; this is a UX guard, not authorization.
 - Use one shared notification hook/state for the bell, Tickets parent badge, and All tickets child badge. Never sum the two badges or calculate unread state from the loaded page alone.
-- Request `Notification.requestPermission()` only from an explicit user action. Never prompt on every load, and provide non-repeating guidance for denied permission.
+- Request `Notification.requestPermission()` only from an explicit user click (Settings → Notifications), and only while `Notification.permission === 'default'`. Never prompt on load, on login or on refresh. Provide non-repeating guidance for denied permission; the app cannot reset a `denied` permission.
+- **Browser permission and the application preference are separate layers (Phase 54).** `user.notificationPreferences.pushNotificationsEnabled` (database, per user) is the only ON/OFF switch. Never derive it from `Notification.permission`, and never show "Push Off" and "Permission denied" as the same state.
+- The backend enforces Push OFF for every device. Never rely on frontend filtering to stop pushes, and never unsubscribe the browser when the user turns push off.
+- Play Notification Sound is only available while push is On; disable it (keeping its value) when push is Off. Gate the in-app MP3 on push On **and** sound On.
+- Logout removes only this browser's server subscription record (`DELETE /push-subscriptions/:id`). Keep the browser subscription and permission so the next login re-registers silently.
+- Save preferences only through `AuthContext.updateNotificationPreferences` → `PATCH /api/auth/me/notification-preferences` (own user only). Do not send a user id and do not add a second preferences store.
+- Push controls live in Settings only. The bell may show a "Turn on browser alerts in Settings" link (push On, permission `default`), but no permission or subscription buttons.
 - Register/reconcile push through the existing `GET /api/notifications/push-config` and `PUT/DELETE /api/notifications/push-subscriptions` endpoints.
 - Keep the service worker push-only: it may show/handle notifications, but protected API calls and JWT access remain in the authenticated page.
-- Play `public/sounds/elevenlabs-achievement-unlock.mp3` only for a newly received push or an increase in the backend unread count, including when an application tab is open in the background; debounce duplicate push/poll events and do not treat autoplay rejection as a notification failure.
+- Play `public/sounds/elevenlabs-achievement-unlock.mp3` (only when the user's push and sound preferences are both On) only for a newly received push or an increase in the backend unread count, including when an application tab is open in the background; debounce duplicate push/poll events and do not treat autoplay rejection as a notification failure.
 - Use the existing `/tickets/:ticketId` route for notification navigation. Treat `canOpen`/`url` as hints and let the existing 403/404 handling enforce access.
 - Preserve the current sidebar collapse, drawer, group expansion, responsive breakpoints, and role filtering.
 - Do not add WebSocket, Socket.IO, SSE, a second service worker, a notification library, or a new Notifications menu item.

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { NavIcon } from '../icons/NavIcons'
 
@@ -30,77 +31,6 @@ function notificationAttribution(item) {
   const assignedBy = item?.data?.assignedBy?.name
   if (assignedBy) return `Assigned by ${assignedBy}`
   return ''
-}
-
-function PushStatus({ notificationState }) {
-  const {
-    permission,
-    pushConfig,
-    pushState,
-    pushBusy,
-    pushError,
-    enablePush,
-    disablePush,
-  } = notificationState
-
-  let title = 'Browser notifications'
-  let message
-  let action = null
-
-  if (pushState === 'unsupported' || permission === 'unsupported') {
-    message = 'This browser does not support background notifications. In-app alerts are still available.'
-  } else if (permission === 'denied' || pushState === 'denied') {
-    message = 'Browser notifications are blocked. Allow notifications for this site in your browser settings.'
-  } else if (pushState === 'unavailable' || pushConfig?.available === false) {
-    message = 'Browser push is not configured for this deployment. In-app alerts are still available.'
-  } else if (pushState === 'conflict') {
-    message = 'This browser is registered to another account. Sign out of that account before enabling alerts here.'
-  } else if (pushState === 'enabled') {
-    message = 'Browser notifications are enabled for this device.'
-    action = (
-      <Button type="button" size="sm" onClick={disablePush} disabled={pushBusy}>
-        {pushBusy ? 'Turning off…' : 'Turn off'}
-      </Button>
-    )
-  } else if (pushState === 'off') {
-    message = 'Browser notifications are turned off for this device.'
-    action = (
-      <Button type="button" size="sm" onClick={enablePush} disabled={pushBusy}>
-        {pushBusy ? 'Enabling…' : 'Turn on'}
-      </Button>
-    )
-  } else if (pushState === 'error') {
-    message = pushError || 'Browser notifications could not be enabled.'
-    action = (
-      <Button type="button" size="sm" onClick={enablePush} disabled={pushBusy}>
-        {pushBusy ? 'Retrying…' : 'Retry'}
-      </Button>
-    )
-  } else if (permission === 'default') {
-    message = 'Allow browser notifications to receive new ticket alerts when this tab is closed.'
-    action = (
-      <Button type="button" size="sm" variant="primary" onClick={enablePush} disabled={pushBusy}>
-        {pushBusy ? 'Enabling…' : 'Enable'}
-      </Button>
-    )
-  } else {
-    message = pushError || 'Browser notifications are not enabled for this device.'
-    action = (
-      <Button type="button" size="sm" onClick={enablePush} disabled={pushBusy}>
-        {pushBusy ? 'Enabling…' : 'Enable'}
-      </Button>
-    )
-  }
-
-  return (
-    <div className="notification-push-status">
-      <div>
-        <strong>{title}</strong>
-        <p>{message}</p>
-      </div>
-      {action}
-    </div>
-  )
 }
 
 export function NotificationBell({ notificationState }) {
@@ -172,7 +102,16 @@ export function NotificationBell({ notificationState }) {
             ) : null}
           </div>
 
-          <PushStatus notificationState={notificationState} />
+          {notificationState.preferences?.pushNotificationsEnabled &&
+          notificationState.permission === 'default' &&
+          notificationState.pushState !== 'unsupported' &&
+          notificationState.pushState !== 'unavailable' ? (
+            <p className="notification-settings-hint">
+              <Link to="/settings" onClick={() => setOpen(false)}>
+                Turn on browser alerts in Settings
+              </Link>
+            </p>
+          ) : null}
 
           <div className="notification-list" aria-live="polite">
             {listLoading && !listLoaded ? <p className="muted">Loading notifications…</p> : null}

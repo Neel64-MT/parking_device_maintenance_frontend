@@ -78,6 +78,12 @@ export function AuthProvider({ children }) {
     return next
   }, [])
 
+  const updateNotificationPreferences = useCallback(async (payload) => {
+    const next = await authApi.updateNotificationPreferences(payload)
+    setUser(next)
+    return next
+  }, [])
+
   const changePassword = useCallback(async (payload) => {
     const data = await authApi.changePassword(payload)
     if (data?.user) setUser(data.user)
@@ -93,9 +99,10 @@ export function AuthProvider({ children }) {
       logout,
       refresh,
       updateProfile,
+      updateNotificationPreferences,
       changePassword,
     }),
-    [user, loading, login, logout, refresh, updateProfile, changePassword],
+    [user, loading, login, logout, refresh, updateProfile, updateNotificationPreferences, changePassword],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
