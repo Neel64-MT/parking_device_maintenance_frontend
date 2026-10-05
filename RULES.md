@@ -295,6 +295,9 @@ Do not modify unrelated Device Detail / Scan / Add flows when wiring sync.
 - Use the existing `/tickets/:ticketId` route for notification navigation. Treat `canOpen`/`url` as hints and let the existing 403/404 handling enforce access.
 - Preserve the current sidebar collapse, drawer, group expansion, responsive breakpoints, and role filtering.
 - Do not add WebSocket, Socket.IO, SSE, a second service worker, a notification library, or a new Notifications menu item.
+- **Bell vs full list (Phase 55).** The bell popover loads only the latest 10 (`page: 1, limit: 10`) and links to `/notifications`. The full list lives only on that page, with server pagination (`TablePagination`) and `unreadOnly` for the Unread tab; never load every notification into the popover or the hook.
+- Render notification rows only with `components/notifications/NotificationItem`; do not copy the row markup.
+- The Notifications page uses the shared hook through `useOutletContext()` for `openNotification`, `markAllRead` and `unreadCount`; it must not mark read or count unread on its own.
 
 ## READ-ONLY SOURCE TREE
 

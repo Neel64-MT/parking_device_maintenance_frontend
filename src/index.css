@@ -796,12 +796,48 @@ html.rail-opening .nav-group>button::after {
   font-size: 12px;
 }
 
-.notification-footnote {
-  padding: 9px 16px;
+.notification-popover-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 10px 16px;
   border-top: 1px solid var(--line-soft);
   color: var(--ink-3);
   font-size: 12px;
   text-align: center;
+}
+
+.notification-popover-foot a {
+  color: var(--teal-dk);
+  font-weight: 600;
+}
+
+.notification-popover-foot a:hover {
+  text-decoration: underline;
+}
+
+/* Notifications page: the list grows with the page instead of scrolling inside the popover. */
+.notification-page-list {
+  overflow: visible;
+  border-radius: var(--r-sm);
+}
+
+.notification-page-list .notification-item {
+  border-radius: 0;
+}
+
+.notification-page-list .notification-item:last-child {
+  border-bottom: 0;
+}
+
+.notification-item-skeleton {
+  cursor: default;
+}
+
+.notification-item-skeleton:hover {
+  background: #fff;
 }
 
 .who {

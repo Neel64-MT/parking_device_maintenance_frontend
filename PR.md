@@ -1059,3 +1059,32 @@ Two separate layers:
 | `npm run lint` / `npm run build` | Pass |
 
 Manual checks that need desktop Chrome with VAPID keys: a real first-time prompt (Allow and Block), real push delivery with sound On and Off, and two browsers signed in to the same account.
+
+### Phase 55 — Notifications: latest 10 in the bell + View all page
+
+The bell popover keeps showing the latest 10 notifications and gains a **View all notifications** footer link. The link opens a new `/notifications` page listing every notification of the signed-in user, with All / Unread tabs and server pagination. Frontend only: `GET /api/notifications` already supports `page`, `limit` and `unreadOnly`.
+
+```text
+Bell popover                              /notifications
+┌ Notifications   [Mark all read] ┐       [ All | Unread 30 ]
+│ 10 latest rows                  │       ┌ All notifications · Newest first   [Mark all read] ┐
+│ ...                             │  ──►  │ NotificationItem rows (same markup as the bell)    │
+├─────────────────────────────────┤       │ Page 1 of 10   [25 per page]   Previous  Next      │
+│     View all notifications      │       └────────────────────────────────────────────────────┘
+└─────────────────────────────────┘
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Bell still loads only 10 rows; footer shows only **View all notifications** (closes the popover); no count line | Pass (browser, 242 notifications) |
+| `/notifications` behind `RequirePerm screen="All tickets"` plus the hook's `eligible`; no sidebar item | Pass |
+| "← Back" returns to the page View all was opened from; direct load falls back to the user's home | Pass (browser: Slot View → back to `/slot-view`; direct load → `/dashboard`) |
+| All tab: newest first, Page X of Y, 10/25/50/100 per page; page-size change resets to page 1 | Pass (browser) |
+| Unread tab shows only unread rows; switching tabs resets to page 1 | Pass (browser: 30 unread → 2 pages at 25, 3 at 10) |
+| Clicking a row marks it read, opens the ticket and lowers the shared badge | Pass (browser: TK-1479, badge 30 → 29) |
+| Mark all read uses the shared hook action; failure shows an error toast | Pass (failure simulated in the browser; success path is the existing hook action) |
+| Page refetches when the shared unread count changes (new push, read elsewhere) without flashing the skeleton | Pass (code) |
+| Rows shared with the bell through `NotificationItem` | Pass |
+| Empty states: "No notifications yet" / "No unread notifications" | Pass (code) |
+| 1280 / 520 / 390 px: no horizontal overflow; Mark all read visible at every width (panel header, not the topbar, which hides actions at ≤820px) | Pass (browser) |
+| `npm run lint` / `npm run build` | Pass |

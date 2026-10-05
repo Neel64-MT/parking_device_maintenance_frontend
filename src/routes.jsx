@@ -5,6 +5,7 @@ import { AuthLayout } from './layouts/AuthLayout'
 import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
 import Settings from './pages/Settings'
+import Notifications from './pages/Notifications'
 import NotFound from './pages/NotFound'
 import Login from './pages/auth/Login'
 import Signup from './pages/auth/Signup'
@@ -194,6 +195,14 @@ export function AppRoutes() {
           element={
             <RequirePerm screen="Users">
               <Users />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="notifications"
+          element={
+            <RequirePerm screen="All tickets">
+              <Notifications />
             </RequirePerm>
           }
         />

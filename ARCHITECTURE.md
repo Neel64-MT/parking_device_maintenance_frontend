@@ -42,7 +42,7 @@ Original is a design preview: data lives in HTML rows and `app.js` / page script
 
 ### Routing
 
-React Router. Paths mirror original filenames without `.html`. Auth routes: `/login`, `/signup`, `/forgot-password`, `/reset-password`. App: 15 original screens + `/settings`.
+React Router. Paths mirror original filenames without `.html`. Auth routes: `/login`, `/signup`, `/forgot-password`, `/reset-password`. App: 15 original screens + `/settings` + `/notifications` (Phase 55, reached from the bell).
 
 ### Authentication / authorization
 
@@ -153,13 +153,15 @@ frontend/
     │   └── AuthLayout.jsx      # login/signup chrome
     ├── components/
     │   ├── layout/             # Sidebar (filterMenuByView + Dashboard role gate), Topbar, NotificationBell
+    │   ├── notifications/      # NotificationItem (row shared by the bell and /notifications)
     │   ├── icons/              # NavIcons (incl. bell, logout)
     │   └── ui/                 # Button, Panel, Field (div.fld), PhotoPicker, CameraCaptureModal, TablePagination, Skeleton, Modal, …
     ├── pages/
     │   ├── auth/               # Login (homePathForUser), Signup, Forgot, Reset
     │   ├── Dashboard.jsx       # Admin/PM only; fleet + why-down + road-wise
     │   ├── Users.jsx
-    │   ├── Settings.jsx        # profile + password forms
+    │   ├── Settings.jsx        # profile + password forms + Notifications panel (Phase 54)
+    │   ├── Notifications.jsx   # /notifications: every notification, All / Unread, server pagination (Phase 55)
     │   ├── UiKitDemo.jsx       # /dev/ui scratch (not in menu)
     │   ├── tickets/            # TicketList tab columns + state.from; TicketDetail Modal update / gallery / backToTickets
     │   ├── slots/              # Slot View: SlotList (ticketed slots), SlotDetail (unresolved issues + tickets)
@@ -318,13 +320,29 @@ POST /api/tickets
   → active page receives TICKET_NOTIFICATION_PUSH
   → page plays public/sounds/elevenlabs-achievement-unlock.mp3 (2s dedupe; autoplay may block)
   → useTicketNotifications refreshes the shared unread count
-  → NotificationBell renders the list (push controls live in Settings since Phase 54)
+  → NotificationBell renders the latest 10 (push controls live in Settings since Phase 54)
+      and links to /notifications for the full list (Phase 55)
   → Sidebar renders the same count on Tickets and All tickets
 ```
 
 `AppLayout` creates one `useTicketNotifications()` instance and passes its state to `Topbar` and `Sidebar`; the two sidebar locations never maintain independent counts. The hook consumes the existing authenticated REST APIs, performs a 30-second fallback poll (subject to browser throttling when hidden), and refreshes on focus/visibility. A newly received push or an increase in the backend unread count attempts to play `public/sounds/elevenlabs-achievement-unlock.mp3` when the user's Push Notifications and Play Notification Sound preferences are both On (Phase 54); a 2-second debounce prevents push/poll double playback, and browser autoplay rejection is handled without breaking notifications. The service worker shows an interaction-required Chrome notification so it remains visible while the user works in another app. It is silent only when the payload says so (Play Notification Sound Off). The service worker is the only push client and relays notification IDs to the page; it never reads the JWT from `localStorage` or calls protected APIs directly.
 
 Browser push is opt-in: permission is requested only from an explicit click in **Settings → Notifications** (Phase 54; before that it was the notification dropdown's Enable action). The backend remains authoritative for recipient roles and `All tickets v` access. Notification clicks use the existing `/tickets/:ticketId` route and return state `/tickets?tab=new`; the existing detail 403/404 handling remains authoritative.
+
+#### Notifications page (Phase 55)
+
+```text
+Bell popover (hook items: page 1, limit 10)  ──"View all notifications"──►  /notifications
+pages/Notifications.jsx
+  → useOutletContext(): eligible, unreadCount, openNotification, markAllRead (same hook instance)
+  → listNotifications({ page, limit, unreadOnly }) → GET /api/notifications   (own page state)
+  → refetch on tab / page / limit change, and silently when unreadCount changes
+  → rows = components/notifications/NotificationItem (shared with NotificationBell)
+```
+
+- The page keeps its own `rows` / `pagination`; it never replaces the hook's 10-item `items`, so the bell stays fast.
+- Opening a row and Mark all read go through the hook (`openNotification`, `markAllRead`), so the bell, both sidebar badges and the page share one unread count. No new endpoint, store or counter.
+- Route `notifications` is wrapped in `RequirePerm screen="All tickets"`; the page also redirects to `homePathForUser` when the hook is not `eligible`. The backend `authorize('All tickets', 'v')` stays authoritative.
 
 #### Notification settings: browser permission vs application preference (Phase 54)
 

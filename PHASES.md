@@ -1148,12 +1148,37 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 **Verification:** `npm run lint` and `npm run build` pass; backend `test:smoke:notification-prefs` passes. In the browser (Technician): the panel renders; push Off saves and disables sound; refresh and logout/login keep the preference; a simulated 500 keeps the switch and shows the toast; Blocked and Not granted states and the bell link (simulated) render; no push controls are left in the bell; layout at 1280 / 820 / 390 has no overflow. The embedded browser has no push service, so the real Chrome prompt, real push with sound on/off and two-browser delivery are manual checks.
 
+## Phase 55: Notifications — latest 10 in the bell + View all page
+
+**Objective:** Keep the navbar bell popover limited to the latest 10 notifications and add a way to see all of them: a **View all notifications** footer link that opens a full, paginated Notifications page. Frontend only (backend `GET /api/notifications` already supports `page`, `limit`, `unreadOnly`).
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `components/notifications/NotificationItem.jsx`: the row markup, `formatTime` and `notificationAttribution` moved out of `NotificationBell`; props `item`, `onOpen`.
+2. `NotificationBell`: uses `NotificationItem`; `.notification-popover-foot` replaces the "Showing the latest X of N" footnote with only **View all notifications** (`Link` to `/notifications`, closes the popover). The 10-item hook list is unchanged.
+3. `routes.jsx`: `notifications` → `<RequirePerm screen="All tickets"><Notifications /></RequirePerm>`. No sidebar item.
+4. `pages/Notifications.jsx`: `useOutletContext()` for `eligible`, `unreadCount`, `openNotification`, `markAllRead`, `pushBusy` (redirect to `homePathForUser` when not eligible). `PageMeta` crumb "N unread" / "You are all caught up". `Tabs` All / Unread (count). `Panel flush` titled "All notifications" / "Unread notifications" with **Mark all read** in the panel head (error toast on failure). Rows via `NotificationItem`; `TablePagination` 10/25/50/100 (default 25); tab and page-size changes reset to page 1; refetch silently when `unreadCount` changes; step back a page when one comes back empty.
+5. CSS: `.notification-popover-foot`, `.notification-page-list`, `.notification-item-skeleton`; `.notification-footnote` removed.
+6. Back: the bell's View all link passes `state.from` (current path + query; kept as-is when already on `/notifications`). The page shows `.back-link` "← Back" to that path, falling back to `homePathForUser` on direct load or an invalid path.
+
+**Out of scope:** a sidebar Notifications item, deleting notifications, filters beyond All / Unread, backend changes.
+
+**Verification:** `npm run lint` and `npm run build` pass. In the browser (Admin, 242 notifications, 30 unread):
+- The bell shows 10 rows and "View all notifications"; the link opens `/notifications` and closes the popover.
+- Pagination: Page 1 of 10 at 25 per page, then Page 2.
+- Unread tab: Page 1 of 2 with only unread rows, then Page 1 of 3 at 10 per page.
+- Clicking a row opens TK-1479 and drops the badge from 30 to 29.
+- A simulated Mark all read failure shows the error toast.
+- 1280 / 520 / 390 px: no horizontal overflow, and Mark all read is visible at every width.
+
 ---
 
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46 -> Phase 47 -> Phase 49 -> Phase 50 -> Phase 51 -> Phase 52 -> Phase 53 -> Phase 54
+Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46 -> Phase 47 -> Phase 49 -> Phase 50 -> Phase 51 -> Phase 52 -> Phase 53 -> Phase 54 -> Phase 55
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.
