@@ -567,7 +567,8 @@ The notification UI is an authenticated-shell addition; it does not add a new me
 | Crumb | "N open · M under repair · K closed" |
 | Status filter | Only on Under Repair: All under repair / Under repair / Waiting for spare. Hidden on Open and Closed |
 | Summary cards | `button.tile-link` around `Tile` (Device list pattern); selected → `aria-pressed="true"` + `.tile-selected` (teal border + ring); disabled while loading. Skeleton only on first load |
-| Card → view | Open, not attended → Open; Under repair → Under Repair + "Under repair"; Waiting for spare → Under Repair + "Waiting for spare"; Open over 3 days → age filter, Open tab if it has any such ticket, else Under Repair (badges show the over-3-days split) |
+| Card → view | Open, not attended → Open; Under repair → Under Repair + "Under repair"; Waiting for spare → Under Repair + "Waiting for spare"; Open over 3 days → age filter, Open tab if it has any such ticket, else Under Repair (badges show the over-3-days split); Closed (5th card, tone ok, count = Closed tab) → Closed, clickable even at 0 |
+| Active card per tab | Open → Open, not attended; Under Repair → Under repair (status All or Under repair) or Waiting for spare (that status); Closed → Closed; age filter on → only Open over 3 days. Card skeleton shows 5 tiles |
 | Tab ink | `.tabs-ink` 2px teal bar under the active tab; slides with `transform` / `width` 240ms `cubic-bezier(0.4, 0, 0.2, 1)`; no transition on first placement. Replaces the static `border-bottom-color` on `.tabs button.on` (all `Tabs` users) |
 | Panel slide | Panel keyed by tab; `.tab-pane-next` / `.tab-pane-prev` animate head + body from `translateX(±18px)` + opacity 0, 240ms; panel `overflow-x: clip` so no horizontal scrollbar |
 | Reduced motion | `prefers-reduced-motion: reduce` → no ink transition, no panel animation |
