@@ -38,6 +38,7 @@ const PLACEHOLDER_TILES = [
   { value: '—', label: 'Under repair', tone: 'warn' },
   { value: '—', label: 'Waiting for spare', tone: 'warn' },
   { value: '—', label: 'Open over 3 days', tone: 'bad' },
+  { value: '—', label: 'Closed', tone: 'ok' },
 ]
 
 /** Old `asg` links land on Under repair; `new` and anything unknown land on Open. */
@@ -67,6 +68,7 @@ function viewForTile(label, over3Counts) {
     const tab = !over3Counts.open && over3Counts.urp ? 'urp' : 'open'
     return { tab, status: 'All', age: 'over3' }
   }
+  if (label === 'Closed') return { tab: 'cls', status: 'All', age: '' }
   return null
 }
 
@@ -76,8 +78,11 @@ function isTileSelected(label, tab, applied) {
   if (label === 'Open over 3 days') return age === 'over3'
   if (age) return false
   if (label === 'Open, not attended') return tab === 'open'
-  if (label === 'Under repair') return tab === 'urp' && status === 'Under repair'
+  if (label === 'Under repair') {
+    return tab === 'urp' && (status === 'Under repair' || status === 'All')
+  }
   if (label === 'Waiting for spare') return tab === 'urp' && status === 'Waiting for spare'
+  if (label === 'Closed') return tab === 'cls'
   return false
 }
 
@@ -300,7 +305,7 @@ export default function TicketList() {
         {loading && !tiles.length ? (
           <div aria-busy="true" aria-live="polite">
             <span className="sr-only">Loading tickets</span>
-            <SkeletonTiles count={4} />
+            <SkeletonTiles count={5} five />
           </div>
         ) : (
           <div className="tiles five">
