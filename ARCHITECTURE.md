@@ -42,7 +42,7 @@ Original is a design preview: data lives in HTML rows and `app.js` / page script
 
 ### Routing
 
-React Router. Paths mirror original filenames without `.html`. Auth routes: `/login`, `/signup`, `/forgot-password`, `/reset-password`. App: 15 original screens + `/settings`.
+React Router. Paths mirror original filenames without `.html`. Auth routes: `/login`, `/signup`, `/forgot-password`, `/reset-password`. App: 15 original screens + `/settings` + `/notifications` (Phase 55, reached from the bell).
 
 ### Authentication / authorization
 
@@ -50,14 +50,14 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **Now (Phase 36):** Matrix is live against role_permissions; user chip + `user.permissions` from `/api/auth/me`.
 - **React (Phase 10–11):** Login with email or mobile + password against `../backend`. JWT Bearer token.
 - **Signup approval:** `POST /api/auth/signup` creates `status=Pending` (default role Site attendant). **Admin or Project Manager** (Users `e`) reviews on Users, may PATCH details/role, then `PATCH { status: 'Active' }`. Login rejects Pending with `PENDING_APPROVAL`.
-- **Ticket visibility (backend):** Admin / Project manager keep city-wide access. Everyone else: SQL `(assignee_id = me OR raised_by_user_id = me)` via `lib/ticket-access.ts` on list/export/detail. **Ticket list/export do not AND `assigned_roads`** — that hid tickets a Site attendant raised on other roads. Detail: raiser/assignee pass before road check. Assign uses road scope only (so Control room can assign). Dashboard open-ticket queries use the same visibility fragment.
+- **Ticket visibility (backend, Phase 51):** "Every Ticket, Every Road" — every user with All tickets `v` sees every ticket on list / export / detail / dashboard / devices / reports; Update ticket `e` updates any open ticket; `x` closes. No assignment exists (the Phase 15–48 assignee/raiser scoping and Assign flow below are history).
 - **Ticket UI (Phase 16):** TicketList, Dashboard, and TicketDetail call live APIs and render whatever the backend returns. Frontend does not filter tickets for security. Close ticket page remains design preview; photo files upload on submit via `uploadImages`. Detail Add Update is live (Phase 21): `addTicketUpdate` → optional `uploadImages` → `attachTicketUpdatePhotos`. Raise create is live (Phase 27); Raise photo attach order is Phase 38 (`createTicket` → `uploadImages` → `attachTicketRaisePhotos`). Update Ticket is a live find-device step (Phase 27b).
 - **QR scan (Phase 17 + 27 / 27b + 33):** `QrScannerModal` opens the device camera for **any signed-in user** on Raise / Update Ticket. Scans resolve via `resolveScan`: sticker `qr_token` → `POST /api/devices/slot-mac`; legacy codes → `GET /api/devices/scan?q=`. The standalone `/devices/scan` page was removed; Device list no longer links to Scan QR. Open ticket → Ticket Detail (live Add Update). Free device on Update → Raise CTA.
 - **Home + Dashboard:** `homePathForUser` uses Dashboard View (`canPerm`). Sidebar uses `filterMenuByView` + `canPerm(…, 'v')` only — no role-name hide rules.
 - **Ticket status (Phase 18):** Product statuses no longer include **New**; create/list display **Open**. FE `normalizeTicketStatus` + BE `displayStatus`; migration `007_ticket_status_open.sql` rewrites stored rows when run.
 - **Ticket list columns (Phase 18):** **Raised by** (`raisedBy` from API) immediately before **Assigned to**. Open tab label (route/query tab id remains `new`). The `updates` value is backend-computed from update-flow event types (`visit_open`, `visit_resolved`, `waiting_spare`, `reclassified`); raised, assigned, and closed events do not increment it, and actor role does not filter it.
 - **Ticket list / detail UX (Phase 19):** Open tab hides **Updates**; Closed shows **Days After Close** (`daysAfterClose`) instead of Days open; Assigned keeps Updates + Days open. TicketDetail Add Update uses `Modal`; work history oldest→newest; trail → **View Update** (details only, no photos) and, when photos exist, **View Image** → `ImagePreviewModal` gallery. List→detail passes `state.from = /tickets?tab=…`; Back to tickets / crumb use `backToTickets` so the active tab is restored.
-- **Ticket list tabs & tiles (Phase 19 follow-up, backend `tickets.ts`):** `tabForStatus` — Closed → `cls`; no `assignee_id` → `new` (Open tab); else → `asg`. Tile **Open, not attended** = count of tab `new` (matches Open badge). `listStatus` (list/tiles only, no DB write): assignee + stored Open/New → display/count as **Under repair** so Under repair (+ Waiting for spare) aligns with Assigned; **Open over 3 days** = non-closed with daysOpen > 3.
+- **Ticket list tabs & tiles (Phase 19 follow-up, backend `tickets.ts`; tabs replaced in Phase 51 by `open` / `cls`, Assigned to column removed):** `tabForStatus` — Closed → `cls`; no `assignee_id` → `new` (Open tab); else → `asg`. Tile **Open, not attended** = count of tab `new` (matches Open badge). `listStatus` (list/tiles only, no DB write): assignee + stored Open/New → display/count as **Under repair** so Under repair (+ Waiting for spare) aligns with Assigned; **Open over 3 days** = non-closed with daysOpen > 3.
 - **Photo attachments (Phase 20 — Image attachment in ticket):** Shared `PhotoPicker` — Choose from folder or Capture from camera (`CameraCaptureModal` via `getUserMedia`). Live preview: front/rear via overlay **flip icon** (`.camera-flip-btn`, camera + circular arrows SVG); bottom actions **Cancel** + **Take photo**. After capture: crop/review (drag box / corner handles) → **Upload** (confirm cropped JPEG `File`) or **Recapture**. Crop image is **full width** of the modal (`.camera-crop-image { width: 100% }`); stage background transparent — no black letterbox side bars. Both sources validate (`image/*`, ≤8 MB), keep local `File` + object-URL thumbs (max **5**). **`uploadImages` / `uploadImage` run on form submit** (Raise, Ticket Update, Ticket Close, Detail Add Update) — not when each photo is added. Raise (Phase 38): `POST /api/tickets` (photos `[]`) → `uploadImages` → `PATCH …/raised/:eventId/photos`. Detail Add Update (Phase 21): update → upload → attach. Do not use `QrScannerModal` for photos.
 - **Phase 21 — Sidebar, pagination, PhotoPicker/modal, live Add Update:** Collapsed desktop rail centered on 64px column; `TablePagination` + `listTickets({ page, limit })` (10/25/50/100, default 25). `Field` is `div.fld`. PhotoPicker: persistent hidden file input; folder menu + camera portaled to `document.body`; Modal `elevated` for camera over Add Update. Detail Add Update: `POST /api/tickets/:id/updates` (photos `[]`) → `uploadImages` → `PATCH …/updates/:eventId/photos`; button requires `Update ticket` `e`. Backend allows Admin/PM, holder, unassigned claim, or raiser for updates (close still holder-only).
 - **Phase 22 — Responsive skeleton loaders:** Shared `Skeleton` primitives replace plain `Loading…` on TicketList, TicketDetail, Dashboard, Users, and Auth boot. CSS shimmer uses existing tokens; `prefers-reduced-motion` disables animation. No new libraries.
@@ -69,18 +69,33 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **Phase 44 — Users visibility + delete:** `GET /api/users` is backend-scoped (own account excluded; Admin accounts hidden from non-Admin viewers), so `Users.jsx` renders the payload as-is with **no** client-side row filter. `deleteUser(id)` → `DELETE /api/users/:id`, gated with `canPerm(user, 'Users', 'd')` (Admin only), rendered as a danger Delete button + confirm `Modal`. Delete is a deactivation, so the row remains as `Inactive` and the button hides on inactive rows.
 - **Phase 36 — Live Roles matrix + route guards:** Users Roles tab uses `GET/POST /api/roles` and `PATCH /api/roles/:id/permissions`. `RequirePerm` in AuthContext wraps feature routes; pages reuse `canPerm` for actions. Sidebar `filterMenuByView` remains; Settings always visible. Backend `authorize` stays authoritative.
 - **Phase 46 — Role delete + assigned-user guard:** `deleteRole(id)` → `DELETE /api/roles/:id`, gated with `canPerm(user, 'Roles & permissions', 'd')` (Admin only), rendered as a danger Delete button beside **Permissions** plus a confirm `Modal`. The guard is backend-only (`409 ROLE_IN_USE`): it fires while any **Active or Pending** account holds the role, and Inactive accounts are exempt. `toastApiError` shows the backend message and the role stays in the list. The Delete button is never hidden by the roles table `users` count, since that snapshot can be stale. The same phase makes user delete a hard delete (button on every row, permanent-removal copy) and renders role-less accounts as "No role — select one", blocking activation until a role is chosen.
+- **Phase 47 — Field roles raise, optional assign, auto-assign on update, Resolve, Close with update** *(assign / auto-assign / holder pick removed in Phase 51; Resolve and Close Ticket remain)*: `FIELD_ROLES` / `isFieldRole` in `services/users.js` mirror the backend list (Technician, Engineer, Electrician) and feed `ASSIGNABLE_ASSIGNEE_ROLES`, `NOTIFICATION_ROLES` and `isFieldTicketUpdater`; Electrician joins `ROLE_HIERARCHY`. Raise stays gated by `Raise ticket` `c`. Raise has an optional **Assign to** (All tickets `a` only, default Assign later) → `createTicket({ assigneeId? })`. `TicketAddUpdateForm` gains `initialUpdateType`, `canClose` (Close Ticket Yes/No, default No → `closeTicket: true` only on Yes), `pickAssignee` (Admin/PM holder → `handoverToUserId`) and `onConflict` (`409 TICKET_ALREADY_ASSIGNED`). Detail shows Add update + **Resolve** (same modal, `Site visit — resolved`) on unassigned tickets for field roles / Admin-PM too; `/tickets/update` gate admits unassigned tickets for the same roles. The backend `POST /api/tickets/:id/updates` claims an unassigned ticket for a field-role updater and saves + closes in one row-locked transaction; the UI reloads the ticket rather than patching local state. `/tickets/close` is unchanged.
+
+- **Phase 51 — Main/Sub issue panels + no assignment:** `TicketAddUpdateForm` renders `TicketResolveIssues` (collapsible Main Issue panels from `groupIssuesForResolve`, progressive **Another Issue**, **Add another issue** after a panel opens) and posts `resolveCategoryIds` / `resolveIssueIds` / `addIssues` with `closeTicket?`. Every Assign surface is gone (Detail Assign Modal, TicketList Assign column / modal / filter / Assigned tab, Raise Assign to, QR assignee gate, `assignTicket`, `filterAssignableAssignees`, `isOpsTicketUpdater`). Add update shows for Update ticket `v`+`e` on any non-Closed ticket.
+
+- **Phase 52 — Under Repair tab, clickable cards, tab transition:** TicketList tabs `open` (no update yet) / `urp` (at least one update) / `cls` from backend `tabCounts`; summary cards are `.tile-link` buttons mapping to tab + status + `age=over3` (`viewForTile`, `over3Counts`); status select only on Under Repair. `Tabs` gets a sliding `.tabs-ink`; the TicketList Panel is keyed by tab and slides in by direction (`prefers-reduced-motion` respected).
+
+```mermaid
+flowchart LR
+  Scan[QR scan or Detail] --> Form[TicketAddUpdateForm]
+  Form --> Panels[TicketResolveIssues]
+  Panels -->|"resolveCategoryIds / resolveIssueIds / addIssues"| Form
+  Form -->|"POST updates {…, closeTicket?}"| BE[row-locked tx: append, event, resolve]
+  BE -->|"201 addedIssues / resolvedIssues; 409 → onConflict"| Reload[getTicket reload]
+```
+
 - **Phase 39 — Hierarchy on Roles edit + route holes:** `canManageRolePermissions` disables Save/checkboxes for higher roles. `RequirePerm` on `/dashboard` and `/masters/parts` (Update ticket `v`). Parts create/update UI includes Engineer with Technician.
 - **Phase 25 — Forgot password role gate + 404:** `POST /forgot-password` and `POST /reset-password` allow only **Admin** / **Project manager**. Other Active roles → `403` / `FORGOT_PASSWORD_ROLE_DENIED` (explicit message). Unknown / Pending / Inactive → generic 200 (no email). FE Forgot page notes Admin/PM-only and shows API errors. Unknown routes → `NotFound` + `GearLoader` (CSS gears, theme tokens, no black panel, no styled-components). Catch-all is a top-level `*` (not silent `HomeRedirect`).
 - **Phase 26 — Device Sync frontend:** Device list JumpLinks action **Sync Devices** (`canPerm` Device list `c`) → `POST /api/device-sync` → toast + button **Syncing...** (disabled). Poll `GET /api/device-sync/:id` every 2s until `completed` / `failed`; on complete toast may include `devicesCreated` / `devicesUpdated` / `devicesSkipped` from `run.stats`, then bump `reloadToken` to refetch `GET /api/devices` with current page/filters (no page reset). Mount resumes via `GET /api/device-sync/latest` if status is `started`. Slot/MAC validation and Slot-ID upserts are backend source of truth — FE never invents devices or processes the external dataset. Never call SmartPark from the browser. Device table columns: Slot Id, Slot Label, Slot Identifier, QR Number (link to history), Parking Location. List row also keeps legacy `id`/`qr`/`road`/`slot` for other consumers.
 - **Device list status tiles:** Working / Under repair / Not working / Total devices are on-page filter controls (`selectStatus` → draft + `applied.status`, `page=1`); reuse existing `listDevices({ status })`. They do **not** navigate to `/tickets`.
 - **Device list order (Phase 44):** the Device list is rendered in **Slot Label ascending** order, but there is **no frontend sorting code** — the backend `GET /api/devices` orders by `slot_number` in SQL so the order is correct across `LIMIT/OFFSET` pages. Client-side sorting is forbidden here because it would only order the current page.
 - **Phase 26b — Ticket Slot Id + live history:** Ticket list/detail label **Slot Id** (API `deviceId`); Device history page calls `getDevice(routeId)` and re-renders the same layout when the id changes.
-- **Phase 27 — QR → device → raise/update:** `resolveScan` → `GET /api/devices/scan?q=` (404 → null; other errors rethrown). One lookup returns device + `openTicketId` (no `/tickets/by-slot`). Raise: free device → issue UUIDs from `GET /api/issues` → `POST /api/tickets` → optional `uploadImages` → `PATCH …/raised/:eventId/photos` (Phase 38); `409 OPEN_TICKET_EXISTS` / `REOPEN_SAME_TICKET` → existing ticket. Scan QR same branching; no simulate-mock buttons.
+- **Phase 27 — QR → device → raise/update:** `resolveScan` → `GET /api/devices/scan?q=` (404 → null; other errors rethrown). One lookup returns device + `openTicketId` (no `/tickets/by-slot`). Raise: free device → issue UUIDs from `GET /api/issues` → `POST /api/tickets` → optional `uploadImages` → `PATCH …/raised/:eventId/photos` (Phase 38); `409 OPEN_TICKET_EXISTS` → existing ticket. Scan QR same branching; no simulate-mock buttons. (Phase 50: the scan also returns `openTickets[]`; Raise is blocked per issue, not per device, and `REOPEN_SAME_TICKET` is gone — see "Several open tickets per device".)
 - **Phase 27b — Update Ticket live scan:** `/tickets/update` uses the same `resolveScan`; miss/error empty states; mock TK-1042 form removed.
-- **Phase 28 — QR Update Ticket handoff:** Raise open-ticket primary **Update Ticket** → `/tickets/update` with `ticketId`; assignee gate via `getTicket`.
+- **Phase 28 — QR Update Ticket handoff:** Raise open-ticket primary **Update Ticket** → `/tickets/update` with `ticketId`; `getTicket` check (Phase 51: only Closed is refused — no assignee gate).
 - **Phase 29 — Update form on `/tickets/update`:** Shared `TicketAddUpdateForm`; Update Ticket stays on `/tickets/update?ticketId=` and shows the form in-page (no Detail `openUpdate` redirect). Detail keeps Modal Add Update for ops/assignee trail viewing. Scan QR / Raise / Detail field CTA use the same Update URL.
 - **Phase 30 — Work report API:** `/tickets/report` loads `GET /api/reports/work`; Export → `/api/reports/work/export` (CSV); Person from `/api/lookups/technicians`; Road from `/api/lookups/roads`; page gated with Work report `v`. Mock `data/workReport.js` removed.
-- **Phase 31 — Ticket Detail assign:** Assign/Reassign Save → `POST /api/tickets/:id/assign` (`assigneeId` UUID + optional `reason`). Hand to from `listTechnicianLookups`. Reloads detail for assignee fact + `assignmentTrail`. UI gated with All tickets `a`; backend remains authoritative.
+- **Phase 31 — Ticket Detail assign** *(removed in Phase 51)*: Assign/Reassign Save → `POST /api/tickets/:id/assign` (`assigneeId` UUID + optional `reason`). Hand to from `listTechnicianLookups`. Reloads detail for assignee fact + `assignmentTrail`. UI gated with All tickets `a`; backend remains authoritative.
 - **Forgot/reset:** Backend token email flow (SHA-256, 1h TTL); FE `/forgot-password`, `/reset-password`. Role gate as Phase 25.
 - **Admin change password:** Reuse `PATCH /api/users/:id` with `password` (requires Users edit). Increments `password_version` (invalidates JWTs).
 - **Self-service Settings (Phase 13):**
@@ -91,7 +106,7 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 - **Menu gating:** Sidebar `filterMenuByView` + `canPerm` (`v`); Dashboard also requires Admin/PM; Settings always visible. Site attendant / Technician: All tickets promoted to a top-level link (no Tickets submenu) when Work report is not visible. Site attendant may Device Sync (Device list `c`) and Issue Master CRUD after BE 018 — same `canPerm` gates. Backend remains authoritative for data.
 - **Phase 37 — Multi-issue tickets:** Raise sends selected `issues[]`; Update starts with a blank issue row and sends the user-selected `issues[]` (no automatic reported/found prefill). Detail reads `issuesReported` / `issuesFound` via `TicketIssueRows` + existing `IssueSelects`.
 - **Phase 38 — Raise photo order:** `createTicket` (photos `[]`, returns `eventId`) → `uploadImages` → `attachTicketRaisePhotos` (`PATCH …/raised/:eventId/photos`); mirrors Add Update attach pattern.
-- **Phase 44 — Slot Label order + Assign role filter:** Device list renders Slot Label ascending straight from the backend (no client sort, pagination would break). Both Assign / Reassign "Hand to" dropdowns (TicketList inline modal and TicketDetail) map `filterAssignableAssignees(...)` from `services/users.js`, narrowing `GET /api/lookups/technicians` to `ASSIGNABLE_ASSIGNEE_ROLES` (`Technician`, `Engineer`) while always pinning the ticket's current assignee. Work report keeps the full lookup. No new users API, no duplicated role logic, and the backend `assertEligibleAssignee` remains the final source of truth.
+- **Phase 44 — Slot Label order + Assign role filter** *(Assign half removed in Phase 51)*: Device list renders Slot Label ascending straight from the backend (no client sort, pagination would break). Both Assign / Reassign "Hand to" dropdowns (TicketList inline modal and TicketDetail) map `filterAssignableAssignees(...)` from `services/users.js`, narrowing `GET /api/lookups/technicians` to `ASSIGNABLE_ASSIGNEE_ROLES` (`Technician`, `Engineer`) while always pinning the ticket's current assignee. Work report keeps the full lookup. No new users API, no duplicated role logic, and the backend `assertEligibleAssignee` remains the final source of truth.
 
 ---
 
@@ -121,8 +136,8 @@ frontend/
     ├── services/
     │   ├── api.js
     │   ├── auth.js             # login, me, updateProfile, changePassword, logout, …
-    │   ├── users.js            # Users/roles admin + canPerm + ROLE_HIERARCHY + createRole/updateRolePermissions + ASSIGNABLE_ASSIGNEE_ROLES/filterAssignableAssignees
-    │   ├── tickets.js          # list/get + create + raise/update photos attach + assignTicket
+    │   ├── users.js            # Users/roles admin + canPerm + ROLE_HIERARCHY + createRole/updateRolePermissions + FIELD_ROLES/isFieldRole
+    │   ├── tickets.js          # list/get + create + update + raise/update photos attach
     │   ├── notifications.js    # list/count/read + push-config/subscriptions
     │   ├── dashboard.js
     │   ├── reports.js          # getWorkReport + exportWorkReport (CSV)
@@ -138,15 +153,18 @@ frontend/
     │   └── AuthLayout.jsx      # login/signup chrome
     ├── components/
     │   ├── layout/             # Sidebar (filterMenuByView + Dashboard role gate), Topbar, NotificationBell
+    │   ├── notifications/      # NotificationItem (row shared by the bell and /notifications)
     │   ├── icons/              # NavIcons (incl. bell, logout)
     │   └── ui/                 # Button, Panel, Field (div.fld), PhotoPicker, CameraCaptureModal, TablePagination, Skeleton, Modal, …
     ├── pages/
     │   ├── auth/               # Login (homePathForUser), Signup, Forgot, Reset
     │   ├── Dashboard.jsx       # Admin/PM only; fleet + why-down + road-wise
     │   ├── Users.jsx
-    │   ├── Settings.jsx        # profile + password forms
+    │   ├── Settings.jsx        # profile + password forms + Notifications panel (Phase 54)
+    │   ├── Notifications.jsx   # /notifications: every notification, All / Unread, server pagination (Phase 55)
     │   ├── UiKitDemo.jsx       # /dev/ui scratch (not in menu)
     │   ├── tickets/            # TicketList tab columns + state.from; TicketDetail Modal update / gallery / backToTickets
+    │   ├── slots/              # Slot View: SlotList (ticketed slots), SlotDetail (unresolved issues + tickets)
     │   ├── devices/
     │   └── masters/
     └── hooks/
@@ -245,7 +263,7 @@ Raise / Update / Close
 | Concern | Mechanism |
 |---------|-----------|
 | Raise steps | Device + problem only; reported-by from `AuthContext` |
-| No assign on raise | Control room / Admin assigns later |
+| No assign on raise | No assignment anywhere (Phase 51) |
 | Photo picker | Compact `.photo-add` tile; local Files until submit (`uploadImages`) |
 | Camera modal | Overlay flip (`.camera-flip-btn`); crop full-width (no letterbox) |
 | Field wrapper | `div.fld` — never `<label>` around PhotoPicker / chips |
@@ -265,9 +283,9 @@ Helpers: `isDashboardRole`, `homePathForUser` (`services/users.js`); `HomeRedire
 ### Ticket list ↔ detail (Phase 19)
 
 ```text
-TicketList (tab = new | asg | cls)
-  → Open (new) = unassigned non-closed; Assigned (asg) = has assignee; Closed (cls)
-  → tiles from API: Open not attended = new; Under repair via listStatus; …
+TicketList (tab = open | urp | cls)      (Phase 52; parseTab: asg → urp, anything else → open)
+  → Open (open) = no update yet; Under Repair (urp) = at least one update; Closed (cls)
+  → tiles from API: Open not attended; Under repair via listStatus (incl. historical assigned Open); …
   → Link to /tickets/:id  state.from = /tickets?tab={tab}
 TicketDetail
   → backToTickets = ticketsListReturnPath(state.from)  // else /tickets
@@ -302,13 +320,59 @@ POST /api/tickets
   → active page receives TICKET_NOTIFICATION_PUSH
   → page plays public/sounds/elevenlabs-achievement-unlock.mp3 (2s dedupe; autoplay may block)
   → useTicketNotifications refreshes the shared unread count
-  → NotificationBell renders the list / permission state
+  → NotificationBell renders the latest 10 (push controls live in Settings since Phase 54)
+      and links to /notifications for the full list (Phase 55)
   → Sidebar renders the same count on Tickets and All tickets
 ```
 
-`AppLayout` creates one `useTicketNotifications()` instance and passes its state to `Topbar` and `Sidebar`; the two sidebar locations never maintain independent counts. The hook consumes the existing authenticated REST APIs, performs a 30-second fallback poll (subject to browser throttling when hidden), and refreshes on focus/visibility. A newly received push or an increase in the backend unread count attempts to play `public/sounds/elevenlabs-achievement-unlock.mp3`; a 2-second debounce prevents push/poll double playback, and browser autoplay rejection is handled without breaking notifications. The service worker shows a non-silent, interaction-required Chrome notification so it remains visible while the user works in another app. The service worker is the only push client and relays notification IDs to the page; it never reads the JWT from `localStorage` or calls protected APIs directly.
+`AppLayout` creates one `useTicketNotifications()` instance and passes its state to `Topbar` and `Sidebar`; the two sidebar locations never maintain independent counts. The hook consumes the existing authenticated REST APIs, performs a 30-second fallback poll (subject to browser throttling when hidden), and refreshes on focus/visibility. A newly received push or an increase in the backend unread count attempts to play `public/sounds/elevenlabs-achievement-unlock.mp3` when the user's Push Notifications and Play Notification Sound preferences are both On (Phase 54); a 2-second debounce prevents push/poll double playback, and browser autoplay rejection is handled without breaking notifications. The service worker shows an interaction-required Chrome notification so it remains visible while the user works in another app. It is silent only when the payload says so (Play Notification Sound Off). The service worker is the only push client and relays notification IDs to the page; it never reads the JWT from `localStorage` or calls protected APIs directly.
 
-Browser push is opt-in: permission is requested only from the notification dropdown's explicit Enable action. The backend remains authoritative for recipient roles and `All tickets v` access. Notification clicks use the existing `/tickets/:ticketId` route and return state `/tickets?tab=new`; the existing detail 403/404 handling remains authoritative.
+Browser push is opt-in: permission is requested only from an explicit click in **Settings → Notifications** (Phase 54; before that it was the notification dropdown's Enable action). The backend remains authoritative for recipient roles and `All tickets v` access. Notification clicks use the existing `/tickets/:ticketId` route and return state `/tickets?tab=new`; the existing detail 403/404 handling remains authoritative.
+
+#### Notifications page (Phase 55)
+
+```text
+Bell popover (hook items: page 1, limit 10)  ──"View all notifications"──►  /notifications
+pages/Notifications.jsx
+  → useOutletContext(): eligible, unreadCount, openNotification, markAllRead (same hook instance)
+  → listNotifications({ page, limit, unreadOnly }) → GET /api/notifications   (own page state)
+  → refetch on tab / page / limit change, and silently when unreadCount changes
+  → rows = components/notifications/NotificationItem (shared with NotificationBell)
+```
+
+- The page keeps its own `rows` / `pagination`; it never replaces the hook's 10-item `items`, so the bell stays fast.
+- Opening a row and Mark all read go through the hook (`openNotification`, `markAllRead`), so the bell, both sidebar badges and the page share one unread count. No new endpoint, store or counter.
+- Route `notifications` is wrapped in `RequirePerm screen="All tickets"`; the page also redirects to `homePathForUser` when the hook is not `eligible`. The backend `authorize('All tickets', 'v')` stays authoritative.
+
+#### Notification settings: browser permission vs application preference (Phase 54)
+
+```text
+Login / refresh
+  → /api/auth/login or /me returns user.notificationPreferences (no extra call)
+  → AuthContext.user holds it; useTicketNotifications reads it
+  → Notification.permission === 'granted'?
+       yes → reuse the browser subscription and re-register it (PUT upsert, no prompt)
+             no subscription and push On → subscribe silently (permission already granted)
+       no  → nothing happens on load; never calls requestPermission
+
+Settings → Push Notifications toggle (click)
+  On  → requestPermission() only if 'default' (before any await, so it counts as the user gesture)
+      → PATCH /api/auth/me/notification-preferences { pushNotificationsEnabled: true }
+      → granted → ensureSubscription({ create: true })
+  Off → PATCH { pushNotificationsEnabled: false } only; permission + subscription kept
+        backend stops delivery to every device
+
+Logout
+  → DELETE /api/notifications/push-subscriptions/:id   (this browser's server row only)
+  → browser subscription + permission kept → next login re-registers silently
+```
+
+- **Two layers.** `Notification.permission` is browser state for one device and is shown read-only ("Browser Permission"). `notificationPreferences` is the per-user database preference and is the only ON/OFF switch. Push OFF with permission Granted is a valid state.
+- **One owner.** `useTicketNotifications` (created once in `AppLayout`) owns permission, subscription and preference actions: `setPushEnabled`, `setPlaySound`, `requestBrowserPermission`, `prepareLogout`. `AppLayout` passes the same instance to Settings through `<Outlet context>` / `useOutletContext()`, so no second hook instance or global store exists. Preference saves go through `AuthContext.updateNotificationPreferences`, which updates `user` the same way `updateProfile` does.
+- **Sound.** The in-app MP3 (`playNotificationSound`) is gated on push On **and** sound On through a ref. The system notification sound comes from `sw.js` honouring the backend payload's `notification.silent`. Chromium respects per-notification `silent`; the OS (Focus Assist, macOS notification settings) can still mute or force sound, and autoplay policy can block the MP3 until the user has interacted with the page.
+- **Bell.** The popover keeps the list, count and Mark all read. Its only push UI is a "Turn on browser alerts in Settings" link, shown while push is On and permission is `default`.
+- **Service worker readiness.** `subscribe()` needs an active worker, so `ensureSubscription` waits for `navigator.serviceWorker.ready` (bounded at 10s) when the registration is still installing on first load.
+- **Shared browsers.** Each push endpoint belongs to one user (`409 PUSH_SUBSCRIPTION_OWNED`). Because logout drops the server row, the next account to sign in on that browser can claim the endpoint. If a browser is still registered to someone else, Settings shows a message telling the user to sign that account out.
 
 #### Opening a ticket marks its notifications read
 
@@ -325,12 +389,112 @@ any navigation to /tickets/:ticketId
 
 The route effect is scoped to the path, so it covers every existing way in — ticket list rows, search, device history, direct URL, and notification clicks — without a second navigation mechanism. `lastTicketRef` makes re-entering the same ticket a no-op, and the row set is only ever touched for the ticket being viewed, so a sibling ticket's notification stays unread. The backend scopes the update with `WHERE recipient_user_id = $1`, so a user can never mark another user's row. A failure sets the existing `listError` and never blocks the ticket view; a `0` response means nothing was unread, and the count is left alone.
 
-#### Assignment / reassignment notifications
+#### Assignment / reassignment notifications (historical — no longer created since Phase 51)
 
-`createTicketAssignmentNotification` writes `ticket.assigned` / `ticket.reassigned` for the new holder only, after the assignment transaction commits and wrapped so a notification failure can never fail the assignment. It fires from three places: raise with an assignee, assign/reassign, and update handover. The existing unique key `(recipient_user_id, type, related_entity_type, related_entity_id)` keeps it idempotent. Recipient roles are `NOTIFICATION_DELIVERY_ROLES` — the oversight roles plus `Technician` and `Engineer`, so an assignee is never un-alertable. Because the recipient is the assignee, assignee-scoped access always applies, so `canOpen` is true and `data.url` is always usable. Delivery reuses the same VAPID path, so the popover, the sound, and the badge need no new code.
+The backend no longer creates these; existing rows still render in the bell. *History:* `createTicketAssignmentNotification` wrote `ticket.assigned` / `ticket.reassigned` for the new holder only, after the assignment transaction commits and wrapped so a notification failure can never fail the assignment. It fires from three places: raise with an assignee, assign/reassign, and update handover. The existing unique key `(recipient_user_id, type, related_entity_type, related_entity_id)` keeps it idempotent. Recipient roles are `NOTIFICATION_DELIVERY_ROLES` — the oversight roles plus `Technician` and `Engineer`, so an assignee is never un-alertable. Because the recipient is the assignee, assignee-scoped access always applies, so `canOpen` is true and `data.url` is always usable. Delivery reuses the same VAPID path, so the popover, the sound, and the badge need no new code.
 
 The bell renders these through the existing item component. Attribution is type-aware — `ticket.raised` rows carry `data.raisedBy` and render "Raised by …", assignment rows carry `data.assignedBy` and render "Assigned by …" — and a payload with neither simply omits the line.
 
 ### View Update issue details
 
 The TicketDetail View Update modal uses the structured `issuesReported` / `issuesFound` arrays when available, groups sub-categories beneath each issue category, and falls back to the legacy scalar event fields for older records. The modal remains details-only; photos continue to open through View Image.
+
+### Per-issue resolution (Phase 49)
+
+```text
+getTicket → issuesReported[{ id, status, … }]
+  → openReportedIssues()                 ticketIssueRowsHelpers.js
+  → TicketAddUpdateForm openIssues       (TicketDetail modal, TicketUpdate page / QR)
+  → chips → resolveIssueIds in addTicketUpdate POST
+  → backend validates + resolves in the update transaction
+  → onSuccess reload (Detail) / navigate back (Update page); 409 ISSUE_ALREADY_RESOLVED → onConflict reload
+```
+
+One form and one POST serve every role (Admin, PM, Control room when granted `Update ticket` `e`, field roles) and every entry point; authorization stays on the backend. Detail renders per-issue `status` pills and `workHistory[].resolvedIssues` in View Update. The Dashboard reads `downReasons` / `openIssues` / `openTicketsCount` from `GET /api/dashboard` on mount — no global store or second dashboard state.
+
+### Several open tickets per device (Phase 50)
+
+```text
+resolveScan → scan.openTickets[{ id, age, issues[Open only] }]   (+ openTicketId = worst ticket)
+  → scanOpenTickets / openTicketIssueLabel / findOpenIssueDuplicates   data/scanDevice.js
+TicketRaise
+  → .reclass list: each open ticket + open issues → Update Ticket (/tickets/update) | Open (Detail)
+  → problem form always available
+  → submit: findOpenIssueDuplicates(scan, issues)
+       all on one ticket → toast + goToUpdateTicket ; some → toast names, stop ; none → createTicket
+  → 409 OPEN_TICKET_EXISTS → same branching from details.issues → re-resolve scan (form kept)
+TicketUpdate (QR)
+  → 1 open ticket → activateTicket (unchanged)
+  → >1 → pick list → activateTicket(chosen) ; "Raise a ticket for a different issue" → /tickets/raise + qr
+  → 0 → Raise link (unchanged)
+```
+
+Device status, the Dashboard fleet / road-wise counts and the Device list status come from the backend (worst open ticket per device), so Dashboard, DeviceList and DeviceDetail needed no change.
+
+### Main/Sub issue panels and no assignment (Phase 51)
+
+```text
+getTicket → issuesReported[{ id, categoryId, subCategoryId, category, sub, status }]
+  → TicketAddUpdateForm reportedIssues           (TicketDetail modal, TicketUpdate page / QR)
+  → TicketResolveIssues
+       groupIssuesForResolve()                   ticketIssueRowsHelpers.js
+       panels collapsed; Issue 1 shown → "Another Issue" reveals next group (hides at the end)
+       main checkbox → selection.categoryIds     (subs shown checked + disabled)
+       sub chip      → selection.issueIds        (Resolved subs / mains disabled)
+       any panel opened → "Add another issue" → TicketIssueRows → addRows
+  → addTicketUpdate POST { …, resolveCategoryIds?, resolveIssueIds?, addIssues?, closeTicket? }
+  → 201 → onSuccess reload ; 409 ISSUE_ALREADY_RESOLVED | ISSUE_ALREADY_ON_TICKET | OPEN_TICKET_EXISTS → toast + onConflict reload
+```
+
+| Surface | Phase 51 state |
+|---------|----------------|
+| Ticket Detail | No Assign / Reassign Modal, no "Assigned to" fact; Add update + Resolve when Update ticket `v`+`e` and not Closed; old `assigned` events still render in work history |
+| All Tickets | Tabs `open` / `cls`; no assignee filter, Assigned to column or Assign modal; action column is an **Open** link; Updates column always shown |
+| Raise | No Assign to; `createTicket` never sends `assigneeId` |
+| Update Ticket (`/tickets/update`, QR) | `loadUpdatableTicket` — only Closed is refused; no assignee gate |
+| Close | No Assigned to fact; Update ticket `x` |
+| Services | `assignTicket`, `filterAssignableAssignees`, `ASSIGNABLE_ASSIGNEE_ROLES`, `isOpsTicketUpdater` deleted |
+
+### All Tickets tabs, cards and transition (Phase 52)
+
+```text
+URL ?tab=open|urp|cls  (parseTab: asg → urp, else → open)
+applied { road, status, category, age, q }
+  → listTickets({ tab, status: statusForTab(tab), age: ageForTab(tab), … })
+  → { rows, tiles, tabCounts { open, urp, cls }, over3Counts { open, urp } }
+
+Card click  → viewForTile(label, over3Counts) → { tab, status, age }
+            → setTabParam(tab) + applied.status / applied.age   (isTileSelected → aria-pressed)
+Tab click   → status = All; age kept on open / urp, cleared on cls
+Tab change  → same render: pane = { tab, dir: next|prev by TICKET_TABS order }, rows = [], loading = true
+            → <Panel key={tab} className="tab-pane tab-pane-{dir}"> slides in
+Tabs.jsx    → .tabs-ink positioned from the active [role=tab] (useLayoutEffect + ResizeObserver, DOM style)
+```
+
+The backend owns tab membership (`open` = no update yet, `urp` = at least one update, `cls`); the page never filters rows itself. Status only varies on Under Repair; Open and Closed always send `All`.
+
+### Slot View (Phase 53)
+
+```text
+Sidebar MENU: dashboard → slot-view (screen Slot View, match slot-detail) → Tickets ▸ …
+
+/slot-view            SlotList    → listSlots({ q, page, limit })      → GET /api/slot-view
+  Slot Id | Slot Label link → /slot-view/:id   (id = Slot Id, or PD-xxxx when no Slot Id)
+
+/slot-view/:slotId    SlotDetail  → getSlot(slotId)                     → GET /api/slot-view/:slotId
+                                     { slot, ticketCount, unresolvedIssues }
+                                  → listTickets({ device: slotId, page, limit })  (no tab = every status)
+                                     → TicketTable (showSlot=false) → /tickets/:id  state.from=/slot-view/:id
+TicketDetail          ticketsListReturnPath keeps /slot-view/... → "← Back to slot"
+```
+
+| Piece | Location |
+|-------|----------|
+| Menu item + icon | `config/nav.js` (`slot-view`), `components/icons/NavIcons.jsx` (`slot`) |
+| Routes | `routes.jsx` — both behind `RequirePerm screen="All tickets"` |
+| Service | `services/slotView.js` (`listSlots`, `getSlot`); `listTickets({ device })` in `services/tickets.js` |
+| Pages | `pages/slots/SlotList.jsx`, `pages/slots/SlotDetail.jsx` |
+| Shared ticket table | `components/tickets/TicketTable.jsx` (All tickets + Slot View) |
+| Issue grouping | `groupIssuesForDisplay` (`ticketIssueRowsHelpers.js`) — passes `tickets` through |
+
+The backend decides which slots appear (only ticketed), the ticket count (tickets, not issues), which issues are unresolved (persisted Open, unique per Sub Issue) and the order (natural Slot Label). React only renders: no status filtering, grouping by slot, counting or sorting in the browser.

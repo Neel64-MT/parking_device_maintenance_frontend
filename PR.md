@@ -27,9 +27,10 @@ Where scope and code differ, see **Gaps vs Claude scope** below.
 | Role | Typical use |
 |------|-------------|
 | **Site attendant** | Scan QR / pick road+slot, raise tickets on assigned roads |
-| **Technician** | Update visits on site, close tickets they hold, mobile-first flows |
-| **Control room** | Raise and assign tickets; cannot close |
-| **Project manager** | Dashboard, reports, masters, assign/close; manage users / approve signups (Users `vce...`) |
+| **Technician** | Update visits on site and close any open ticket (no holder since Phase 51), mobile-first flows |
+| **Engineer / Electrician** | Same field rules as Technician: raise, update and close any open ticket |
+| **Control room** | Raise and watch every ticket; cannot update (by default) or close |
+| **Project manager** | Dashboard, reports, masters, update/close; manage users / approve signups (Users `vce...`) |
 | **Admin** | Full control including users and roles |
 | **AMC officer** | View-only across roads |
 
@@ -61,16 +62,16 @@ Preview UI originally hardcoded user **Alkesh P. / Project manager** in the side
 | Field | Devices → Scan QR → raise / update / history |
 | Add device | Devices → Add device (+ link to Add road) |
 | History | Devices → device id → Device history |
-| Assign | Open tab → Assign → ticket detail |
+| ~~Assign~~ | Removed in Phase 51 — anyone with Update ticket `e` works any open ticket |
 
 #### Screens (15 HTML pages)
 
 1. Dashboard — fleet strip, why-down ranked bars, road-wise table (open-tickets table removed in Phase 13)
-2. All tickets — tiles, filters, Open/Assigned/Closed tabs, table (incl. Raised by before Assigned to); ticket status **Open** (not New)
+2. All tickets — clickable tiles, filters, Open / Under Repair / Closed tabs (Phase 52), table (Raised by, no Assigned to); ticket status **Open** (not New)
 3. Raise ticket — scan/manual device via live scan API; open ticket → Detail update; else problem form + live `POST /api/tickets`; PhotoPicker upload on submit; Cancel / Raise in page flow
 4. Update ticket — live scan/manual find device; open ticket → Detail Add Update; free device → Raise; miss/error states
 5. Close ticket — mobile-first: final issue, resolution, cost, photos (upload on confirm), confirm
-6. Ticket detail — record header, work history timeline, classification, assignment trail; live Assign/Reassign; Add Update modal with PhotoPicker
+6. Ticket detail — record header, work history timeline, classification; Add Update / Resolve modal with Main/Sub issue panels and PhotoPicker (Assign/Reassign removed in Phase 51)
 7. Work report — Day/Week/Month/Range via live `GET /api/reports/work`; team strip + per-person panels; Export CSV; Person/Road from lookups
 8. Device list — tiles (click → `status` filter on same page), filters, table (Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location); Sync Devices (Phase 26)
 9. Device history — record, life stats, split ticket/resolution table, parts, timeline
@@ -683,6 +684,38 @@ Users d → Delete on every row → confirm Modal → deleteUser(id) → DELETE 
 | User delete removes the account permanently and works on Inactive rows too | Pass |
 | Self-delete and last-Active-Admin guards unchanged | Pass |
 
+### Phase 47 — Field roles raise, optional assign, auto-assign on update, Resolve, Close with update
+
+```text
+Raise (Raise ticket c: Technician / Engineer / Electrician / …)
+  → Assign to (All tickets a only, optional, default Assign later)
+  → POST /api/tickets { …, assigneeId? }        non-assigner + assigneeId → 403
+
+Add update / Resolve (Detail modal) or QR /tickets/update
+  → TicketAddUpdateForm (Close Ticket: ( ) Yes (•) No)
+  → POST /api/tickets/:id/updates { …, closeTicket?: true, handoverToUserId? }
+      assigned ticket      → assignee unchanged
+      unassigned + field   → auto-assigned to the updater (backend, row-locked)
+      unassigned + Admin/PM → required Assign to → handoverToUserId
+      closeTicket: true    → update + close in one transaction
+  → upload photos → PATCH …/updates/:eventId/photos → reload ticket
+```
+
+| Criterion | Result |
+|-----------|--------|
+| A/B/C Technician, Engineer, Electrician can raise (`Raise ticket` `c`, no role hardcode) | Pass (backend smoke) |
+| D Raise without an assignee → created, unassigned | Pass |
+| E Raise with an assignee (assigners only) → existing assignment behavior | Pass; field role + `assigneeId` → `403` |
+| F Scan an open ticket → Update Ticket form opens (unassigned allowed for field roles) | Pass |
+| G Assigned ticket keeps its assignee on update | Pass |
+| H Unassigned ticket → logged-in field user becomes the assignee (user id, trail row) | Pass |
+| I Add Update opens with Close Ticket = No | Pass |
+| J Close Ticket = No → update saved, ticket stays open | Pass |
+| K Close Ticket = Yes → update saved and ticket closed in one request | Pass |
+| L Resolve → same Add Update modal (`Site visit — resolved`, Close = No) | Pass |
+| M Existing Visited by / issue / parts / labour / photo validation and toasts | Pass (unchanged code paths) |
+| No new components / routes / API clients; `/tickets/close` unchanged | Pass |
+
 ### Phase 37 — Multi-issue tickets + Site attendant Sync / Issue Master
 
 ```text
@@ -857,4 +890,201 @@ POST /api/tickets
 | Work report Person filter unchanged (CR / PM still listed) | Pass |
 | No user deleted, no role changed, global Users list untouched | Pass |
 | Backend `assertEligibleAssignee` unchanged — still the final source of truth | Pass |
+| `npm run lint` / `npm run build` | Pass |
+
+### Phase 49 — Per-issue Open/Resolved
+
+| Criterion | Result |
+|-----------|--------|
+| Add Update lists only Open reported issues as resolvable chips | Pass |
+| Multiple issues can be resolved in one update (`resolveIssueIds`) | Pass |
+| Resolved issues do not reappear on the next update (Detail, `/tickets/update`, QR) | Pass |
+| Same form / POST for Admin, PM, Control room (with `Update ticket` `e`) and field roles | Pass |
+| Single-issue ticket resolves through the same chips | Pass |
+| `409 ISSUE_ALREADY_RESOLVED` → toast + reload | Pass |
+| Last issue resolved keeps the ticket open; Close Ticket default still No | Pass |
+| Closing (update Yes or Close page) resolves remaining issues; Close page shows hint | Pass |
+| Detail shows Open / Resolved per reported issue; View Update shows resolved issues | Pass |
+| Dashboard "Why devices are down" counts open issues; subtitle shows open issues / open tickets | Pass |
+| Found-on-site issue rows, parts/cost, photos, visited by, assignee pick unchanged | Pass |
+| `npm run lint` / `npm run build` | Pass |
+
+### Phase 50 — Several open tickets per device
+
+```text
+Raise → resolveScan → openTickets? → list each ticket + open issues (Update Ticket / Open); form stays available
+      → submit → same Open issue? → all on one ticket: Update Ticket ; else toast names : createTicket
+QR Update → resolveScan → 1 open ticket: auto-open ; >1: pick list + "Raise a ticket for a different issue" ; 0: Raise
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Raise is not blocked by an open ticket on the device; a different issue raises a new ticket | Pass |
+| Raise lists every open ticket with its Open issues (Update Ticket / Open) | Pass |
+| Selecting an issue already Open on one ticket → toast + Update Ticket for that ticket | Pass |
+| Mixed / multi-ticket duplicates → toast naming them, nothing submitted | Pass |
+| `409 OPEN_TICKET_EXISTS` handled from `details.issues`; scan refreshed, form kept | Pass |
+| `REOPEN_SAME_TICKET` handler removed (backend no longer sends it) | Pass |
+| QR Update: one open ticket auto-opens (unchanged); several → pick list with open issues | Pass |
+| QR Update offers "Raise a ticket for a different issue" with the QR prefilled | Pass |
+| DeviceCard "Open tickets" fact lists every open ticket | Pass |
+| Assignee gate, Add Update form, Resolve issues chips unchanged | Pass |
+| Dashboard / Device list / Device detail render backend values unchanged (device counted once, worst status) | Pass |
+| `npm run lint` / `npm run build` | Pass |
+
+### Phase 51 — Main/Sub issue resolution and removal of ticket assignment
+
+Supersedes the assignment criteria of Phases 31, 44 and 47 above (kept as history).
+
+```text
+Add Update → Resolve Issues
+  Issue 1 · {Main issue}  [collapsed]          → open → ☐ Main issue (resolves all open subs) + sub chips
+  [Another Issue]                              → reveals Issue 2 … (hidden when all shown)
+  [Add another issue]  (after a panel opened)  → TicketIssueRows → new Open issues
+  → POST updates { resolveCategoryIds, resolveIssueIds, addIssues, closeTicket? }
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Resolve Issues shows only the ticket's raised issues, grouped by Main Issue with its Sub Issues | Pass |
+| Panels start collapsed; only Issue 1 listed | Pass |
+| **Another Issue** reveals the next existing Main Issue one at a time and disappears after the last | Pass |
+| **Add another issue** hidden until a panel is opened; adds new issues as Open, after the raised ones | Pass |
+| Ticking a Main Issue resolves all its Open sub issues (`resolveCategoryIds`); a Sub Issue resolves only itself (`resolveIssueIds`) | Pass |
+| Resolved sub issues and fully resolved Main Issues are shown disabled | Pass |
+| Same panel on Detail Add update / Resolve, `/tickets/update` and QR for Admin, PM, Control room (with `e`) and field roles | Pass |
+| `409 ISSUE_ALREADY_RESOLVED` / `ISSUE_ALREADY_ON_TICKET` / `OPEN_TICKET_EXISTS` → toast + reload; `400 INVALID_ISSUES` → toast | Pass |
+| Resolving every issue does not close the ticket; Close Ticket stays an explicit Yes | Pass |
+| No Assign / Reassign anywhere (Detail, All Tickets, Raise); no "Assigned to" fact or column; no assignee filter | Pass |
+| All Tickets tabs are Open (every non-closed ticket) and Closed | Pass |
+| Any user with Update ticket `e` sees Add update on any open ticket; QR Update has no assignee gate | Pass |
+| No request to `/api/tickets/:id/assign` | Pass |
+| Historical `assigned` events still render in work history | Pass |
+| `npm run lint` / `npm run build` | Pass |
+
+### Phase 52 — Under Repair tab, clickable cards, tab transition
+
+Supersedes the Phase 51 Open / Closed tab criterion above.
+
+```text
+All tickets
+  [Open, not attended] [Under repair] [Waiting for spare] [Open over 3 days]   ← cards are buttons
+  Open (no update yet) │ Under Repair (≥1 update) │ Closed                    ← ink bar slides
+  Panel slides in from the side of the selected tab
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Tabs Open → Under Repair → Closed with backend counts | Pass |
+| Open lists only raised tickets with no update; Under Repair lists tickets with at least one update, Waiting for spare included with its own pill | Pass |
+| Status select only on Under Repair (All under repair / Under repair / Waiting for spare) | Pass |
+| Open, not attended card → Open tab | Pass |
+| Under repair / Waiting for spare cards → Under Repair tab with that status | Pass |
+| Open over 3 days card → `age=over3`; Open tab if it has any, else Under Repair; badges show the split | Pass |
+| Selected card highlighted (`aria-pressed`, `.tile-selected`); card numbers stay the same | Pass |
+| Closed tab clears the age filter | Pass |
+| Underline slides between tabs; panel slides left / right by direction; no old rows flash | Pass |
+| `prefers-reduced-motion` disables both animations | Pass (CSS) |
+| Legacy `?tab=asg` → Under Repair; anything unknown → Open | Pass |
+| `npm run lint` / `npm run build` | Pass |
+
+### Phase 53 — Slot View
+
+Slot-centric view of existing tickets (backend Phase 53). Gate: own permission screen **Slot View** `v` — Admin and Project manager by default, managed per role in Roles & permissions.
+
+```text
+Sidebar: Dashboard → Slot View → Tickets ▸ …
+/slot-view            Slot Id │ Slot Label │ Road │ Tickets   (only slots with tickets)
+/slot-view/:slotId    Unresolved issues (Open only, one per Sub Issue, grouped by Main Issue)
+                      Tickets (every ticket for the slot, Closed included)
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Sidebar shows Slot View immediately after Dashboard, with icon, active highlight, collapsed rail and mobile drawer | Pass |
+| `/slot-view` lists only slots with at least one ticket (Slot Id, Slot Label, Road, Tickets) | Pass |
+| Ticket count counts tickets, not issues (3-issue ticket = 1) | Pass (backend smoke) |
+| Natural Slot Label ascending order from the server; no client sort | Pass |
+| Search + server pagination (`TablePagination` 10/25/50/100) | Pass |
+| Slot Id and Slot Label both open the same `/slot-view/:slotId` | Pass |
+| Unresolved issues show only Open Sub Issues, unique per Sub Issue, grouped by Main Issue, with ticket links | Pass |
+| Resolved Sub Issue hidden while an Open sibling keeps its Main Issue visible | Pass (backend smoke) |
+| Tickets section lists every ticket for the slot, Closed included, via the shared `TicketTable` | Pass |
+| Clicking a ticket opens the existing Ticket Detail; back link returns to the slot | Pass |
+| Empty states: no ticketed slots, no unresolved issues, no tickets | Pass (backend smoke returns empty sections; not seen in the browser because the local DB always has tickets) |
+| Unknown slot → "Slot not found."; 403 → "You do not have access to this slot."; backend 401 / 403 enforced | Pass |
+| Desktop / 820px / 390px readable, no page overflow, ticket count visible | Pass |
+| All tickets table unchanged after the `TicketTable` extraction | Pass |
+| Slot View hidden for roles without the `Slot View` screen (Technician: no sidebar item, `/slot-view` redirects to `/tickets`) | Pass |
+| Roles & permissions matrix has a Slot View row after Dashboard (Project manager View ticked, Technician empty); backend grant / revoke flips access | Pass (browser + backend smoke) |
+| Slot detail without `All tickets` `v`: Tickets panel shows "Ticket list not available", issue ticket ids are plain text | Pass (backend smoke covers the 403 on `?device=`; UI path not exercised in the browser) |
+| `npm run lint` / `npm run build` | Pass |
+
+### Phase 54 — Push notification settings
+
+Push controls move from the bell popover into **Settings → Notifications**. Two per-user preferences are saved in the database (backend Phase 54): **Push Notifications** and **Play Notification Sound**.
+
+```text
+Settings → Notifications
+  Push Notifications     [On/Off]   the saved application preference (source of truth)
+  Browser Permission     Granted / Not granted / Blocked / Unsupported   (this browser only)
+                         [Enable Browser Notifications]   only when push is On and permission is not denied
+  Play Notification Sound [On/Off]  disabled (value kept) while push is Off
+```
+
+Two separate layers:
+
+| Browser permission | Push Notifications | Result |
+|--------------------|--------------------|--------|
+| Granted | Off | No push to any device (backend filter); the bell still lists new tickets |
+| Granted | On, sound Off | Push delivered as a silent notification; no in-app MP3 |
+| Granted | On, sound On | Push delivered with sound |
+| Denied | On | No prompt; Settings shows Blocked plus how to allow it in browser site settings |
+| Default | On | No automatic prompt; the bell shows a "Turn on browser alerts in Settings" link; Settings has the Enable button |
+
+| Criterion | Result |
+|-----------|--------|
+| Push control removed from the bell; count, list, Mark all read and ticket navigation unchanged | Pass (browser) |
+| Settings Notifications panel uses existing `Panel` + `.status-switch`; accessible switch names | Pass (browser) |
+| Preference saved per user; survives refresh and logout / login | Pass (browser + backend smoke) |
+| `Notification.requestPermission()` only from a click while permission is `default`; never on load or login | Pass |
+| Logout keeps the browser subscription and permission and deletes only its server record; next login re-registers silently | Pass (browser: service worker and permission kept) |
+| Push On with permission granted and no subscription → subscribes without prompting; reuses an existing subscription | Pass (code path; this embedded browser has no push service, so the error state was verified instead) |
+| Push Off keeps permission and subscription; backend stops delivery on every device | Pass (backend smoke, two subscriptions) |
+| Sound toggle disabled while push is Off and keeps its value; in-app MP3 plays only when push and sound are both On | Pass |
+| Service worker honours the payload `silent` flag | Pass (code; real Chrome delivery is a manual check) |
+| Save failure: toggle stays at the saved value and the standard error toast is shown | Pass (browser, simulated 500) |
+| Blocked / Not granted / Unsupported / not configured / other-account / error states each show their own message | Pass (Blocked and Not granted simulated in the browser) |
+| Desktop / tablet / phone: rows stack under 560px, no horizontal overflow | Pass |
+| `npm run lint` / `npm run build` | Pass |
+
+Manual checks that need desktop Chrome with VAPID keys: a real first-time prompt (Allow and Block), real push delivery with sound On and Off, and two browsers signed in to the same account.
+
+### Phase 55 — Notifications: latest 10 in the bell + View all page
+
+The bell popover keeps showing the latest 10 notifications and gains a **View all notifications** footer link. The link opens a new `/notifications` page listing every notification of the signed-in user, with All / Unread tabs and server pagination. Frontend only: `GET /api/notifications` already supports `page`, `limit` and `unreadOnly`.
+
+```text
+Bell popover                              /notifications
+┌ Notifications   [Mark all read] ┐       [ All | Unread 30 ]
+│ 10 latest rows                  │       ┌ All notifications · Newest first   [Mark all read] ┐
+│ ...                             │  ──►  │ NotificationItem rows (same markup as the bell)    │
+├─────────────────────────────────┤       │ Page 1 of 10   [25 per page]   Previous  Next      │
+│     View all notifications      │       └────────────────────────────────────────────────────┘
+└─────────────────────────────────┘
+```
+
+| Criterion | Result |
+|-----------|--------|
+| Bell still loads only 10 rows; footer shows only **View all notifications** (closes the popover); no count line | Pass (browser, 242 notifications) |
+| `/notifications` behind `RequirePerm screen="All tickets"` plus the hook's `eligible`; no sidebar item | Pass |
+| "← Back" returns to the page View all was opened from; direct load falls back to the user's home | Pass (browser: Slot View → back to `/slot-view`; direct load → `/dashboard`) |
+| All tab: newest first, Page X of Y, 10/25/50/100 per page; page-size change resets to page 1 | Pass (browser) |
+| Unread tab shows only unread rows; switching tabs resets to page 1 | Pass (browser: 30 unread → 2 pages at 25, 3 at 10) |
+| Clicking a row marks it read, opens the ticket and lowers the shared badge | Pass (browser: TK-1479, badge 30 → 29) |
+| Mark all read uses the shared hook action; failure shows an error toast | Pass (failure simulated in the browser; success path is the existing hook action) |
+| Page refetches when the shared unread count changes (new push, read elsewhere) without flashing the skeleton | Pass (code) |
+| Rows shared with the bell through `NotificationItem` | Pass |
+| Empty states: "No notifications yet" / "No unread notifications" | Pass (code) |
+| 1280 / 520 / 390 px: no horizontal overflow; Mark all read visible at every width (panel header, not the topbar, which hides actions at ≤820px) | Pass (browser) |
 | `npm run lint` / `npm run build` | Pass |

@@ -45,6 +45,17 @@ export async function updateProfile({ fullName, mobile, email }) {
   })
 }
 
+/**
+ * Save the caller's own application notification preferences (never another user's).
+ * @param {{ pushNotificationsEnabled?: boolean, playNotificationSound?: boolean }} preferences
+ */
+export async function updateNotificationPreferences(preferences) {
+  return api('/api/auth/me/notification-preferences', {
+    method: 'PATCH',
+    body: preferences,
+  })
+}
+
 export async function changePassword({ currentPassword, newPassword }) {
   const data = await api('/api/auth/change-password', {
     method: 'POST',

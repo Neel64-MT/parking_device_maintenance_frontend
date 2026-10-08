@@ -1,7 +1,26 @@
 /**
  * Canonical device payload returned after a QR scan (GET /api/devices/scan).
- * open ticket = status ≠ Closed (at most one per device / Slot Id).
- * Assignee is not on the scan payload — use getTicket().assigneeId for Update gates.
+ * open ticket = status ≠ Closed. A device may hold several open tickets, each for
+ * different issues (Phase 50) — `openTickets` lists them all with their still-Open
+ * reported issues; `openTicketId` / `openTicketIssue` / `openTicketAge` describe the
+ * worst one (the one that drives `currentStatus`).
+ * `assigneeId` is historical only (tickets are no longer assigned) and gates nothing.
+ */
+
+/** @typedef {object} ScanOpenIssue
+ * @property {string} id
+ * @property {string} categoryId
+ * @property {string} subCategoryId
+ * @property {string} category
+ * @property {string} sub
+ */
+
+/** @typedef {object} ScanOpenTicket
+ * @property {string} id
+ * @property {string} status
+ * @property {string|null} assigneeId
+ * @property {string|null} age
+ * @property {ScanOpenIssue[]} issues
  */
 
 /** @typedef {object} ScanDevice
@@ -23,6 +42,7 @@
  * @property {string|null} openTicketId
  * @property {string|null} openTicketAge
  * @property {string|null} openTicketIssue
+ * @property {ScanOpenTicket[]} [openTickets]
  * @property {string|null} [latitude]
  * @property {string|null} [longitude]
  */
@@ -45,6 +65,17 @@ export const SCAN_DEVICE_OPEN = {
   openTicketId: 'TK-1042',
   openTicketAge: '8 days',
   openTicketIssue: 'Motor failure',
+  openTickets: [
+    {
+      id: 'TK-1042',
+      status: 'Under repair',
+      assigneeId: null,
+      age: '8 days',
+      issues: [
+        { id: 'i-1', categoryId: 'c-1', subCategoryId: 's-1', category: 'Mechanical', sub: 'Motor failure' },
+      ],
+    },
+  ],
   latitude: '23.0702',
   longitude: '72.5175',
 }
@@ -67,6 +98,7 @@ export const SCAN_DEVICE_FREE = {
   openTicketId: null,
   openTicketAge: null,
   openTicketIssue: null,
+  openTickets: [],
   latitude: '23.0711',
   longitude: '72.5188',
 }
@@ -74,6 +106,51 @@ export const SCAN_DEVICE_FREE = {
 function displayOrDash(value) {
   if (value == null || value === '') return '—'
   return String(value)
+}
+
+/**
+ * Open tickets on the scanned device, oldest first. Falls back to the single
+ * `openTicketId` for payloads without `openTickets` (no issue list then).
+ * @param {ScanDevice|null|undefined} scan
+ * @returns {ScanOpenTicket[]}
+ */
+export function scanOpenTickets(scan) {
+  if (!scan) return []
+  if (Array.isArray(scan.openTickets)) return scan.openTickets
+  if (!scan.openTicketId) return []
+  return [
+    {
+      id: scan.openTicketId,
+      status: 'Open',
+      assigneeId: null,
+      age: scan.openTicketAge || null,
+      issues: [],
+    },
+  ]
+}
+
+/** "Motor failure, Display blank" — the still-Open issues of one open ticket. */
+export function openTicketIssueLabel(ticket) {
+  const names = (ticket?.issues || []).map((i) => i.sub).filter(Boolean)
+  return names.length ? names.join(', ') : 'Open'
+}
+
+/**
+ * Selected issue pairs that are already Open on one of the device's open tickets —
+ * the same rule the API enforces with 409 OPEN_TICKET_EXISTS.
+ * @param {ScanDevice|null|undefined} scan
+ * @param {{ subCategoryId: string }[]} pairs
+ * @returns {{ ticketId: string, issue: ScanOpenIssue }[]}
+ */
+export function findOpenIssueDuplicates(scan, pairs) {
+  const wanted = new Set((pairs || []).map((p) => p.subCategoryId).filter(Boolean))
+  const out = []
+  for (const ticket of scanOpenTickets(scan)) {
+    for (const issue of ticket.issues || []) {
+      if (wanted.has(issue.subCategoryId)) out.push({ ticketId: ticket.id, issue })
+    }
+  }
+  return out
 }
 
 /**
@@ -94,7 +171,15 @@ export function scanDeviceFacts(scan) {
     { label: 'Status', value: displayOrDash(scan.currentStatus) },
   ]
 
-  if (scan.openTicketId) {
+  const open = scanOpenTickets(scan)
+  if (Array.isArray(scan.openTickets) && open.length) {
+    facts.push({
+      label: open.length > 1 ? 'Open tickets' : 'Open ticket',
+      value: open
+        .map((t) => `${t.id} — ${openTicketIssueLabel(t)} (${t.age || '—'})`)
+        .join('; '),
+    })
+  } else if (scan.openTicketId) {
     facts.push({
       label: 'Open ticket',
       value: `${scan.openTicketId} — ${scan.openTicketIssue || 'Open'} (${scan.openTicketAge || '—'})`,
@@ -118,8 +203,9 @@ export function scanDeviceFacts(scan) {
  * @returns {'ok'|'warn'|'bad'|'grey'}
  */
 export function scanStatusTone(scan) {
-  if (!scan.openTicketId && scan.currentStatus === 'Working') return 'ok'
+  const hasOpen = scanOpenTickets(scan).length > 0
+  if (!hasOpen && scan.currentStatus === 'Working') return 'ok'
   if (scan.currentStatus === 'Under repair' || scan.currentStatus === 'Waiting for spare') return 'warn'
-  if (scan.openTicketId) return 'warn'
+  if (hasOpen) return 'warn'
   return 'grey'
 }

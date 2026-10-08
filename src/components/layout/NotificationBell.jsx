@@ -1,113 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { NavIcon } from '../icons/NavIcons'
+import { NotificationItem } from '../notifications/NotificationItem'
 
 function displayCount(value) {
   const count = Number(value) || 0
   return count > 99 ? '99+' : String(count)
 }
 
-function formatTime(value) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleString([], {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
-}
-
-/**
- * Attribution line for one notification.
- * `ticket.raised` payloads carry `data.raisedBy`; `ticket.assigned` /
- * `ticket.reassigned` carry `data.assignedBy` instead. Raised is checked first so
- * existing new-ticket rows render exactly as before, and a payload with neither
- * simply omits the line rather than leaving a dangling separator.
- */
-function notificationAttribution(item) {
-  const raisedBy = item?.data?.raisedBy?.name
-  if (raisedBy) return `Raised by ${raisedBy}`
-  const assignedBy = item?.data?.assignedBy?.name
-  if (assignedBy) return `Assigned by ${assignedBy}`
-  return ''
-}
-
-function PushStatus({ notificationState }) {
-  const {
-    permission,
-    pushConfig,
-    pushState,
-    pushBusy,
-    pushError,
-    enablePush,
-    disablePush,
-  } = notificationState
-
-  let title = 'Browser notifications'
-  let message
-  let action = null
-
-  if (pushState === 'unsupported' || permission === 'unsupported') {
-    message = 'This browser does not support background notifications. In-app alerts are still available.'
-  } else if (permission === 'denied' || pushState === 'denied') {
-    message = 'Browser notifications are blocked. Allow notifications for this site in your browser settings.'
-  } else if (pushState === 'unavailable' || pushConfig?.available === false) {
-    message = 'Browser push is not configured for this deployment. In-app alerts are still available.'
-  } else if (pushState === 'conflict') {
-    message = 'This browser is registered to another account. Sign out of that account before enabling alerts here.'
-  } else if (pushState === 'enabled') {
-    message = 'Browser notifications are enabled for this device.'
-    action = (
-      <Button type="button" size="sm" onClick={disablePush} disabled={pushBusy}>
-        {pushBusy ? 'Turning off…' : 'Turn off'}
-      </Button>
-    )
-  } else if (pushState === 'off') {
-    message = 'Browser notifications are turned off for this device.'
-    action = (
-      <Button type="button" size="sm" onClick={enablePush} disabled={pushBusy}>
-        {pushBusy ? 'Enabling…' : 'Turn on'}
-      </Button>
-    )
-  } else if (pushState === 'error') {
-    message = pushError || 'Browser notifications could not be enabled.'
-    action = (
-      <Button type="button" size="sm" onClick={enablePush} disabled={pushBusy}>
-        {pushBusy ? 'Retrying…' : 'Retry'}
-      </Button>
-    )
-  } else if (permission === 'default') {
-    message = 'Allow browser notifications to receive new ticket alerts when this tab is closed.'
-    action = (
-      <Button type="button" size="sm" variant="primary" onClick={enablePush} disabled={pushBusy}>
-        {pushBusy ? 'Enabling…' : 'Enable'}
-      </Button>
-    )
-  } else {
-    message = pushError || 'Browser notifications are not enabled for this device.'
-    action = (
-      <Button type="button" size="sm" onClick={enablePush} disabled={pushBusy}>
-        {pushBusy ? 'Enabling…' : 'Enable'}
-      </Button>
-    )
-  }
-
-  return (
-    <div className="notification-push-status">
-      <div>
-        <strong>{title}</strong>
-        <p>{message}</p>
-      </div>
-      {action}
-    </div>
-  )
-}
-
 export function NotificationBell({ notificationState }) {
   const {
     eligible,
     items,
-    pagination,
     unreadCount,
     listLoaded,
     listLoading,
@@ -116,8 +21,14 @@ export function NotificationBell({ notificationState }) {
     openNotification,
     markAllRead,
   } = notificationState
+  const location = useLocation()
   const [open, setOpen] = useState(false)
   const rootRef = useRef(null)
+  /* Already on /notifications: keep the original page so Back never points at itself. */
+  const viewAllState =
+    location.pathname === '/notifications'
+      ? location.state
+      : { from: `${location.pathname}${location.search}` }
 
   useEffect(() => {
     if (!open) return undefined
@@ -172,7 +83,16 @@ export function NotificationBell({ notificationState }) {
             ) : null}
           </div>
 
-          <PushStatus notificationState={notificationState} />
+          {notificationState.preferences?.pushNotificationsEnabled &&
+          notificationState.permission === 'default' &&
+          notificationState.pushState !== 'unsupported' &&
+          notificationState.pushState !== 'unavailable' ? (
+            <p className="notification-settings-hint">
+              <Link to="/settings" onClick={() => setOpen(false)}>
+                Turn on browser alerts in Settings
+              </Link>
+            </p>
+          ) : null}
 
           <div className="notification-list" aria-live="polite">
             {listLoading && !listLoaded ? <p className="muted">Loading notifications…</p> : null}
@@ -180,38 +100,24 @@ export function NotificationBell({ notificationState }) {
             {!listLoading && listLoaded && !items.length ? (
               <p className="muted notification-empty">No notifications yet.</p>
             ) : null}
-            {items.map((item) => {
-              const ticketLabel = item.data?.ticketId || item.data?.reference || 'Ticket notification'
-              const context = [
-                item.data?.device?.road,
-                item.data?.issue?.subCategory || item.data?.issue?.category,
-                notificationAttribution(item),
-              ].filter(Boolean).join(' · ')
-              return (
-                <button
-                  type="button"
-                  className={`notification-item${item.isRead ? '' : ' unread'}`}
-                  key={item.id}
-                  onClick={() => {
-                    setOpen(false)
-                    void openNotification(item)
-                  }}
-                >
-                  <span className="notification-item-topline">
-                    <strong>{item.title || 'Ticket notification'}</strong>
-                    {!item.isRead ? <span className="notification-unread-dot" aria-label="Unread" /> : null}
-                  </span>
-                  <span className="notification-item-ticket">{ticketLabel}</span>
-                  <span className="notification-item-message">{item.message}</span>
-                  {context ? <span className="notification-item-context">{context}</span> : null}
-                  {item.createdAt ? <small>{formatTime(item.createdAt)}</small> : null}
-                </button>
-              )
-            })}
+            {items.map((item) => (
+              <NotificationItem
+                key={item.id}
+                item={item}
+                onOpen={(next) => {
+                  setOpen(false)
+                  void openNotification(next)
+                }}
+              />
+            ))}
           </div>
 
-          {pagination?.total > items.length ? (
-            <p className="notification-footnote">Showing the latest {items.length} of {pagination.total}.</p>
+          {listLoaded ? (
+            <div className="notification-popover-foot">
+              <Link to="/notifications" state={viewAllState} onClick={() => setOpen(false)}>
+                View all notifications
+              </Link>
+            </div>
           ) : null}
         </div>
       ) : null}

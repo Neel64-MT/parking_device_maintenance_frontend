@@ -28,6 +28,15 @@ export const MENU = [
     screen: 'Dashboard',
   },
   {
+    id: 'slot-view',
+    label: 'Slot View',
+    icon: 'slot',
+    path: '/slot-view',
+    match: ['slot-detail'],
+    /** Own matrix screen (Admin + Project manager by default) — same gate as GET /api/slot-view. */
+    screen: 'Slot View',
+  },
+  {
     label: 'Tickets',
     icon: 'ticket',
     children: [
