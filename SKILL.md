@@ -70,6 +70,7 @@ Confirm, because it was already removed on purpose.
 
 ```text
 Dashboard
+Slot View      (Phase 53 — slots with tickets → one slot's unresolved issues + tickets)
 Tickets        → All tickets, Work report
 Devices
 Masters        → Issue master, Road master
@@ -86,7 +87,7 @@ company/version footer and is not part of the main `MENU` list.
 
 | Flow | Path |
 |------|------|
-| Raise | Tickets list → Raise ticket → back to list |
+| Raise | Dashboard / Device detail → Raise ticket (not from the Tickets list) |
 | Attend | Tickets list → Ticket detail → Update on site → Close |
 | Field | Devices → Scan QR → device found → raise or update |
 | Add device | Devices → Add device (link to Add road if the road is missing) |
@@ -211,7 +212,7 @@ ticket” instead.
 
 - Tabs: New, Assigned, Closed, with counts
 - Columns include **Slot Id** (link to device history), issue reported, issue found, updates count
-- Raise ticket is a flow button, not a menu item
+- No Raise ticket button or Go-to link on this page (any role); search sits alone in the tab strip
 
 ### Tickets — raise (mobile-first)
 
@@ -346,11 +347,12 @@ AMC officer, OEM.
 
 - Use the backend `ticket.raised` notification and VAPID Web Push contract; do not add a parallel realtime transport.
 - The bell, Tickets parent badge, and All tickets child badge share one backend unread count.
-- Browser permission is requested only from an explicit Enable action; denied, default, unsupported, and unavailable states are distinct.
+- Browser permission is requested only from a click in Settings → Notifications (Push Notifications switch On or **Enable Browser Notifications**), never on load or login; denied, default, unsupported, and unavailable states are distinct.
+- Browser permission (per device, read-only) and `user.notificationPreferences` (per user, database) are separate layers. The preference is the only ON/OFF switch, and the backend enforces it at delivery (Phase 54).
 - View Update shows grouped reported/found issue categories with all sub-categories and a legacy scalar fallback when data exists; hide the section when no issue is recorded; it never embeds photos.
 - Notification clicks use the existing `/tickets/:ticketId` route and existing authorization/404 behavior.
 - The service worker handles push display/click only; authenticated read-state calls happen in the page.
-- Play the bundled achievement sound on a new push or unread-count increase, including when the app tab is open in the background, with duplicate-event debounce and graceful autoplay handling.
+- Play the bundled achievement sound on a new push or unread-count increase, including when the app tab is open in the background, with duplicate-event debounce and graceful autoplay handling, only while Push Notifications and Play Notification Sound are both On. Sound never controls delivery.
 - Preserve the existing sidebar, role filtering, responsive drawer/collapse, and menu structure.
 
 ---

@@ -5,6 +5,7 @@ import { AuthLayout } from './layouts/AuthLayout'
 import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
 import Settings from './pages/Settings'
+import Notifications from './pages/Notifications'
 import NotFound from './pages/NotFound'
 import Login from './pages/auth/Login'
 import Signup from './pages/auth/Signup'
@@ -23,6 +24,8 @@ import TicketUpdate from './pages/tickets/TicketUpdate'
 import TicketClose from './pages/tickets/TicketClose'
 import TicketDetail from './pages/tickets/TicketDetail'
 import WorkReport from './pages/tickets/WorkReport'
+import SlotList from './pages/slots/SlotList'
+import SlotDetail from './pages/slots/SlotDetail'
 import { UiKitDemoPage } from './pages/UiKitDemo'
 
 export function AppRoutes() {
@@ -61,6 +64,23 @@ export function AppRoutes() {
           }
         />
         <Route path="dev/ui" element={<UiKitDemoPage />} />
+
+        <Route
+          path="slot-view"
+          element={
+            <RequirePerm screen="Slot View">
+              <SlotList />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="slot-view/:slotId"
+          element={
+            <RequirePerm screen="Slot View">
+              <SlotDetail />
+            </RequirePerm>
+          }
+        />
 
         <Route
           path="tickets"
@@ -175,6 +195,14 @@ export function AppRoutes() {
           element={
             <RequirePerm screen="Users">
               <Users />
+            </RequirePerm>
+          }
+        />
+        <Route
+          path="notifications"
+          element={
+            <RequirePerm screen="All tickets">
+              <Notifications />
             </RequirePerm>
           }
         />

@@ -18,23 +18,23 @@ export const ROLE_HELP = [
   },
   {
     role: 'Project manager',
-    can: 'All screens, assign tickets, close tickets, edit masters',
+    can: 'All screens, update and close any ticket, edit masters',
     cannot: 'Add or remove users',
   },
   {
     role: 'Control room',
-    can: 'Raise tickets, assign to technicians, view dashboard and all devices',
+    can: 'Raise and update tickets, view dashboard and all devices',
     cannot: 'Close tickets, edit masters',
   },
   {
     role: 'Technician',
-    can: 'See only tickets assigned to them, update and close with cause and photo',
-    cannot: 'Raise tickets for other roads, see cost reports',
+    can: 'See every ticket, update and close any open ticket with cause and photo',
+    cannot: 'See cost reports',
   },
   {
     role: 'Site attendant',
     can: 'Scan QR, raise tickets, Device Sync, and manage Issue master',
-    cannot: 'Assign or close tickets; Update ticket',
+    cannot: 'Update or close tickets',
   },
   {
     role: 'AMC officer',
@@ -211,6 +211,7 @@ export const ROLE_ROWS = [
 /** Screens grouped the way the menu is grouped */
 export const PERM_SCREENS = [
   ['Dashboard', ['Dashboard']],
+  ['Slot View', ['Slot View']],
   ['Tickets', ['Raise ticket', 'Update ticket', 'All tickets', 'Work report']],
   ['Devices', ['Device list', 'Add device', 'Device history', 'Scan QR']],
   ['Masters', ['Issue master', 'Road master']],
@@ -230,6 +231,7 @@ export const DEFAULT_ROLE_PERMS = {
     p: Object.fromEntries(
       [
         'Dashboard',
+        'Slot View',
         'Raise ticket',
         'Update ticket',
         'All tickets',
@@ -249,6 +251,7 @@ export const DEFAULT_ROLE_PERMS = {
     note: 'City-wide ops; can manage users and approve signups; can hard-delete unused Issue sub-categories.',
     p: {
       Dashboard: 'v.....',
+      'Slot View': 'v.....',
       'Raise ticket': 'vc....',
       'Update ticket': 'vce.x.',
       'All tickets': 'vcea.x',
@@ -267,6 +270,7 @@ export const DEFAULT_ROLE_PERMS = {
     note: 'Raises and routes tickets across all roads, but never closes one — closing belongs to whoever attended it.',
     p: {
       Dashboard: 'v.....',
+      'Slot View': '......',
       'Raise ticket': 'vc....',
       'Update ticket': 'v.....',
       'All tickets': 'vc.a..',
@@ -282,9 +286,10 @@ export const DEFAULT_ROLE_PERMS = {
     },
   },
   Technician: {
-    note: 'Sees only devices and tickets on the roads assigned to them, and only the tickets they currently hold. May run Device Sync. May edit and delete unused Issue sub-categories.',
+    note: 'Sees every ticket and may update or close any open ticket. May run Device Sync. May edit and delete unused Issue sub-categories.',
     p: {
       Dashboard: '......',
+      'Slot View': '......',
       'Raise ticket': 'vc....',
       'Update ticket': 'vce.x.',
       'All tickets': 'v.....',
@@ -303,6 +308,7 @@ export const DEFAULT_ROLE_PERMS = {
     note: 'Field engineer: same as Technician for tickets; may run Device Sync; eligible for Visited By; may edit and delete unused Issue sub-categories.',
     p: {
       Dashboard: '......',
+      'Slot View': '......',
       'Raise ticket': 'vc....',
       'Update ticket': 'vce.x.',
       'All tickets': 'v.....',
@@ -318,9 +324,10 @@ export const DEFAULT_ROLE_PERMS = {
     },
   },
   'Site attendant': {
-    note: 'Can scan and raise on any road; Device Sync and Issue master CRUD. Cannot update, assign, or close tickets.',
+    note: 'Can scan and raise on any road; Device Sync and Issue master CRUD. Cannot update or close tickets.',
     p: {
       Dashboard: '......',
+      'Slot View': '......',
       'Raise ticket': 'vc....',
       'Update ticket': '......',
       'All tickets': 'v.....',
@@ -339,6 +346,7 @@ export const DEFAULT_ROLE_PERMS = {
     note: 'View only, everywhere. Nothing on this screen can be ticked for this role.',
     p: {
       Dashboard: 'v.....',
+      'Slot View': '......',
       'Raise ticket': '......',
       'Update ticket': '......',
       'All tickets': 'v.....',

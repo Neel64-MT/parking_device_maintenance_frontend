@@ -145,7 +145,7 @@
 - `resolveScan` → sticker `qr_token` → `POST /api/devices/slot-mac`; else `GET /api/devices/scan?q=` (404 → null; other errors rethrown)
 - `scanDeviceFacts`: QR Number, Slot Id, Slot Label, Slot Identifier, Parking Location, Status, Open ticket
 - `createTicket` (`POST /api/tickets`) + `listIssueCategories` (`GET /api/issues`); Raise IssueSelects UUID mode
-- TicketRaise: Fetching device…; block when `openTicketId`; Raise create; `OPEN_TICKET_EXISTS` / `REOPEN_SAME_TICKET` → existing ticket
+- TicketRaise: Fetching device…; block when `openTicketId`; Raise create; `OPEN_TICKET_EXISTS` / `REOPEN_SAME_TICKET` → existing ticket (superseded by Phase 50: blocked per issue, not per device)
 - Open / Update existing ticket → `/tickets/:id` (Detail Add Update); no Create when open
 - ScanQr: live lookup, miss/error panels; Update → Detail; simulate-mock buttons removed
 - Lint + production build
@@ -185,12 +185,13 @@
 
 - Wire Close create API; Ticket Close page still design preview (Detail Add Update is live)
 - External inspection package (`PROJECT_PATH` — deferred until path provided)
-- Real Settings preferences beyond profile/password
-- TicketList assignee filter still hardcoded names (Detail assign is live)
+- Real Settings preferences beyond profile/password/notifications (Notifications added in Phase 54)
 - TicketList / Close still use static `ISSUE_MASTER` for some selects (Raise + Add Update use live categories)
 - Run migration `007` / `009` / `010` / `015` / **`017_ticket_issues`** / **`018_site_attendant_device_sync_issue_master`** on environments that need them
 - Finish / verify remaining Phase 23 Parts criteria if still Pending in PR.md
 ## Important decisions
+
+> **Phase 51 supersedes every assignment item below** (18, 19g, 23, 26, 27, 35, 44, 47, 48, 50, 51 and the Phase 31 / 44 sections): there is no Assign / Reassign, no assignee gate, no Assigned tab and no assignee visibility scoping — every user with All tickets `v` sees every ticket, Update ticket `e` updates any open ticket, `x` closes. Those entries are kept as history.
 
 1–15. Prior phases (auth, sidebar, Settings, Raise, ticket visibility API).
 16. FE TicketList / Dashboard / TicketDetail consume scoped APIs; no React security filter.
@@ -232,7 +233,11 @@
 45. Phase 29: Update Ticket form renders on `/tickets/update` via shared `TicketAddUpdateForm` (no navigate to Detail for Update). Detail keeps Modal Add Update for trail. Prefer `?ticketId=` for refresh.
 46. Phase 30: Work report is live (`getWorkReport` / `exportWorkReport`); mock `workReport.js` removed; close rate stays client-side from closed/worked.
 47. Phase 31: Detail Assign/Reassign → `assignTicket` + technicians Hand to; trail from GET ticket after save.
-48. Phase 44: Device list is Slot Label ascending **from the backend** (no client sort). Assign / Reassign Hand to shows only Technician / Engineer via `filterAssignableAssignees`; the ticket's current assignee is always kept in the list.
+48. Phase 44: Device list is Slot Label ascending **from the backend** (no client sort). Assign / Reassign Hand to shows only Technician / Engineer via `filterAssignableAssignees`; the ticket's current assignee is always kept in the list. Phase 47: the list is `FIELD_ROLES` (adds Electrician).
+49. Phase 47: `FIELD_ROLES` / `isFieldRole` in `users.js` mirror backend `FIELD_ROLES` (Technician, Engineer, Electrician); Electrician added to `ROLE_HIERARCHY`, `NOTIFICATION_ROLES`, `isFieldTicketUpdater`. Raise stays `Raise ticket` `c` (backend migration 023 grants field roles).
+50. Phase 47: Raise **Assign to** is optional (default **Assign later**), only with All tickets `a`; `createTicket` sends `assigneeId` only when picked; backend `403` for non-assigners.
+51. Phase 47: Adding an update to an **unassigned** ticket is allowed for field roles (backend claims it for the updater inside the update transaction, trail "Auto-assigned on update") and for Admin/PM with a required **Assign to** (`handoverToUserId`). Supersedes item 44's "unassigned → toast" for those roles. An assigned ticket's assignee never changes on update. `409 TICKET_ALREADY_ASSIGNED` → toast + reload. The self-assign is silent (no notification, push, or sound); only an Admin / PM / Control room assignment notifies.
+52. Phase 47: `TicketAddUpdateForm` has **Close Ticket** Yes / No (default No, reset to No, Update ticket `x` only). Yes sends `closeTicket: true` → backend saves the update and closes in one transaction; photos still attach afterwards. **Resolve** on Detail reuses the same modal with `Site visit — resolved` preset and Close still No. `/tickets/close` unchanged.
 
 ### Phase 30 — Work Report API (complete)
 
@@ -306,6 +311,8 @@
 
 ## Important decisions (detail)
 
+> Items 30–35 (ownership visibility, `new` / `asg` tabs, assigned Open → Under repair for the Assigned tab) are superseded by Phase 51 (tabs `open` / `cls`, every ticket visible; the legacy Under repair display remains for historical assigned tickets only).
+
 1–11. Prior phases (filters UI-only, static detail samples, responsive, Phase 10 JWT).
 12. Reuse `users.status` with `Pending` (no new table). Existing users stay Active.
 13. Signup default role = Site attendant; Admin sets role on approve via PATCH.
@@ -339,6 +346,7 @@
 | Domain screens | Close create still mock; Raise create + Detail Add Update + Work report are live |
 | Manual Raise slots | Static `SLOTS` may 404 against live DB — surface miss; no full device-list fetch |
 | Inspection package | `PROJECT_PATH` deferred until product supplies path |
+| Device list label order | Device list is plain text Slot Label order, so non-padded synced labels show `3-12` before `3-2`; Slot View (Phase 53) is natural. Backend switch is one argument — awaiting a decision |
 | Roles tab | Live matrix via `/api/roles` (Phase 36); PM remains view-only without Roles `e` |
 | Forgot SMTP | Dev logs reset URL when SMTP unset |
 | Status migration | Environments that never ran `007` may still store `New` (API/FE normalize display) |
@@ -395,6 +403,77 @@
 - `WorkReport.jsx` deliberately keeps the **full** lookup — Control room / Project manager are valid report actors. Backend `assertEligibleAssignee` is untouched, so the server stays the final source of truth; no user was deleted, no role changed, and the global Users list is unaffected.
 - `npm run lint` and `npm run build` pass. Backend `npm run build`, `test:smoke:writes`, `test:smoke:close` pass, and `test:smoke` gains `OK devices Slot Label ascending`.
 
+### Phase 49 — Per-issue Open/Resolved (complete)
+
+- Backend `issuesReported[]` now carries `id` + `status`; `openReportedIssues()` in `ticketIssueRowsHelpers.js` is the single filter for what may be resolved.
+- `TicketAddUpdateForm` `openIssues` prop → **Resolve issues** chips (existing `.chip` pattern) → `resolveIssueIds` on the same POST. Used unchanged by TicketDetail (Add update + Resolve) and TicketUpdate (`/tickets/update`, QR) — no role- or QR-specific branches.
+- `409 ISSUE_ALREADY_RESOLVED` joins `TICKET_ALREADY_ASSIGNED` (removed in Phase 51) on the `onConflict` reload path, so a stale form refreshes from the backend.
+- Decisions: only reported issues have state; the found-on-site rows are unchanged; resolving the last issue never closes the ticket; closing resolves the rest on the server (Close page shows a hint).
+- Detail "As reported" pills + View Update "Resolved issues"; Dashboard subtitle from `openIssues` / `openTicketsCount`.
+- Phase number 49 (backend `MEMORY.md` already used 48 for field-role visibility).
+
+### Phase 50 — Several open tickets per device (complete)
+
+- Backend detects duplicates by issue (device + Open reported issue). A device may hold several open tickets; a raise after close always creates a new ticket (7-day `REOPEN_SAME_TICKET` removed). Scan adds `openTickets[]` with each ticket's Open issues only.
+- `data/scanDevice.js`: `scanOpenTickets`, `openTicketIssueLabel`, `findOpenIssueDuplicates` (shared by Raise and Update); `scanDeviceFacts` lists every open ticket; JSDoc + mocks updated.
+- TicketRaise: device-level `dup` / `blocked` gate removed — the problem form is always available; `.reclass` lists every open ticket with its open issues (Update Ticket / Open); pre-submit duplicate check (all on one ticket → Update Ticket, else toast names); `409 OPEN_TICKET_EXISTS` uses `details.issues` and re-resolves the scan; `REOPEN_SAME_TICKET` handler removed.
+- TicketUpdate (QR): exactly one open ticket auto-opens; several → pick list (open issues + **Update this ticket**) + "Raise a ticket for a different issue"; gate and form unchanged.
+- Dashboard / DeviceList / DeviceDetail unchanged — the backend now counts a device once by its worst open ticket.
+- `npm run lint` and `npm run build` pass; backend `test:smoke:multi-ticket` covers the API side.
+
+### Phase 51 — Main/Sub issue panels + removal of ticket assignment (complete)
+
+- New `components/tickets/TicketResolveIssues.jsx`: one collapsible panel per Main Issue (category) with its Sub Issues, built by `groupIssuesForResolve` (`ticketIssueRowsHelpers.js`). Panels start collapsed; **Another Issue** reveals the next raised group; **Add another issue** (hidden until a panel is opened) reuses `TicketIssueRows`. Main checkbox → `resolveCategoryIds`, sub chip → `resolveIssueIds`, new rows → `addIssues`. Resolved subs / mains are disabled.
+- `TicketAddUpdateForm` takes `reportedIssues` (all reported issues) instead of `openIssues`; dropped `pickAssignee`, the found-on-site rows and the unassigned hint; `409 ISSUE_ALREADY_RESOLVED | ISSUE_ALREADY_ON_TICKET | OPEN_TICKET_EXISTS` → toast + `onConflict`.
+- Assignment removed: TicketDetail Assign Modal + "Assigned to" fact; TicketList Assigned tab / column / assignee filter / Assign modal (`parseTab` → `open` | `cls`, action column = Open link, Updates always on); TicketRaise Assign to; TicketUpdate assignee gate (`loadUpdatableTicket` only refuses Closed); TicketClose Assigned to fact; `assignTicket`, `filterAssignableAssignees`, `ASSIGNABLE_ASSIGNEE_ROLES`, `isOpsTicketUpdater`; `.btn-reassign` CSS. `NOTIFICATION_ROLES` keeps `FIELD_ROLES` so old assignment alerts stay readable.
+- Decisions (user): "Every Ticket, Every Road" access; raised issues listed first, new issues after ("the person working on the issue primarily focuses on resolving it").
+- Verification: `npm run lint` + `npm run build` pass; backend `test:smoke:issue-groups` / `test:smoke:no-assignment` pass; browser walkthrough on TK-1283 (PD-1777) passed every step (collapsed panel, Another Issue, Add another issue gating, resolved chip disabled, main-issue resolve, add Power / MCB tripped, no `/assign` calls, no Assign UI).
+
+### Phase 52 — Under Repair tab, clickable cards, tab transition (complete)
+
+- All Tickets tabs `open` (raised, no update yet) / `urp` (at least one update) / `cls`; `parseTab` maps `asg` → `urp`. Backend decides membership; React never re-filters.
+- Status select only on Under Repair (`All` / `Under repair` / `Waiting for spare`); `statusForTab` forces `All` elsewhere. `age=over3` (`ageForTab`) only on Open / Under Repair.
+- Cards are `.tile-link` buttons: `viewForTile` → tab + status + age; `isTileSelected` drives `aria-pressed`. "Open over 3 days" picks Open when `over3Counts.open > 0`, else Under Repair.
+- Follow-up (user): every tab has an active card. Backend adds a 5th tile **Closed** (`tab_cls`, tone ok); `viewForTile('Closed')` → `cls` (clickable at 0). `isTileSelected`: Under repair is active on `urp` when status is `All` or `Under repair` (Waiting for spare only for its own status); Closed active on `cls`.
+- `Tabs` has a sliding `.tabs-ink` (DOM-positioned, also on Users / UI kit); TicketList keys the Panel by tab with `tab-pane-next|prev` and clears rows in the same render as the tab change.
+- Decisions (user): Waiting for spare stays in Under Repair with its own pill; Open over 3 days → Under Repair when the old tickets have updates, Open when they do not.
+- Follow-up (user): Resolve Issues lists all raised issues at once (expanded, no **Another Issue**); **Add another issue** always visible → opens the category / sub-category picker. Supersedes the Phase 51 collapsed / progressive reveal. Resolved subs and fully resolved main issues are hidden in Resolve Issues (only Open work is shown). View Update shows resolved issues as a green "Fixed in this update" card grouped by main issue ("Ticket status" label beside it). The block is now labelled **Reported Issues**, and Visited by is selectable for every user (field staff default to themselves). Visited by is still UI-only — the update POST does not send it and the backend does not store it (`lib/visited-by.ts` `assertValidVisitedBy` exists but is unused). Ticket detail on mobile (≤1080px) shows Issue classification before Work history (CSS `order`, desktop unchanged). Issue classification card uses `.issue-row` rows (pill right-aligned), "N/M resolved" per category, dashed empty state, and stacks its two columns via a container query when the card is ≤480px. Ticket detail header: pill beside the id (`.record-head` / `.record-title`, shared with Device history); ≤760px actions fill the row and wrap (no overflow at 320px).
+- Verification: lint + build pass; backend `test:smoke:no-assignment` Phase 52 block passes; browser walkthrough of the three tabs, every card, Closed clearing age, ink bar and slide direction passed.
+
+### Phase 53 — Slot View (complete)
+
+- Sidebar **Slot View** right after Dashboard (`MENU` id `slot-view`, `match: ['slot-detail']`, screen `Slot View`, new `slot` NavIcon). Routes `/slot-view` and `/slot-view/:slotId` behind `RequirePerm screen="Slot View"`. Visible to Admin + Project manager by default; Admins toggle it per role in Roles & permissions (`PERM_SCREENS` group `Slot View`).
+- `pages/slots/SlotList.jsx`: slots with at least one ticket (backend aggregate), Slot Id + Slot Label both link to the same detail, Road, Tickets count; search + `TablePagination`; natural Slot Label order from the server.
+- `pages/slots/SlotDetail.jsx`: header facts; **Unresolved issues** = server's Open reported Sub Issues (unique per Sub Issue) grouped by Main Issue with ticket links; **Tickets** = every ticket of the slot (Closed included) through `listTickets({ device })`.
+- `components/tickets/TicketTable.jsx` extracted from TicketList (no visual change) and reused; `groupIssuesForDisplay` passes `tickets`; TicketDetail back link / crumb return to the slot.
+- Decisions: own permission screen `Slot View` (backend migration `026`), no role-name checks; the Tickets panel still needs `All tickets v` and shows "Ticket list not available" without it; ticket count = tickets, never issues; ticket list = all statuses, issue list = Open only; React never filters statuses or sorts slot rows.
+- Verification: lint + build pass; backend `test:smoke:slot-view` passes; browser walkthrough (desktop / 820 / 390, Slot Id + Label links, ticket open + back, not-found) passed; permission check: Admin and Project manager see Slot View, Technician does not and `/slot-view` redirects to `/tickets`, matrix shows the Slot View row (PM View ticked, Technician empty).
+
+### Phase 54 — Push notification settings (complete)
+
+- **Root cause of "turn push on every login":** `prepareLogout` called `subscription.unsubscribe()` and deleted the server row, so the next login found no browser subscription and sat idle until the user clicked Enable again. Logout now deletes only this browser's server row and keeps the browser subscription and permission. The load effect re-registers it silently.
+- Two layers: browser permission (read-only, per device) vs `user.notificationPreferences` (database, per user, from login / `/me`). The preference is the only ON/OFF switch.
+- `useTicketNotifications`: `ensureSubscription(config, { create })` replaces `reconcileExistingSubscription` and the subscribe half of `enablePush`. `requestBrowserPermission` (click only; prompts only while `default`), `setPushEnabled`, `setPlaySound`; `disablePush` removed. The MP3 is gated by `soundAllowedRef` (push On and sound On). It waits for an active service worker (bounded at 10s) before `subscribe()`; before this, auto-subscribe on first load failed with "no active Service Worker".
+- `AuthContext.updateNotificationPreferences` → `services/auth.updateNotificationPreferences` → `PATCH /api/auth/me/notification-preferences`; `setUser(next)` like `updateProfile`.
+- `AppLayout` passes the single hook instance to pages via `<Outlet context>`; `Settings` reads it with `useOutletContext()` and renders `NotificationsPanel` (only when `eligible`).
+- `NotificationBell`: `PushStatus` removed; a "Turn on browser alerts in Settings" link shows while push is On and permission is `default`. `public/sw.js`: `silent: notification.silent === true`.
+- CSS: `.notification-push-status` removed; `.notification-settings-hint`, `.settings-pref-*`, `.settings-permission` added (existing tokens and `.status-switch`).
+- Decisions (user): permission prompt only from Settings, plus the bell link; logout keeps the browser subscription and drops the server row. Turning push On while permission is denied still saves On (it applies to the user's other devices) and Settings shows Blocked guidance.
+- Verification: lint + build pass. Backend `test:smoke:notification-prefs`, `test:smoke:writes`, `test:smoke:multi-ticket` and `test:smoke:no-assignment` pass (`test:smoke` stops at the pre-existing device-sync permission drift). In the browser: toggle off/on, sound disabled while push is Off, save failure keeps the toggle and shows a toast, refresh and logout/login keep the preference, Blocked / Not granted states and the bell link (simulated), and layout at desktop, tablet and phone widths. The embedded browser has no push service, so real delivery and the real Chrome prompt are manual checks.
+- Files: `src/hooks/useTicketNotifications.js`, `src/pages/Settings.jsx`, `src/components/layout/NotificationBell.jsx`, `src/layouts/AppLayout.jsx`, `src/context/AuthContext.jsx`, `src/services/auth.js`, `public/sw.js`, `src/index.css`, docs.
+
+### Phase 55 — Notifications: latest 10 in the bell + View all page (complete)
+
+- Bell popover still loads only the latest 10 (hook `loadNotifications`, `page: 1, limit: 10`). `.notification-footnote` ("Showing the latest X of N") replaced by `.notification-popover-foot` with only **View all notifications** → `/notifications` (closes the popover). The user asked not to show a count line there.
+- New `pages/Notifications.jsx` at `/notifications` (`RequirePerm screen="All tickets"` + redirect when the hook is not `eligible`; no sidebar item). It has All / Unread `Tabs`, `Panel flush` with **Mark all read** in the panel head (the topbar hides actions at ≤820px, so the topbar is not used), `TablePagination` (10/25/50/100, default 25) and `EmptyState` / skeleton / inline error.
+- The page fetches its own rows with `listNotifications({ page, limit, unreadOnly })`; it refetches on tab/page/limit change (skeleton) and silently when the shared `unreadCount` changes. If a page comes back empty and `page > 1` it steps back one page.
+- Row clicks / Mark all read use the shared hook (`openNotification`, `markAllRead`) via `useOutletContext()`, so the bell, both sidebar badges and the page share one unread count.
+- "← Back" (`.back-link`) above the tabs goes to `state.from` set by the bell's View all link (the page you were on), else `homePathForUser`. It only accepts in-app paths and never points back at `/notifications`.
+- `components/notifications/NotificationItem.jsx`: row markup + `formatTime` + `notificationAttribution` moved out of `NotificationBell`; used by both.
+- No backend change: `GET /api/notifications` already had `page`, `limit`, `unreadOnly`.
+- Verification: lint + build pass. Browser (Admin, 242 notifications / 30 unread): bell 10 rows + "View all notifications"; page Page 1 of 10 at 25; next page; Unread → Page 1 of 2, then 10 per page → Page 1 of 3; row click opened TK-1479 and the badge went 30 → 29; simulated Mark all read failure → error toast; 1280 / 520 / 390 px with no horizontal overflow. Mark all read success was not run, to keep the local unread test data.
+- Files: `src/components/notifications/NotificationItem.jsx` (new), `src/pages/Notifications.jsx` (new), `src/components/layout/NotificationBell.jsx`, `src/routes.jsx`, `src/index.css`, docs.
+
 ## Handoff notes
 
-Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` / `010_device_sync.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH / Phase 26 device list field mapping. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: Admin/PM all; others assignee or raised_by (list not road-AND’d). Dashboard home only for Admin/PM. QR camera: any signed-in user; live `GET /api/devices/scan?q=`. Raise open ticket → **Update Ticket** → `/tickets/update?ticketId=` → assignee gate → **Add Update form on Update page**. Free device → Raise `POST /api/tickets`. Live screens show skeleton loaders while fetching (Phase 22). Masters submenu labels are Issue / Road / Parts; Parts icon is interlocking gears. Device list: Sync Devices (Admin/PM with Device list `c`) → `POST /api/device-sync`; complete toast may show Created/Updated/Skipped from `stats`; table shows Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location. Status tiles filter the list via `status` (stay on `/devices`). Device list rows are Slot Label ascending (backend SQL, no client sort). Assign / Reassign Hand to lists Technician + Engineer only (current assignee pinned); Work report Person still lists CR/PM. Site attendant / Technician sidebar: top-level **All tickets** (not under Tickets). **Next phase: 45.**
+Run `npm run db:migrate` in `../backend` before testing (incl. `007_ticket_status_open.sql` / `010_device_sync.sql` when present). Restart backend after Phase 13 auth / Phase 17 scan / Phase 18 visibility / Phase 21 updates photos PATCH / Phase 26 device list field mapping. Admin seed: `9000000001` / `Password123`. Site attendant demo: `9016374408` / `Password123` (Nilesh — Science City roads; still sees tickets he raised on other roads). Do not write into `parking_maintenance/`. Desktop: sidebar brand toggle collapses/expands rail. Mobile ≤820: hamburger drawer as before. Settings: signed-in user can update profile and password. Raise/Update/Close action buttons scroll with the form (not fixed). Photos: folder or camera (overlay flip icon; crop full-width, no letterbox), max 5, upload on submit via `uploadImages` (Detail Add Update: after update succeeds). Do not wrap PhotoPicker in `<label>` (`Field` is `div.fld`). All tickets: server pagination (Rows per page 10/25/50/100). Ticket list/detail: every user with All tickets `v` sees every ticket (Phase 51). Dashboard home only for Admin/PM. QR camera: any signed-in user; live `GET /api/devices/scan?q=`. Raise open ticket → **Update Ticket** → `/tickets/update?ticketId=` → **Add Update form on Update page** (only Closed is refused; Resolve Issues panels by Main/Sub issue — Phase 51). Free device → Raise `POST /api/tickets`. Phase 50: a device may have several open tickets (one per distinct Open issue); Raise stays available for a different issue, the same Open issue goes to Update Ticket. Live screens show skeleton loaders while fetching (Phase 22). Masters submenu labels are Issue / Road / Parts; Parts icon is interlocking gears. Device list: Sync Devices (Admin/PM with Device list `c`) → `POST /api/device-sync`; complete toast may show Created/Updated/Skipped from `stats`; table shows Slot Id / Slot Label / Slot Identifier / QR Number / Parking Location. Status tiles filter the list via `status` (stay on `/devices`). Device list rows are Slot Label ascending (backend SQL, no client sort). No ticket assignment anywhere (Phase 51). All tickets tabs Open (no update yet) / Under Repair (at least one update) / Closed; summary cards select tab + filter (Phase 52). Site attendant / Technician sidebar: top-level **All tickets** (not under Tickets). Slot View (Phase 53): sidebar item after Dashboard → ticketed slots → one slot's unresolved issues + all tickets. Push notification controls live in Settings → Notifications (Phase 54); preferences are per user in the database and logout keeps the browser subscription. The bell shows the latest 10 and links to `/notifications` for the full paginated list (Phase 55). **Next phase: 56.**

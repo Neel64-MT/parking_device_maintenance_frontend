@@ -123,12 +123,14 @@ export function TicketDetailSkeleton() {
       <span className="sr-only">Loading ticket</span>
       <section className="record sk-record">
         <div className="record-top">
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Skeleton height={22} width={120} />
+          <div className="record-head">
+            <div className="record-title">
+              <Skeleton height={22} width={120} />
+              <Skeleton height={24} width={88} radius={999} />
+            </div>
             <Skeleton height={12} width="55%" style={{ marginTop: 10 }} />
           </div>
-          <Skeleton height={28} width={88} radius={999} />
-          <div className="push" style={{ display: 'flex', gap: 8 }}>
+          <div className="push">
             <Skeleton height={32} width={96} radius={8} />
             <Skeleton height={32} width={110} radius={8} />
           </div>

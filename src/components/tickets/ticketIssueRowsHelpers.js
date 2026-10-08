@@ -85,8 +85,9 @@ export function categoryById(categories, categoryId) {
 /**
  * Group API/display issues by category for Detail classification.
  * Preserves first-seen category order; subs keep API order within a group.
- * @param {{ categoryId?: string, category?: string, subCategoryId?: string, sub?: string }[]} issues
- * @returns {{ key: string, category: string, subs: { key: string, label: string }[] }[]}
+ * `tickets` is passed through for Slot View (the tickets holding each open issue).
+ * @param {{ categoryId?: string, category?: string, subCategoryId?: string, sub?: string, tickets?: { id: string }[] }[]} issues
+ * @returns {{ key: string, category: string, subs: { key: string, label: string, status: string | null, tickets: { id: string }[] }[] }[]}
  */
 export function groupIssuesForDisplay(issues) {
   if (!Array.isArray(issues) || !issues.length) return []
@@ -102,7 +103,52 @@ export function groupIssuesForDisplay(issues) {
     }
     const group = groups[indexByKey.get(key)]
     const subKey = i.subCategoryId || `${key}:${sub}:${group.subs.length}`
-    group.subs.push({ key: subKey, label: sub })
+    group.subs.push({
+      key: subKey,
+      label: sub,
+      status: i.status || null,
+      tickets: Array.isArray(i.tickets) ? i.tickets : [],
+    })
   }
   return groups
+}
+
+/**
+ * Group the ticket's reported issues for Add Update → Resolve Issues.
+ * One group per Main Issue (category), in first-seen order; each sub keeps its
+ * `ticket_issues` id and Open/Resolved status. A main issue is resolved when every sub is.
+ * @param {{ id?: string, categoryId?: string, category?: string, sub?: string, status?: string }[]} issues
+ * @returns {{ categoryId: string, category: string, subs: { id: string, label: string, status: string }[], openIds: string[], resolved: boolean }[]}
+ */
+export function groupIssuesForResolve(issues) {
+  if (!Array.isArray(issues)) return []
+  const groups = []
+  const indexById = new Map()
+  for (const i of issues) {
+    if (!i?.id || !i.categoryId) continue
+    if (!indexById.has(i.categoryId)) {
+      indexById.set(i.categoryId, groups.length)
+      groups.push({
+        categoryId: i.categoryId,
+        category: String(i.category || '').trim() || '—',
+        subs: [],
+        openIds: [],
+        resolved: true,
+      })
+    }
+    const group = groups[indexById.get(i.categoryId)]
+    const status = i.status === 'Resolved' ? 'Resolved' : 'Open'
+    group.subs.push({ id: i.id, label: String(i.sub || '').trim() || '—', status })
+    if (status === 'Open') {
+      group.openIds.push(i.id)
+      group.resolved = false
+    }
+  }
+  return groups
+}
+
+/** Reported issues still Open on the ticket — the only ones an update may resolve. */
+export function openReportedIssues(issues) {
+  if (!Array.isArray(issues)) return []
+  return issues.filter((i) => i?.id && i.status !== 'Resolved')
 }

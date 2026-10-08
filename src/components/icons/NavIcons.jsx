@@ -14,6 +14,16 @@ const PATHS = {
     </>
   ),
 
+  /* Slot View — parking bays with a location marker over one slot */
+  slot: (
+    <>
+      <path d="M3.5 20.5h17" />
+      <path d="M3.5 13.5v7M12 13.5v7M20.5 13.5v7" />
+      <path d="M12 11.5s-4-3.4-4-6.3a4 4 0 0 1 8 0c0 2.9-4 6.3-4 6.3z" />
+      <circle cx="12" cy="5.3" r="1.3" />
+    </>
+  ),
+
   /* Tickets — perforated ticket stub */
   ticket: (
     <>

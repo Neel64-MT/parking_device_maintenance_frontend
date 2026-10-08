@@ -11,6 +11,7 @@ export const ROLE_HIERARCHY = [
   'Control room',
   'Engineer',
   'Technician',
+  'Electrician',
   'Site attendant',
   'AMC officer',
 ]
@@ -150,51 +151,25 @@ export function canPerm(user, screen, flag) {
 }
 
 /**
- * Roles offered in the Assign / Reassign "Hand to" dropdown.
- *
- * `GET /api/lookups/technicians` also returns Control room and Project manager
- * because the Work report Person filter needs them. A ticket is only ever held
- * by field staff, so the assign dropdown narrows to the two field roles.
- *
- * This is a presentation guard; the backend `assertEligibleAssignee` remains the
- * final source of truth and is intentionally left unchanged.
+ * Field staff who attend devices on site (mirrors backend `FIELD_ROLES`).
+ * They may raise, update and close tickets. Names must match `roles.name` exactly.
  */
-export const ASSIGNABLE_ASSIGNEE_ROLES = ['Technician', 'Engineer']
+export const FIELD_ROLES = ['Technician', 'Engineer', 'Electrician']
 
-/**
- * Narrow a technicians lookup list to the assignable roles for the Hand to select.
- *
- * The ticket's current assignee is always kept so a ticket already held by a
- * non-assignable user (Control room / Project manager) still renders its
- * selection and can still be reassigned away from them.
- *
- * @param {{ id: string, name: string, role: string, label: string }[]} options
- * @param {string|null|undefined} currentAssigneeId
- * @param {string} [currentAssigneeName] fallback label when the current assignee
- *   is not in the lookup list (e.g. inactive user)
- */
-export function filterAssignableAssignees(options, currentAssigneeId, currentAssigneeName) {
-  if (!Array.isArray(options)) return []
-  const currentId = currentAssigneeId == null ? '' : String(currentAssigneeId)
-  const keep = options.filter(
-    (o) => ASSIGNABLE_ASSIGNEE_ROLES.includes(o?.role) || String(o?.id) === currentId,
-  )
-  if (!currentId || keep.some((o) => String(o.id) === currentId)) return keep
-  const name = (currentAssigneeName || '').trim()
-  return [...keep, { id: currentId, name, role: '', label: name || `Current assignee ${currentId}` }]
+export function isFieldRole(user) {
+  return FIELD_ROLES.includes(user?.role)
 }
 
 /**
- * Notification-eligible roles.
+ * Notification-eligible roles (mirrors backend `NOTIFICATION_DELIVERY_ROLES`).
  *
  * - New-ticket ("ticket.raised") alerts stay limited to the oversight roles.
- * - Assignment alerts add the roles that can actually be made a ticket assignee
- *   (Technician / Engineer), so an assignee is never un-alertable.
+ * - FIELD_ROLES stay so their historical assignment alerts remain readable;
+ *   tickets are no longer assigned, so no new ones are created.
  *
- * Site attendant and AMC officer are excluded because they are never eligible
- * assignees. This is a presentation guard; the backend remains the source of truth.
+ * This is a presentation guard; the backend remains the source of truth.
  */
-const NOTIFICATION_ROLES = ['Admin', 'Project manager', 'Control room', 'Technician', 'Engineer']
+const NOTIFICATION_ROLES = ['Admin', 'Project manager', 'Control room', ...FIELD_ROLES]
 
 export function canReceiveTicketNotifications(user) {
   return canPerm(user, 'All tickets', 'v') && NOTIFICATION_ROLES.includes(user?.role)
@@ -207,21 +182,14 @@ export function isDashboardRole(user) {
 
 /**
  * Field roles that update tickets via QR / Update Ticket flow (not Detail Add Update).
- * "Engineer" matches role names containing Engineer (e.g. Dy. Engineer) and AMC officer.
+ * FIELD_ROLES plus AMC officer; "Engineer" also matches role names containing Engineer (e.g. Dy. Engineer) and AMC officer.
  */
 export function isFieldTicketUpdater(user) {
   const role = user?.role || ''
-  if (role === 'Technician') return true
+  if (isFieldRole(user)) return true
   if (role === 'AMC officer') return true
   return /engineer/i.test(role)
 }
-
-/** Ops roles that use Detail Add Update (not the field Update Ticket QR entry). */
-export function isOpsTicketUpdater(user) {
-  const role = user?.role || ''
-  return role === 'Admin' || role === 'Project manager' || role === 'Control room'
-}
-
 /** Post-login / index landing path — Dashboard View permission only. */
 export function homePathForUser(user) {
   return canPerm(user, 'Dashboard', 'v') ? '/dashboard' : '/tickets'
