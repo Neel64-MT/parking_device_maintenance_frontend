@@ -12,6 +12,7 @@ import { ImagePreviewModal } from '../../components/ui/ImagePreviewModal'
 import { Modal } from '../../components/ui/Modal'
 import { Pill } from '../../components/ui/Pill'
 import { TicketDetailSkeleton } from '../../components/ui/Skeleton'
+import { formatDateTime, whatsappTime } from '../../utils/dateTime'
 
 function IssueClassificationList({ issues, emptyBig = '—', emptySub = '—' }) {
   const groups = groupIssuesForDisplay(issues)
@@ -60,27 +61,20 @@ function IssueClassificationList({ issues, emptyBig = '—', emptySub = '—' })
   )
 }
 
-/** Local time: DD/MM/YYYY at HH:MM AM/PM */
-function formatRaisedOn(value) {
-  if (value == null || value === '') return value
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return String(value)
-  const dd = String(d.getDate()).padStart(2, '0')
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const yyyy = d.getFullYear()
-  let hours = d.getHours()
-  const minutes = String(d.getMinutes()).padStart(2, '0')
-  const ampm = hours >= 12 ? 'PM' : 'AM'
-  hours = hours % 12
-  if (hours === 0) hours = 12
-  const hh = String(hours).padStart(2, '0')
-  return `${dd}/${mm}/${yyyy} at ${hh}:${minutes}\u00a0${ampm}`
-}
+const DATE_TIME_FACTS = new Set(['Raised on', 'Reported time'])
 
 function factDisplayValue(fact) {
   if (!fact) return ''
-  if (fact.label === 'Raised on') return formatRaisedOn(fact.value)
+  if (DATE_TIME_FACTS.has(fact.label)) return formatDateTime(fact.value)
   return fact.value
+}
+
+/** Backend facts plus the Reported time (WhatsApp time when entered, else created time) after Raised on. */
+function headerFacts(header) {
+  const facts = header?.facts || []
+  const wa = { label: 'Reported time', value: whatsappTime(header) }
+  const at = facts.findIndex((f) => f.label === 'Raised on')
+  return at < 0 ? [...facts, wa] : [...facts.slice(0, at + 1), wa, ...facts.slice(at + 1)]
 }
 
 function TimelineMeta({ item }) {
@@ -252,7 +246,8 @@ function ViewUpdateResolvedIssues({ issues }) {
 /** View Update details only — never includes photos / ImagePreviewModal. */
 function ViewUpdateDetails({ item, reportedIssues, foundIssues }) {
   if (!item) return null
-  const whenLabel = formatRaisedOn(item.when)
+  const whenLabel = formatDateTime(item.whatsappAt || item.when)
+  const recordedLabel = item.whatsappAt ? formatDateTime(item.when) : ''
   const costLabel =
     item.cost != null && Number(item.cost) > 0
       ? `₹ ${Number(item.cost).toLocaleString('en-IN')}`
@@ -270,8 +265,14 @@ function ViewUpdateDetails({ item, reportedIssues, foundIssues }) {
     <div className="view-update-facts">
       {whenLabel ? (
         <div>
-          <small>When</small>
+          <small>{item.whatsappAt ? 'Reported time' : 'When'}</small>
           <span>{whenLabel}</span>
+        </div>
+      ) : null}
+      {recordedLabel ? (
+        <div>
+          <small>Recorded in the app</small>
+          <span>{recordedLabel}</span>
         </div>
       ) : null}
       {item.actor ? (
@@ -386,6 +387,7 @@ function mapWorkHistory(events) {
       /ticket\s+assigned/i.test(body)
     return {
       when: e.when,
+      whatsappAt: e.whatsappAt || null,
       actor: e.actor || '',
       title,
       body,
@@ -615,7 +617,7 @@ export default function TicketDetail() {
           </div>
 
           <div className="facts">
-                {(header.facts || []).map((f) => (
+                {headerFacts(header).map((f) => (
               <div key={f.label}>
                 <small>{f.label}</small>
                     <span className={f.bad ? 'strong-bad' : undefined}>{factDisplayValue(f)}</span>
@@ -651,7 +653,10 @@ export default function TicketDetail() {
                         key={`${item.when}-${item.title}`}
                         className={`tl-item${item.tone ? ` ${item.tone}` : ''}`}
                       >
-                        <div className="when">{formatRaisedOn(item.when)}</div>
+                        <div className="when">
+                          {formatDateTime(item.whatsappAt || item.when)}
+                          {item.whatsappAt ? <span className="muted"> · Reported</span> : null}
+                        </div>
                     <h4>
                       {item.title}
                           {item.status ? (

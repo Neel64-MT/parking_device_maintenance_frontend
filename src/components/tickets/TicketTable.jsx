@@ -1,23 +1,33 @@
 import { Link } from 'react-router-dom'
 import { Pill } from '../ui/Pill'
 import { SkeletonTable } from '../ui/Skeleton'
+import { WhatsappTimeCell } from './WhatsappTimeCell'
 
 /**
  * Ticket rows from GET /api/tickets (All tickets, Slot View). Markup matches the
  * original All tickets table; links open the existing Ticket Detail route.
  * `showSlot` = Slot Id + Road / slot columns (hidden where the page is already one slot).
+ * `person` = which person column to show: raisedBy, assignedTo (Under repair) or closedBy (Closed).
  */
+const PERSON_COLUMNS = {
+  raisedBy: 'Raised by',
+  assignedTo: 'Assigned to',
+  closedBy: 'Closed by',
+}
+
 export function TicketTable({
   rows,
   loading,
   showDaysOpen = false,
   showDaysAfterClose = false,
   showSlot = true,
+  person = 'raisedBy',
   linkState,
   emptyText = 'No tickets match this view.',
 }) {
+  const personKey = PERSON_COLUMNS[person] ? person : 'raisedBy'
   const colCount =
-    7 + (showSlot ? 2 : 0) + (showDaysOpen ? 1 : 0) + (showDaysAfterClose ? 1 : 0)
+    8 + (showSlot ? 2 : 0) + (showDaysOpen ? 1 : 0) + (showDaysAfterClose ? 1 : 0)
 
   return (
     <div className="table-wrap">
@@ -29,7 +39,8 @@ export function TicketTable({
             {showSlot ? <th>Road / slot</th> : null}
             <th>Issue reported</th>
             <th>Issue found</th>
-            <th>Raised by</th>
+            <th>{PERSON_COLUMNS[personKey]}</th>
+            <th>Reported time</th>
             <th className="num">Updates</th>
             {showDaysOpen ? <th className="num">Days open</th> : null}
             {showDaysAfterClose ? <th className="num">Days After Close</th> : null}
@@ -85,7 +96,12 @@ export function TicketTable({
                       <span className="muted">Not inspected yet</span>
                     )}
                   </td>
-                  <td>{row.raisedBy || <span className="muted">—</span>}</td>
+                  <td>
+                    {row[personKey] || <span className="muted">—</span>}
+                  </td>
+                  <td>
+                    <WhatsappTimeCell row={row} />
+                  </td>
                   <td className="num">{row.updates}</td>
                   {showDaysOpen ? (
                     <td className={`num${row.daysBad ? ' strong-bad' : ''}`}>{row.daysOpen}</td>

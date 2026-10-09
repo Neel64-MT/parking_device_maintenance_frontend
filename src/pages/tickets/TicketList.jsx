@@ -411,6 +411,7 @@ export default function TicketList() {
             loading={loading}
             showDaysOpen={showDaysOpen}
             showDaysAfterClose={showDaysAfterClose}
+            person={tab === 'urp' ? 'assignedTo' : tab === 'cls' ? 'closedBy' : 'raisedBy'}
             linkState={ticketLinkState}
           />
           <TablePagination
