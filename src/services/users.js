@@ -54,10 +54,11 @@ export function filterAssignableRoles(actorRoleName, roles) {
   return roles.filter((r) => canAssignRole(actorRoleName, r?.name))
 }
 
-export async function listUsers({ q = '', status = '' } = {}) {
+export async function listUsers({ q = '', status = '', role = '' } = {}) {
   const params = new URLSearchParams()
   if (q.trim()) params.set('q', q.trim())
   if (status) params.set('status', status)
+  if (role) params.set('role', role)
   const qs = params.toString()
   return api(`/api/users${qs ? `?${qs}` : ''}`)
 }

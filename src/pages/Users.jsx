@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useOutletContext } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { PageMeta } from '../context/PageMetaContext'
 import { toast, toastApiError, toastApiSuccess } from '../context/ToastContext'
@@ -36,6 +36,21 @@ import { SkeletonTable, SkeletonTiles } from '../components/ui/Skeleton'
 import { Tabs } from '../components/ui/Tabs'
 import { Tile } from '../components/ui/Tile'
 
+const URL_STATUS_FILTERS = ['Pending', 'Active', 'Inactive']
+
+const TILE_FILTERS = {
+  'Total users': { status: '', role: '' },
+  'Pending approval': { status: 'Pending', role: '' },
+  Technicians: { status: '', role: 'Technician' },
+  'Site attendants': { status: '', role: 'Site attendant' },
+  'Control room': { status: '', role: 'Control room' },
+}
+
+function pendingFromTiles(tiles) {
+  const tile = (tiles || []).find((t) => t.label === 'Pending approval')
+  return tile ? Number(tile.value) || 0 : null
+}
+
 function formatLastActive(value) {
   if (!value) return '—'
   const d = new Date(value)
@@ -51,6 +66,12 @@ function formatLastActive(value) {
 
 export default function Users() {
   const { user, refresh } = useAuth()
+  const {
+    eligible: notificationsEligible,
+    pendingApprovalCount,
+    refreshNotifications,
+  } = useOutletContext() || {}
+  const shownPendingRef = useRef(null)
   const canView = canPerm(user, 'Users', 'v')
   const canCreate = canPerm(user, 'Users', 'c')
   const canEdit = canPerm(user, 'Users', 'e')
@@ -67,6 +88,20 @@ export default function Users() {
   // "All statuses" stays available so Pending approvals and Inactive accounts are
   // still reachable.
   const [statusFilter, setStatusFilter] = useState('Active')
+  const [roleFilter, setRoleFilter] = useState('')
+  const location = useLocation()
+  const [appliedLocationKey, setAppliedLocationKey] = useState(null)
+  // `/users?status=Pending` (e.g. from a signup notification) applies once per navigation,
+  // so opening the same link again while already here still resets the filters.
+  if (location.key !== appliedLocationKey) {
+    setAppliedLocationKey(location.key)
+    const urlStatus = new URLSearchParams(location.search).get('status')
+    if (URL_STATUS_FILTERS.includes(urlStatus)) {
+      setStatusFilter(urlStatus)
+      setRoleFilter('')
+      setTab('users')
+    }
+  }
   const [tiles, setTiles] = useState([])
   const [rows, setRows] = useState([])
   const [roles, setRoles] = useState([])
@@ -205,7 +240,7 @@ export default function Users() {
     [user?.role],
   )
 
-  const refreshUsers = useCallback(async () => {
+  const loadUsers = useCallback(async () => {
     if (!canView) {
       setLoading(false)
       setLoadError('You do not have permission to view users.')
@@ -213,7 +248,8 @@ export default function Users() {
     }
     setLoadError('')
     try {
-      const data = await listUsers({ q: query, status: statusFilter })
+      const data = await listUsers({ q: query, status: statusFilter, role: roleFilter })
+      shownPendingRef.current = pendingFromTiles(data.tiles)
       setTiles(data.tiles || [])
       setRows(data.users || [])
     } catch (err) {
@@ -221,7 +257,22 @@ export default function Users() {
     } finally {
       setLoading(false)
     }
-  }, [canView, query, statusFilter])
+  }, [canView, query, statusFilter, roleFilter])
+
+  const refreshUsers = useCallback(async () => {
+    await loadUsers()
+    // Approve / edit / delete can change the pending count behind the Users menu badge.
+    void refreshNotifications?.()
+  }, [loadUsers, refreshNotifications])
+
+  // The notification poll / push reports the server's pending count. When it no longer
+  // matches what this page shows, another signup arrived or another approver acted.
+  const canSyncPending = Boolean(notificationsEligible && canEdit)
+  useEffect(() => {
+    if (!canSyncPending || shownPendingRef.current == null) return
+    if (pendingApprovalCount === shownPendingRef.current) return
+    void loadUsers()
+  }, [canSyncPending, pendingApprovalCount, loadUsers])
 
   useEffect(() => {
     let cancelled = false
@@ -236,8 +287,9 @@ export default function Users() {
       }
       if (!cancelled) setLoadError('')
       try {
-        const data = await listUsers({ q: query, status: statusFilter })
+        const data = await listUsers({ q: query, status: statusFilter, role: roleFilter })
         if (cancelled) return
+        shownPendingRef.current = pendingFromTiles(data.tiles)
         setTiles(data.tiles || [])
         setRows(data.users || [])
       } catch (err) {
@@ -252,7 +304,7 @@ export default function Users() {
     return () => {
       cancelled = true
     }
-  }, [canView, query, statusFilter])
+  }, [canView, query, statusFilter, roleFilter])
 
   const refreshRoles = useCallback(async () => {
     if (!canViewRoles && !canCreate && !canEdit) return null
@@ -546,6 +598,21 @@ export default function Users() {
     }
   }
 
+  const roleFilterOptions = useMemo(() => {
+    const names = roles.map((r) => r.name)
+    if (roleFilter && !names.includes(roleFilter)) names.push(roleFilter)
+    return names
+  }, [roles, roleFilter])
+
+  function selectTile(label) {
+    const filter = TILE_FILTERS[label]
+    if (!filter) return
+    setStatusFilter(filter.status)
+    setRoleFilter(filter.role)
+    setTab('users')
+    setFiltersOpen(true)
+  }
+
   const activeCount = rows.filter((r) => r.status === 'Active').length
   const pendingCount = rows.filter((r) => r.status === 'Pending').length
 
@@ -579,9 +646,26 @@ export default function Users() {
           </div>
         ) : (
           <div className="tiles five">
-            {tiles.map((t) => (
-              <Tile key={t.label} value={t.value} label={t.label} />
-            ))}
+            {tiles.map((t) => {
+              const filter = TILE_FILTERS[t.label]
+              if (!filter) return <Tile key={t.label} value={t.value} label={t.label} />
+              const selected = filter.status === statusFilter && filter.role === roleFilter
+              return (
+                <button
+                  key={t.label}
+                  type="button"
+                  className="tile-link"
+                  onClick={() => selectTile(t.label)}
+                  aria-pressed={selected}
+                >
+                  <Tile
+                    value={t.value}
+                    label={t.label}
+                    className={selected ? 'tile-selected' : ''}
+                  />
+                </button>
+              )
+            })}
           </div>
         )}
 
@@ -613,6 +697,18 @@ export default function Users() {
               <option value="Pending">Pending</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
+            </select>
+            <select
+              aria-label="Filter by role"
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+            >
+              <option value="">All roles</option>
+              {roleFilterOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
             </select>
             <div className="push">
               {canCreate ? (

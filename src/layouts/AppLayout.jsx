@@ -207,7 +207,8 @@ export function AppLayout() {
         onNavigate={closeRail}
         collapsed={collapsed}
         onCloseTransitionEnd={finishRailClose}
-        unreadCount={notificationState.eligible ? notificationState.unreadCount : 0}
+        unreadCount={notificationState.eligible ? notificationState.ticketUnreadCount : 0}
+        pendingApprovalCount={notificationState.eligible ? notificationState.pendingApprovalCount : 0}
       />
       <div className="shell">
         <Topbar
