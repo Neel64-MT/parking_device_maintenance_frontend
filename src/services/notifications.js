@@ -31,9 +31,17 @@ export async function listNotifications({
   }
 }
 
-export async function getUnreadNotificationCount() {
+/**
+ * `count` = every unread notification (bell), `ticketCount` = unread ticket alerts
+ * (Tickets menu), `pendingApprovalCount` = accounts awaiting approval (Users menu).
+ */
+export async function getNotificationCounts() {
   const data = await api('/api/notifications/unread-count')
-  return Number(data?.count) || 0
+  return {
+    count: Number(data?.count) || 0,
+    ticketCount: Number(data?.ticketCount) || 0,
+    pendingApprovalCount: Number(data?.pendingApprovalCount) || 0,
+  }
 }
 
 export async function markNotificationRead(notificationId) {

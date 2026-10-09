@@ -28,12 +28,18 @@ function notificationAttribution(item) {
  * @param {{ item: object, onOpen: (item: object) => void }} props
  */
 export function NotificationItem({ item, onOpen }) {
-  const ticketLabel = item.data?.ticketId || item.data?.reference || 'Ticket notification'
-  const context = [
-    item.data?.device?.road,
-    item.data?.issue?.subCategory || item.data?.issue?.category,
-    notificationAttribution(item),
-  ].filter(Boolean).join(' · ')
+  const isSignup = item.type === 'user.signup_requested'
+  const fallbackLabel = isSignup ? 'Account request' : 'Ticket notification'
+  const ticketLabel = item.data?.ticketId || item.data?.reference || fallbackLabel
+  const context = (
+    isSignup
+      ? [item.data?.applicant?.mobile, item.data?.applicant?.email]
+      : [
+          item.data?.device?.road,
+          item.data?.issue?.subCategory || item.data?.issue?.category,
+          notificationAttribution(item),
+        ]
+  ).filter(Boolean).join(' · ')
 
   return (
     <button
@@ -42,7 +48,7 @@ export function NotificationItem({ item, onOpen }) {
       onClick={() => onOpen(item)}
     >
       <span className="notification-item-topline">
-        <strong>{item.title || 'Ticket notification'}</strong>
+        <strong>{item.title || fallbackLabel}</strong>
         {!item.isRead ? <span className="notification-unread-dot" aria-label="Unread" /> : null}
       </span>
       <span className="notification-item-ticket">{ticketLabel}</span>

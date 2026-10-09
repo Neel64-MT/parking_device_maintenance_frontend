@@ -23,7 +23,8 @@ function sameOriginUrl(value) {
   if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return null
   try {
     const url = new URL(value, self.location.origin)
-    if (url.origin !== self.location.origin || !url.pathname.startsWith('/tickets/')) return null
+    if (url.origin !== self.location.origin) return null
+    if (!url.pathname.startsWith('/tickets/') && url.pathname !== '/users') return null
     return url
   } catch {
     return null
@@ -88,6 +89,7 @@ self.addEventListener('notificationclick', (event) => {
     type: 'TICKET_NOTIFICATION_CLICK',
     data: {
       notificationId: data.notificationId || null,
+      canOpen: data.canOpen === true,
       url: target ? `${target.pathname}${target.search}${target.hash}` : null,
     },
   }
