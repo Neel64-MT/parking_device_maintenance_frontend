@@ -8,6 +8,7 @@ import { Panel } from '../../components/ui/Panel'
 import { Pill } from '../../components/ui/Pill'
 import { DeviceDetailSkeleton } from '../../components/ui/Skeleton'
 import { Tile } from '../../components/ui/Tile'
+import { WhatsappTimeCell } from '../../components/tickets/WhatsappTimeCell'
 
 function formatDate(value) {
   if (value == null || value === '') return '—'
@@ -246,7 +247,7 @@ export default function DeviceDetail() {
                 <table className="split">
                   <thead>
                     <tr>
-                      <th colSpan={4} className="grp">
+                      <th colSpan={5} className="grp">
                         Ticket raised
                       </th>
                       <th colSpan={4} className="grp grp-alt">
@@ -256,6 +257,7 @@ export default function DeviceDetail() {
                     <tr>
                       <th>Ticket</th>
                       <th>Raised on</th>
+                      <th>Reported time</th>
                       <th>Issue reported</th>
                       <th>Issue found</th>
                       <th className="sep">Status</th>
@@ -267,7 +269,7 @@ export default function DeviceDetail() {
                   <tbody>
                     {!tickets.length ? (
                       <tr>
-                        <td colSpan={8}>
+                        <td colSpan={9}>
                           <span className="muted">No tickets for this slot yet.</span>
                         </td>
                       </tr>
@@ -287,6 +289,9 @@ export default function DeviceDetail() {
                           <td>
                             {formatDate(row.raisedDate)}
                             {raisedTime ? <div className="muted">{raisedTime}</div> : null}
+                          </td>
+                          <td>
+                            <WhatsappTimeCell row={row} />
                           </td>
                           <td>
                             {row.reported || '—'}
@@ -313,7 +318,7 @@ export default function DeviceDetail() {
                   {tickets.length ? (
                     <tfoot>
                       <tr>
-                        <td colSpan={6}>
+                        <td colSpan={7}>
                           <b>
                             {tickets.length} ticket{tickets.length === 1 ? '' : 's'} since installation
                           </b>

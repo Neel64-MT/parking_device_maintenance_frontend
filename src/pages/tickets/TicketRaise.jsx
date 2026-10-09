@@ -22,6 +22,8 @@ import {
 } from '../../components/tickets/ticketIssueRowsHelpers'
 import { canPerm } from '../../services/users'
 import { TicketIssueRows } from '../../components/tickets/TicketIssueRows'
+import { WhatsappTimeField } from '../../components/tickets/WhatsappTimeField'
+import { localInputToIso } from '../../utils/dateTime'
 import { Button } from '../../components/ui/Button'
 import { DeviceCard } from '../../components/ui/DeviceCard'
 import { Field } from '../../components/ui/FilterBar'
@@ -90,6 +92,7 @@ export default function TicketRaise() {
   const [device, setDevice] = useState(null)
   const [issueRows, setIssueRows] = useState(() => [newIssueRow()])
   const [description, setDescription] = useState('')
+  const [whatsappAt, setWhatsappAt] = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
   const [photos, setPhotos] = useState([])
   const [submitting, setSubmitting] = useState(false)
@@ -143,6 +146,7 @@ export default function TicketRaise() {
   function clearProblemFields() {
     setIssueRows([newIssueRow()])
     setDescription('')
+    setWhatsappAt('')
     setPhotos([])
   }
 
@@ -267,6 +271,7 @@ export default function TicketRaise() {
         deviceId: device.scan.deviceId,
         issues,
         description: description.trim() || undefined,
+        whatsappAt: localInputToIso(whatsappAt),
         photos: [],
       })
 
@@ -478,6 +483,11 @@ export default function TicketRaise() {
                 disabled={busy || !device}
               />
             </Field>
+            <WhatsappTimeField
+              value={whatsappAt}
+              onChange={setWhatsappAt}
+              disabled={busy || !device}
+            />
           </div>
           <div className="foot-note">
             Guessing the category wrong costs nothing. If the engineer finds something else, they
