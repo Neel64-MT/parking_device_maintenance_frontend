@@ -80,7 +80,9 @@ export async function getTicket(ticketId) {
  *   subCategoryId?: string,
  *   description?: string,
  *   photos?: string[],
+ *   whatsappAt?: string,
  * }} body A new ticket is always Open; tickets are never assigned.
+ * `whatsappAt` (ISO) = when it was posted in the WhatsApp group; omit when not from WhatsApp.
  * @returns {Promise<{ id: string, uuid: string, eventId: string, status: string }>}
  */
 export async function createTicket(body) {
@@ -89,6 +91,7 @@ export async function createTicket(body) {
     description: body.description || undefined,
     photos: body.photos || [],
   }
+  if (body.whatsappAt) payload.whatsappAt = body.whatsappAt
   if (Array.isArray(body.issues) && body.issues.length) {
     payload.issues = body.issues.map((i) => ({
       categoryId: i.categoryId,
@@ -138,6 +141,7 @@ export async function attachTicketRaisePhotos(ticketId, eventId, photos) {
  *   resolveCategoryIds?: string[],
  *   resolveIssueIds?: string[],
  *   addIssues?: { categoryId: string, subCategoryId: string }[],
+ *   whatsappAt?: string,
  * }} body
  * - `closeTicket: true` saves the update and closes the ticket in one transaction
  *   (needs Update ticket `x`); omitted keeps the ticket open. Closing also
@@ -193,6 +197,7 @@ export async function attachTicketUpdatePhotos(ticketId, eventId, photos) {
  *   photos?: string[],
  *   cost?: number,
  *   deviceTested: string,
+ *   whatsappAt?: string,
  * }} body
  * @returns {Promise<{
  *   id: string,
