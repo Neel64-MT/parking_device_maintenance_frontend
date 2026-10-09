@@ -84,11 +84,16 @@ function notificationPath(data) {
   if (!data?.canOpen || typeof data.url !== 'string') return null
   try {
     const url = new URL(data.url, window.location.origin)
-    if (url.origin !== window.location.origin || !url.pathname.startsWith('/tickets/')) return null
+    if (url.origin !== window.location.origin) return null
+    if (!url.pathname.startsWith('/tickets/') && url.pathname !== '/users') return null
     return `${url.pathname}${url.search}${url.hash}`
   } catch {
     return null
   }
+}
+
+function navigationOptions(path) {
+  return path.startsWith('/tickets/') ? { state: { from: '/tickets?tab=open' } } : undefined
 }
 
 function rememberClick(clicked, id) {
@@ -114,6 +119,8 @@ export function useTicketNotifications() {
   const [items, setItems] = useState([])
   const [pagination, setPagination] = useState(null)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [ticketUnreadCount, setTicketUnreadCount] = useState(0)
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0)
   const [listLoaded, setListLoaded] = useState(false)
   const [listLoading, setListLoading] = useState(false)
   const [listError, setListError] = useState('')
@@ -194,6 +201,8 @@ export function useTicketNotifications() {
     setItems([])
     setPagination(null)
     setUnreadCount(0)
+    setTicketUnreadCount(0)
+    setPendingApprovalCount(0)
     setListLoaded(false)
     setListLoading(false)
     setListError('')
@@ -209,17 +218,24 @@ export function useTicketNotifications() {
     if (!eligible) {
       unreadCountRef.current = 0
       countInitializedRef.current = false
-      if (mountedRef.current) setUnreadCount(0)
+      if (mountedRef.current) {
+        setUnreadCount(0)
+        setTicketUnreadCount(0)
+        setPendingApprovalCount(0)
+      }
       return 0
     }
     try {
-      const count = await notificationApi.getUnreadNotificationCount()
+      const counts = await notificationApi.getNotificationCounts()
+      const count = counts.count
       if (mountedRef.current && requestId === countRequestRef.current) {
         const previousCount = unreadCountRef.current
         const hadPreviousCount = countInitializedRef.current
         unreadCountRef.current = count
         countInitializedRef.current = true
         setUnreadCount(count)
+        setTicketUnreadCount(counts.ticketCount)
+        setPendingApprovalCount(counts.pendingApprovalCount)
         if (hadPreviousCount && count > previousCount) playNotificationSound()
       }
       return count
@@ -227,7 +243,11 @@ export function useTicketNotifications() {
       if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
         unreadCountRef.current = 0
         countInitializedRef.current = true
-        if (mountedRef.current) setUnreadCount(0)
+        if (mountedRef.current) {
+          setUnreadCount(0)
+          setTicketUnreadCount(0)
+          setPendingApprovalCount(0)
+        }
       }
       return 0
     }
@@ -354,6 +374,9 @@ export function useTicketNotifications() {
           )
           if (current && !current.isRead) {
             setUnreadCount((count) => Math.max(0, count - 1))
+            if (current.relatedEntityType === 'ticket') {
+              setTicketUnreadCount((count) => Math.max(0, count - 1))
+            }
           }
         }
         void refreshUnreadCount()
@@ -371,7 +394,7 @@ export function useTicketNotifications() {
       if (!notification) return
       await markReadById(notification.id)
       const path = notificationPath(notification.data)
-      if (path) navigate(path, { state: { from: '/tickets?tab=open' } })
+      if (path) navigate(path, navigationOptions(path))
     },
     [markReadById, navigate],
   )
@@ -381,7 +404,7 @@ export function useTicketNotifications() {
       if (!rememberClick(clickedRef, data?.notificationId)) return
       await markReadById(data?.notificationId)
       const path = notificationPath(data)
-      if (path) navigate(path, { state: { from: '/tickets?tab=open' } })
+      if (path) navigate(path, navigationOptions(path))
     },
     [markReadById, navigate],
   )
@@ -394,6 +417,7 @@ export function useTicketNotifications() {
       if (mountedRef.current) {
         setItems((previous) => previous.map((item) => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() })))
         setUnreadCount(0)
+        setTicketUnreadCount(0)
         setListError('')
       }
       void refreshUnreadCount()
@@ -621,6 +645,7 @@ export function useTicketNotifications() {
           ),
         )
         setUnreadCount((count) => Math.max(0, count - updated))
+        setTicketUnreadCount((count) => Math.max(0, count - updated))
         void refreshUnreadCount()
       } catch (error) {
         // A read-state sync failure must never block viewing the ticket.
@@ -639,6 +664,8 @@ export function useTicketNotifications() {
     items,
     pagination,
     unreadCount,
+    ticketUnreadCount,
+    pendingApprovalCount,
     listLoaded,
     listLoading,
     listError,

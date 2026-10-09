@@ -16,6 +16,10 @@ function unreadLabel(label, count) {
   return count > 0 ? `${label}, ${count} unread notification${count === 1 ? '' : 's'}` : label
 }
 
+function pendingLabel(label, count) {
+  return count > 0 ? `${label}, ${count} pending approval${count === 1 ? '' : 's'}` : label
+}
+
 function NotificationBadge({ count }) {
   if (!count) return null
   return (
@@ -48,6 +52,7 @@ export function Sidebar({
   closing = false,
   onCloseTransitionEnd,
   unreadCount = 0,
+  pendingApprovalCount = 0,
 }) {
   const { pageId } = usePageMeta()
   const { user } = useAuth()
@@ -106,17 +111,22 @@ export function Sidebar({
         {menu.map((m, index) => {
           if (!m.children) {
             const active = isMenuItemOn(m, pageId)
-            const isTicketLeaf = m.id === 'ticket-list'
+            const badge =
+              m.id === 'ticket-list'
+                ? { count: unreadCount, label: unreadLabel(m.label, unreadCount) }
+                : m.id === 'users'
+                  ? { count: pendingApprovalCount, label: pendingLabel(m.label, pendingApprovalCount) }
+                  : null
             return (
               <div key={m.id} className={`nav-item${active ? ' active' : ''}`}>
                 <Link
                   to={m.path}
                   onClick={onNavigate}
-                  title={tip ? (isTicketLeaf ? unreadLabel(m.label, unreadCount) : m.label) : undefined}
-                  aria-label={isTicketLeaf ? unreadLabel(m.label, unreadCount) : tip ? m.label : undefined}
+                  title={tip ? (badge ? badge.label : m.label) : undefined}
+                  aria-label={badge ? badge.label : tip ? m.label : undefined}
                 >
-                  {isTicketLeaf ? (
-                    <BadgedNavIcon name={m.icon} count={unreadCount} hasChevron={false} />
+                  {badge ? (
+                    <BadgedNavIcon name={m.icon} count={badge.count} hasChevron={false} />
                   ) : (
                     <NavIcon name={m.icon} />
                   )}
