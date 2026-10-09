@@ -10,6 +10,8 @@ import { Field } from '../ui/FilterBar'
 import { PartChips } from '../ui/PartChips'
 import { PhotoPicker } from '../ui/PhotoPicker'
 import { TicketIssueRows } from './TicketIssueRows'
+import { WhatsappTimeField } from './WhatsappTimeField'
+import { localInputToIso } from '../../utils/dateTime'
 import {
   hasDuplicateSubCategories,
   hasIncompleteIssueRows,
@@ -53,6 +55,7 @@ export function TicketCloseForm({
   const [labour, setLabour] = useState('')
   const [photos, setPhotos] = useState([])
   const [deviceTested, setDeviceTested] = useState(DEVICE_TESTED_OPTIONS[0])
+  const [whatsappAt, setWhatsappAt] = useState('')
   const [workDoneError, setWorkDoneError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const workDoneRef = useRef(null)
@@ -207,6 +210,7 @@ export function TicketCloseForm({
         photos: photoUrls,
         cost: labourOk ? labourValue : 0,
         deviceTested,
+        whatsappAt: localInputToIso(whatsappAt),
       })
 
       const closeCost = Number(saved?.cost)
@@ -231,6 +235,13 @@ export function TicketCloseForm({
 
   return (
     <form id={formId} className={formClassName} onSubmit={submitClose}>
+      <WhatsappTimeField
+        value={whatsappAt}
+        onChange={setWhatsappAt}
+        disabled={submitting}
+        style={{ marginTop: 12 }}
+      />
+
       <div style={{ marginTop: 12 }}>
         <h4 style={{ margin: '0 0 2px' }}>Confirmed issue</h4>
         <p className="muted" style={{ margin: '0 0 10px' }}>
