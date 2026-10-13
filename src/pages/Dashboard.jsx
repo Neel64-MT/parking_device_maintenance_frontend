@@ -9,6 +9,8 @@ import { JumpLinks } from '../components/ui/JumpLinks'
 import { Panel } from '../components/ui/Panel'
 import { DashboardSkeleton } from '../components/ui/Skeleton'
 import { Tooltip } from '../components/ui/Tooltip'
+import { EodReportPanel } from '../components/dashboard/EodReportPanel'
+import { UserActivityPanel } from '../components/dashboard/UserActivityPanel'
 import { DASHBOARD_ROADS } from '../data/dashboard'
 
 const LEGEND_DOT = {
@@ -276,6 +278,9 @@ export default function Dashboard() {
         </div>
           </>
         ) : null}
+
+        <UserActivityPanel />
+        <EodReportPanel />
       </main>
     </>
   )

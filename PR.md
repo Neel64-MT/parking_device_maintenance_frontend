@@ -1088,3 +1088,69 @@ Bell popover                              /notifications
 | Empty states: "No notifications yet" / "No unread notifications" | Pass (code) |
 | 1280 / 520 / 390 px: no horizontal overflow; Mark all read visible at every width (panel header, not the topbar, which hides actions at ≤820px) | Pass (browser) |
 | `npm run lint` / `npm run build` | Pass |
+
+### Phase 56 — Dashboard EOD report generator
+
+A new **EOD report generator** panel on the Dashboard produces a ready-to-share End of Day message from backend Phase 55 (`GET /api/dashboard/eod-report?date=YYYY-MM-DD`). Everyone with `Dashboard` `v` sees it.
+
+```text
+┌ EOD report generator                     [ 13-10-2026 ] [Generate report] [Copy report] ┐
+│ Tickets raised and completed on one day (IST), ready to share                           │
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│ [ 19 Tickets raised ] [ 16 Tickets completed ] [ 2 Users who raised ] [ 1 Users who …  ] │
+│ Report for 13 Oct 2026. The preview below is exactly what Copy report copies.            │
+│ ┌ PARKING DEVICE MANAGEMENT / END OF DAY REPORT / Date / Generated (IST)              ┐ │
+│ │ DAILY SUMMARY · USER-WISE ACTIVITY · TICKETS RAISED · TICKETS COMPLETED (monospace) │ │
+│ └──────────────────────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+Metrics (computed by the backend only):
+
+- **Tickets raised:** tickets created in the selected IST day, by the user recorded as creator.
+- **Tickets completed:** tickets closed in that day, by the user who performed the close (the closing event's actor). `Not recorded` when no closing event exists. Resolving issues without closing is not completion.
+- **User-wise activity:** one row per user (by id) with Raised, Completed and the unique slots involved; 0 where the user did only one of the two.
+- Each ticket counts once however many issues it has. Issue-resolution activity is not shown.
+
+| Criterion | Result |
+|-----------|--------|
+| Default date = today in IST (`todayIstDate`), future dates blocked by `max` | Pass (browser) |
+| Generate / Regenerate always fetches fresh data; message carries a `Generated:` IST stamp | Pass (browser: stamp advanced between clicks) |
+| Tiles, preview and copied text all come from the same backend response; no totals recomputed in React | Pass (code) |
+| Copied text equals the visible preview; success toast | Pass (browser, clipboard intercepted) |
+| Clipboard failure → `Could not copy` toast; textarea fallback when the API is missing or refuses | Pass (browser: unfocused tab refuses the write) |
+| Changing the date clears the report; stale responses are dropped | Pass (browser + code) |
+| Empty day → valid zero report with "No tickets … on <date>" lines | Pass (browser) |
+| API failure → inline error + toast, no zero report | Pass (browser, backend stopped → 502) |
+| Panel renders even if the fleet request fails; existing Dashboard panels unchanged | Pass (browser + code) |
+| Narrow width: tiles 2-up, actions full width, preview scrolls | Pass (browser) |
+| `npm run lint` / `npm run build` | Pass |
+
+### Phase 57 — Dashboard user-wise activity + Closed tab closed time
+
+A **User-Wise Ticket Activity** panel on the Dashboard (above the EOD report) shows, for an IST date range, how many tickets each user **raised**, **updated** and **closed** (backend Phase 56 `GET /api/dashboard/user-activity?from=&to=`). The All tickets **Closed** tab shows **Closed time** instead of Reported time.
+
+```text
+┌ User-Wise Ticket Activity                                    [ from ] [ to ] ┐
+│ Tickets raised, updated and closed · 13 Oct 2026 (IST)                        │
+│ [ Total Tickets Raised ] [ Total Tickets Updated ] [ Total Tickets Closed ]   │
+│ User Name              Tickets Raised   Tickets Updated   Tickets Closed      │
+│ Test Technician B                   0                 3                2      │
+│   Technician                                                                  │
+│ …                                                                             │
+│ Updated = different tickets the user added an update to. …                    │
+└───────────────────────────────────────────────────────────────────────────────┘
+```
+
+The middle card reads "Total Tickets Updated" (not "Total Ticket Updates") because it counts distinct tickets, the same definition as the Tickets Updated column.
+
+| Criterion | Result |
+|-----------|--------|
+| Counts and totals come from the backend only (no React counting) | Pass (code) |
+| Updated = distinct tickets with an Add Update; `/close` alone is not an update | Pass (backend smoke B) |
+| Defaults to today (IST); range inclusive; reversed range → inline error, no request | Pass (browser) |
+| Today on `pdm_db` matches the seeded test tickets (7 / 3 / 5) | Pass (browser) |
+| Title, three cards and column names match the brief; cards stack at ≤760px | See verification |
+| Closed tab header **Closed time**, value = `closedAt` (TK-0942: raised 12/10, shows 13/10) | Pass (browser) |
+| Open / Under Repair tabs and Slot View keep **Reported time** | Pass (browser + code) |
+| `npm run lint` / `npm run build` | Pass |

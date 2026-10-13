@@ -34,6 +34,16 @@ export function localInputToIso(value) {
   return Number.isNaN(d.getTime()) ? undefined : d.toISOString()
 }
 
+/** Today's calendar date (YYYY-MM-DD) in IST, whatever the browser's timezone. Matches the backend EOD day. */
+export function todayIstDate(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now)
+}
+
 /** Current local time as a `datetime-local` value (YYYY-MM-DDTHH:MM). */
 export function localInputNow() {
   const d = new Date()

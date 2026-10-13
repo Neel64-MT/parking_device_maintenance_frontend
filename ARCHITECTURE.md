@@ -498,3 +498,51 @@ TicketDetail          ticketsListReturnPath keeps /slot-view/... → "← Back t
 | Issue grouping | `groupIssuesForDisplay` (`ticketIssueRowsHelpers.js`) — passes `tickets` through |
 
 The backend decides which slots appear (only ticketed), the ticket count (tickets, not issues), which issues are unresolved (persisted Open, unique per Sub Issue) and the order (natural Slot Label). React only renders: no status filtering, grouping by slot, counting or sorting in the browser.
+
+### Dashboard EOD report generator (Phase 56)
+
+```text
+Dashboard.jsx
+  … fleet / panels (unchanged, only when fleet loaded)
+  <EodReportPanel />                        always rendered (independent of the fleet request)
+     date = todayIstDate()                  utils/dateTime.js (Asia/Kolkata)
+     Generate ──► getEodReport(date)        services/dashboard.js → api()
+                    GET /api/dashboard/eod-report?date=YYYY-MM-DD   (backend Phase 55, Dashboard v)
+                    { date, timezone, generatedAt, range, summary, raised[], closed[], users[] }
+              ──► report state ──► Tiles (summary)
+                               └─► text = buildEodReportText(report)   utils/eodReportText.js (pure)
+                                       ├─► <pre class="eod-report"> preview
+                                       └─► Copy report → writeClipboard(text)   utils/clipboard.js → toast
+```
+
+| Piece | Location |
+|-------|----------|
+| Panel | `components/dashboard/EodReportPanel.jsx` |
+| Service | `services/dashboard.js` `getEodReport` (throws on a malformed payload) |
+| Text builder | `utils/eodReportText.js` (`buildEodReportText`, `formatReportDate`, `formatIstStamp`) |
+| Clipboard | `utils/clipboard.js` `writeClipboard` (shared with `CopyTextButton`) |
+| IST date | `utils/dateTime.js` `todayIstDate` |
+
+- Single source of truth: tiles, preview and clipboard all derive from one response object; the text is memoised from it, so the preview is byte-identical to what Copy writes.
+- Stale responses: the fetch is button-triggered, so instead of the effect `cancelled` flag the panel keeps a `requestSeq` ref; only the latest request updates state, and a date change bumps the counter and clears the report.
+- Failure path: `ApiRequestError` → inline `hint-strip auth-error` + `toastApiError`; the previous report is cleared so an error never looks like a zero report.
+
+### Dashboard user-wise activity + Closed time (Phase 57)
+
+```text
+Dashboard.jsx
+  <UserActivityPanel />   from / to (todayIstDate) → useEffect (cancelled flag)
+                          → getUserActivity({ from, to })   services/dashboard.js
+                          → GET /api/dashboard/user-activity?from=&to=   (backend Phase 56, Dashboard v)
+                          → tiles (summary) + table (users[] in backend order)
+  <EodReportPanel />
+
+TicketList (tab = cls) → <TicketTable time="closed"> → header "Closed time", DateTimeCell(row.closedAt)
+TicketList (other tabs), SlotDetail → time="reported" (default) → WhatsappTimeCell
+```
+
+| Piece | Location |
+|-------|----------|
+| Panel | `components/dashboard/UserActivityPanel.jsx` |
+| Service | `services/dashboard.js` `getUserActivity` |
+| Time column | `components/tickets/TicketTable.jsx` (`time` prop), `components/tickets/WhatsappTimeCell.jsx` (`DateTimeCell`) |

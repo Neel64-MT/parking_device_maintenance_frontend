@@ -648,4 +648,60 @@ Settings  (.settings-grid: Profile │ Password, then Notifications)
 | Error | Inline `.hint-strip.auth-error` above the tabs; Mark all read failure → error toast |
 | Pagination | Existing `TablePagination` (10/25/50/100, default 25) |
 
+## Phase 56 — Dashboard EOD report generator
+
+```text
+Dashboard (below Why devices are down │ Road-wise status)
+┌ EOD report generator                       [ date ] [Generate report] [Copy report] ┐
+│ Tickets raised and completed on one day (IST), ready to share                         │
+├───────────────────────────────────────────────────────────────────────────────────────┤
+│ [ Tickets raised ] [ Tickets completed ] [ Users who raised ] [ Users who completed ]  │
+│ Report for 13 Oct 2026. The preview below is exactly what Copy report copies.          │
+│ ┌ monospace preview (.eod-report) ──────────────────────────────────────────────────┐ │
+│ │ PARKING DEVICE MANAGEMENT … DAILY SUMMARY … USER-WISE ACTIVITY … TICKETS …        │ │
+│ └────────────────────────────────────────────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Item | Pattern |
+|------|---------|
+| Container | Existing `Panel` (`.eod-panel`, 18px top margin), full width below the dashboard grid |
+| Head actions | Native `input[type=date]` (auto width, min 150px, `max` today IST); `Button` primary sm **Generate report** → **Generating…** (`aria-busy`) → **Regenerate**; `Button` sm **Copy report** once a report exists, disabled while loading. Head and actions wrap; at ≤760px the actions row takes the full width and the date input grows |
+| Summary | Existing `.tiles` + `Tile` ×4; Tickets completed uses tone `ok`; 2-up at ≤900px (existing rule) |
+| Preview | `<pre class="eod-report">`: monospace 12px / 1.5, `--hover` background, `--line-soft` border, `--r-sm` radius, `white-space: pre`, scrolls both ways, max-height 520px |
+| Idle | `.muted` hint "Pick a date and click Generate report. Each click fetches the latest data." |
+| Loading | `SkeletonText` (4 lines) on first load; on Regenerate the current report stays visible under `aria-busy` |
+| Error | Inline `.hint-strip.auth-error` with the API message + error toast; no tiles or preview |
+| Copy feedback | Existing toast: `Report copied` (success) / `Could not copy` (error) |
+
+Shareable text layout (plain text; tables in ``` fences so WhatsApp renders them monospace):
+
+```text
+PARKING DEVICE MANAGEMENT
+END OF DAY REPORT
+Date: 13 Oct 2026
+Generated: 13 Oct 2026, 03:47 PM IST
+
+DAILY SUMMARY            Tickets raised / completed, users who raised / completed
+USER-WISE ACTIVITY       User | Raised | Completed | Slots
+TICKETS RAISED           Ticket | Slot ID | Slot Label | Raised by
+TICKETS COMPLETED        Ticket | Slot ID | Slot Label | Completed by
+```
+
+Fixed columns are padded to their widest cell (full names and Slot Labels, never truncated; missing Slot ID `-`); the last column is free-length so a phone wraps it without breaking alignment, and the dashed rule stops 18 characters into it. Empty sections read `No tickets raised on 13 Oct 2026` / `No tickets completed on …` / `No ticket activity on …`.
+
+## Phase 57 — Dashboard user-wise activity + Closed time
+
+| Item | Pattern |
+|------|---------|
+| Container | `Panel flush` (`.eod-panel` spacing + wrapping head), title "User-Wise Ticket Activity", subtitle "Tickets raised, updated and closed · <period> (IST)", directly above the EOD report |
+| Head actions | Two native date inputs (From, To), auto width / min 150px, `max` today IST; full width at ≤760px (existing `.eod-panel` rule) |
+| Totals | Existing `.tiles` + `Tile` ×3 (`.tiles.user-activity-tiles`: 3 columns, 1 column at ≤760px; padding 14px 16px 12px): Total Tickets Raised, Total Tickets Updated (`warn`), Total Tickets Closed (`ok`) |
+| Table | Existing table in `.table-wrap`: User Name (role in `.muted` below) · Tickets Raised · Tickets Updated · Tickets Closed (`num`, right-aligned) |
+| Loading | `SkeletonTable` 4×4 on first load; later loads keep the rows under `aria-busy` |
+| Empty | Table row "No ticket activity in this period." |
+| Error | `.hint-strip.auth-error` inside the panel (`.user-activity-error`, 14px 16px margin); reversed range shows "From date must be on or before To date." |
+| Foot | Definitions: Updated = different tickets the user added an update to; Closed = tickets the user closed; totals count each ticket once |
+| All tickets Closed tab | Time column header **Closed time**; same date / muted time two-line cell as Reported time |
+
 

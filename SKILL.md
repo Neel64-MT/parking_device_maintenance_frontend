@@ -207,6 +207,9 @@ ticket” instead.
 - Open tickets: oldest first; >3 days highlighted
 - Filters: road, date range
 - Every number, road, ticket, and device code is clickable
+- EOD report generator (Phase 56): one IST date → backend
+  `GET /api/dashboard/eod-report` → tiles + plain-text preview → Copy report.
+  Counts come only from the backend; the preview is exactly the copied text
 
 ### Tickets — list
 

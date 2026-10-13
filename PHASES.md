@@ -1174,12 +1174,48 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 - A simulated Mark all read failure shows the error toast.
 - 1280 / 520 / 390 px: no horizontal overflow, and Mark all read is visible at every width.
 
+## Phase 56: Dashboard EOD report generator
+
+**Objective:** Add an **EOD report generator** panel to the Dashboard that fetches backend Phase 55 (`GET /api/dashboard/eod-report?date=`) for one IST date and turns it into a plain-text message that can be copied to WhatsApp or email. The backend computes every count; the browser only formats.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `services/dashboard.js` `getEodReport(date)`: calls the endpoint through `api()`; a payload without a date, numeric summary or arrays throws `ApiRequestError('Unexpected EOD report response')` instead of becoming a zero report.
+2. `utils/dateTime.js` `todayIstDate()` (`Intl.DateTimeFormat`, `Asia/Kolkata`) — the default date and the date input's `max`, matching the backend's `todayIst()`.
+3. `utils/clipboard.js` `writeClipboard(text)`: moved out of `CopyTextButton` (which now imports it). Tries `navigator.clipboard.writeText`, then the hidden-textarea `execCommand('copy')` fallback when the API is missing **or refuses** the write.
+4. `utils/eodReportText.js` `buildEodReportText(report)` (pure): header, `Generated: <IST time>`, DAILY SUMMARY, USER-WISE ACTIVITY (User | Raised | Completed | Slots), TICKETS RAISED (Ticket | Slot ID | Slot Label | Raised by), TICKETS COMPLETED (… | Completed by). Tables in triple-backtick fences (monospace in WhatsApp); fixed columns padded, the variable-length column last and unpadded; full names and Slot Labels (never truncated with `…`); rule length capped; empty sections → `No tickets raised on <date>` etc. No user ids in the text.
+5. `components/dashboard/EodReportPanel.jsx`: `Panel` with date input + **Generate report** / **Regenerate** (primary, `aria-busy`) + **Copy report** (after a report exists; disabled while loading) in the head; four `Tile`s; caption; `<pre className="eod-report">` showing exactly the copied string (`useMemo` over the response). States: idle hint, `SkeletonText` while loading, `hint-strip auth-error` + `toastApiError` on failure (report cleared, no zeros), zero report on an empty day. A `requestSeq` ref drops stale responses; changing the date invalidates in-flight requests and clears the report until Generate is clicked again. Copy toasts `Report copied` / `Could not copy`.
+6. `pages/Dashboard.jsx`: renders `<EodReportPanel />` after the fleet block, outside the `fleet ? … : null` condition, so it works even when the fleet request fails. Nothing else changed.
+7. CSS: `.eod-panel` (head wraps; date input auto width; actions full width ≤760px), `.eod-tiles`, `.eod-caption`, `.eod-report` (monospace, `white-space: pre`, both-axis scroll, max-height 520px, existing tokens).
+
+**Out of scope:** issue-resolution metrics (user's choice), a new permission screen (reuses `Dashboard v`), caching, scheduled or automatic sending.
+
+**Verification:** `npm run lint` and `npm run build` pass. Backend `test:smoke:eod-report` passes. In the browser (Admin, against a seeded PGlite backend): the existing fleet / down reasons / road panels still render; the panel defaults to today (IST); Generate shows tiles + preview and each click refreshes `Generated`; changing the date clears the report; an empty date shows zeros and "No tickets … on <date>"; Copy is disabled during Regenerate; with the clipboard intercepted, the copied string equals the preview and the `Report copied` toast shows; with the backend stopped, `Request failed (502)` shows inline and as a toast with no tiles or report; narrow viewport: tiles 2-up, actions full width. The embedded browser tab is unfocused, so a real clipboard write is refused there (handled with the `Could not copy` toast); real copy is a manual check in a normal browser.
+
+## Phase 57: Dashboard user-wise activity + Closed tab closed time
+
+**Objective:** Show on the Dashboard how many tickets each user raised, updated and closed over an IST date range (backend Phase 56 `GET /api/dashboard/user-activity?from=&to=`), and make the All tickets **Closed** tab show when each ticket was closed instead of when it was reported.
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `services/dashboard.js` `getUserActivity({ from, to })`: a payload without dates, numeric summary or `users` array throws `ApiRequestError('Unexpected user activity response')`.
+2. `components/dashboard/UserActivityPanel.jsx`: `Panel flush` with From / To date inputs (default today IST, `max` today) in the head; auto-loads on date change (effect `cancelled` flag drops stale responses); a reversed range shows an inline error and makes no request. Title **User-Wise Ticket Activity**. Three cards: Total Tickets Raised / Total Tickets Updated / Total Tickets Closed (backend totals; "Updated" rather than the brief's "Ticket Updates" because the total is distinct tickets, the same definition as the column). Table: User Name (+ role) | Tickets Raised | Tickets Updated | Tickets Closed in backend order; empty → "No ticket activity in this period."; failure → inline `hint-strip auth-error`, no zeros. Footer explains the definitions.
+3. `pages/Dashboard.jsx`: `<UserActivityPanel />` above `<EodReportPanel />`, outside the fleet conditional.
+4. `TicketTable` `time` prop: `reported` (default, unchanged `WhatsappTimeCell`) or `closed` (header **Closed time**, `row.closedAt`). `TicketList` passes `closed` on the Closed tab only. `WhatsappTimeCell.jsx` exports a shared `DateTimeCell`.
+5. CSS: `.user-activity-tiles`, `.user-activity-error` (padding inside the flush panel); reuses `.eod-panel` head / date input styles.
+
+**Verification:** `npm run lint` and `npm run build` pass. Backend `test:smoke:user-activity` passes. Browser (Admin, against `pdm_db`): today's panel matches the seeded TEST-EOD tickets (7 raised, 3 updated, 5 closed); 12 Oct shows 1 raised; 12–13 Oct shows 8 raised; a reversed range shows "From date must be on or before To date."; Closed tab header is **Closed time** and TK-0942 (raised 12 Oct, closed 13 Oct) shows 13/10; Open tab still shows **Reported time**.
+
 ---
 
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46 -> Phase 47 -> Phase 49 -> Phase 50 -> Phase 51 -> Phase 52 -> Phase 53 -> Phase 54 -> Phase 55
+Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46 -> Phase 47 -> Phase 49 -> Phase 50 -> Phase 51 -> Phase 52 -> Phase 53 -> Phase 54 -> Phase 55 -> Phase 56 -> Phase 57
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

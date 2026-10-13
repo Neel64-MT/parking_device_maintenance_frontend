@@ -1,4 +1,5 @@
 import { toast } from '../../context/ToastContext'
+import { writeClipboard } from '../../utils/clipboard'
 
 function CopyIcon() {
   return (
@@ -14,23 +15,6 @@ function CopyIcon() {
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
     </svg>
   )
-}
-
-async function writeClipboard(text) {
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text)
-    return
-  }
-  const ta = document.createElement('textarea')
-  ta.value = text
-  ta.setAttribute('readonly', '')
-  ta.style.position = 'fixed'
-  ta.style.left = '-9999px'
-  document.body.appendChild(ta)
-  ta.select()
-  const ok = document.execCommand('copy')
-  document.body.removeChild(ta)
-  if (!ok) throw new Error('copy failed')
 }
 
 /**
