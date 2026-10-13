@@ -276,6 +276,19 @@ Do not modify unrelated Device Detail / Scan / Add flows when wiring sync.
 - Slot ID and Slot Label both open the same `/slot-view/:slotId` page; there is no second detail page.
 - Unresolved issues come from `GET /api/slot-view/:slotId` already filtered to Open; never show Resolved issues there and never re-derive status in the browser. Ticket list = every ticket of the slot (`listTickets({ device })`, no tab); do not hide Closed tickets.
 - Reuse `TicketTable`, `EmptyState`, `Panel`, `Skeleton*`, the inline error strip and the existing `/tickets/:ticketId` route; no new table, pagination, empty-state or error pattern.
+## EOD report rules (Phase 56+)
+
+- The backend (`GET /api/dashboard/eod-report`) is the only source of EOD counts. Never count, dedupe, group users or derive "completed" in React; render `summary`, `raised`, `closed` and `users` as returned.
+- Tiles, the preview and the copied text must come from the same response. The preview shows exactly the string Copy writes (`buildEodReportText(report)`); do not format a second version for the clipboard.
+- Dates: default (Today) and `max` = `todayIstDate()`; send the selected `from` / `to` (`YYYY-MM-DD`) only. Never send a user id or other filters (the backend rejects unknown params).
+- Period filter (Phase 58): both Dashboard report panels use `DateRangeFilter` + `utils/dateRange.js`; do not add another date picker or preset list. Validate with `validateRange` before any request (From ≤ To, To ≤ today, ≤ 366 days — keep in step with backend `MAX_REPORT_DAYS`); an invalid range shows the message inline and makes no request. Keep the preset derived from the dates (`detectPreset`), not stored separately.
+- A failed request shows the error (inline + `toastApiError`) and clears the report. Never substitute zeros; an actual empty day comes back from the API as zeros.
+- Every Generate fetches fresh data. Drop stale responses (`requestSeq`) and clear the report when the range changes.
+- The shareable text never includes user ids or other internal identifiers; `Not recorded` / `Unknown user` labels come from the backend.
+- Copy through `utils/clipboard.js` `writeClipboard` and the existing `toast`; do not add a clipboard library or another fallback.
+- The panel lives on the Dashboard only and must not depend on the fleet request; do not change the other Dashboard panels for it.
+- User-Wise Ticket Activity (Phase 57): render `GET /api/dashboard/user-activity` as returned (rows, order, totals). Never sum the user rows into totals (Updated totals are distinct tickets) and never derive raised / updated / closed from the ticket list. Send only `from` / `to`; block a reversed range in the UI without calling the API.
+- The All tickets Closed tab time column is **Closed time** from `row.closedAt`; other tabs and Slot View keep **Reported time** (`WhatsappTimeCell`). Choose it with the `TicketTable` `time` prop, never by copying the table.
 ## Notification rules (Phase 39+)
 
 - Consume the backend `/api/notifications` contract; do not add a second notification store or recreate ticket recipient rules in the browser.

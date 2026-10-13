@@ -263,6 +263,13 @@ Inspect existing code
 - Ticket links from a slot pass `state.from = /slot-view/:slotId` so Ticket Detail's back link returns to the slot; always use the existing `/tickets/:ticketId` route.
 - Unresolved issues reuse `groupIssuesForDisplay` and the Ticket Detail `.issue-*` styles; empty → `EmptyState` "No unresolved issues".
 
+## EOD report skills (Phase 56+)
+
+- On-demand reports (fetched from a button, not an effect) guard stale responses with a request-counter ref (`requestSeq` in `EodReportPanel`); bump it on every input change and ignore any response whose number is no longer current.
+- Build shareable text with a pure function from the API response (`utils/eodReportText.js`), memoise it, and render that exact string in the preview so what users see is what they copy.
+- "Today" for a business day is IST: `todayIstDate()` in `utils/dateTime.js` (never `toISOString().slice(0, 10)`, which is the UTC date).
+- Copy with `utils/clipboard.js` `writeClipboard` + `toast`; the helper already falls back to `execCommand` when the Clipboard API is missing or refuses.
+
 ## Notification skills (Phase 39+)
 
 - Consume `services/notifications.js` and the existing backend `/api/notifications` endpoints; preserve backend pagination with `apiEnvelope`.
