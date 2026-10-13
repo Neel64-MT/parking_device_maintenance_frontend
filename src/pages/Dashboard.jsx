@@ -9,6 +9,8 @@ import { JumpLinks } from '../components/ui/JumpLinks'
 import { Panel } from '../components/ui/Panel'
 import { DashboardSkeleton } from '../components/ui/Skeleton'
 import { Tooltip } from '../components/ui/Tooltip'
+import { EodReportPanel } from '../components/dashboard/EodReportPanel'
+import { UserActivityPanel } from '../components/dashboard/UserActivityPanel'
 import { DASHBOARD_ROADS } from '../data/dashboard'
 
 const LEGEND_DOT = {
@@ -157,7 +159,6 @@ export default function Dashboard() {
         {loading && !fleet ? <DashboardSkeleton /> : null}
 
         {fleet ? (
-          <>
           <section className="fleet">
             <div className="fleet-head">
               <div className="total">{fleet.total}</div>
@@ -192,7 +193,11 @@ export default function Dashboard() {
               })}
             </div>
           </section>
+        ) : null}
 
+        <UserActivityPanel />
+
+        {fleet ? (
         <div className="grid-2">
           <Panel
             title="Why devices are down"
@@ -274,8 +279,9 @@ export default function Dashboard() {
             </div>
           </Panel>
         </div>
-          </>
         ) : null}
+
+        <EodReportPanel />
       </main>
     </>
   )
