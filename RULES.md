@@ -280,9 +280,10 @@ Do not modify unrelated Device Detail / Scan / Add flows when wiring sync.
 
 - The backend (`GET /api/dashboard/eod-report`) is the only source of EOD counts. Never count, dedupe, group users or derive "completed" in React; render `summary`, `raised`, `closed` and `users` as returned.
 - Tiles, the preview and the copied text must come from the same response. The preview shows exactly the string Copy writes (`buildEodReportText(report)`); do not format a second version for the clipboard.
-- Dates: default and `max` = `todayIstDate()`; send the selected `YYYY-MM-DD` only. Never send a user id or other filters (the backend rejects unknown params).
+- Dates: default (Today) and `max` = `todayIstDate()`; send the selected `from` / `to` (`YYYY-MM-DD`) only. Never send a user id or other filters (the backend rejects unknown params).
+- Period filter (Phase 58): both Dashboard report panels use `DateRangeFilter` + `utils/dateRange.js`; do not add another date picker or preset list. Validate with `validateRange` before any request (From ≤ To, To ≤ today, ≤ 366 days — keep in step with backend `MAX_REPORT_DAYS`); an invalid range shows the message inline and makes no request. Keep the preset derived from the dates (`detectPreset`), not stored separately.
 - A failed request shows the error (inline + `toastApiError`) and clears the report. Never substitute zeros; an actual empty day comes back from the API as zeros.
-- Every Generate fetches fresh data. Drop stale responses (`requestSeq`) and clear the report when the date changes.
+- Every Generate fetches fresh data. Drop stale responses (`requestSeq`) and clear the report when the range changes.
 - The shareable text never includes user ids or other internal identifiers; `Not recorded` / `Unknown user` labels come from the backend.
 - Copy through `utils/clipboard.js` `writeClipboard` and the existing `toast`; do not add a clipboard library or another fallback.
 - The panel lives on the Dashboard only and must not depend on the fleet request; do not change the other Dashboard panels for it.

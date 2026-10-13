@@ -1204,18 +1204,36 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 1. `services/dashboard.js` `getUserActivity({ from, to })`: a payload without dates, numeric summary or `users` array throws `ApiRequestError('Unexpected user activity response')`.
 2. `components/dashboard/UserActivityPanel.jsx`: `Panel flush` with From / To date inputs (default today IST, `max` today) in the head; auto-loads on date change (effect `cancelled` flag drops stale responses); a reversed range shows an inline error and makes no request. Title **User-Wise Ticket Activity**. Three cards: Total Tickets Raised / Total Tickets Updated / Total Tickets Closed (backend totals; "Updated" rather than the brief's "Ticket Updates" because the total is distinct tickets, the same definition as the column). Table: User Name (+ role) | Tickets Raised | Tickets Updated | Tickets Closed in backend order; empty → "No ticket activity in this period."; failure → inline `hint-strip auth-error`, no zeros. Footer explains the definitions.
-3. `pages/Dashboard.jsx`: `<UserActivityPanel />` above `<EodReportPanel />`, outside the fleet conditional.
+3. `pages/Dashboard.jsx`: `<UserActivityPanel />` between the fleet bar and the `grid-2` device panels, outside the fleet conditional (the fleet bar and the grid each render on their own `fleet ? … : null`). `<EodReportPanel />` stays last.
 4. `TicketTable` `time` prop: `reported` (default, unchanged `WhatsappTimeCell`) or `closed` (header **Closed time**, `row.closedAt`). `TicketList` passes `closed` on the Closed tab only. `WhatsappTimeCell.jsx` exports a shared `DateTimeCell`.
 5. CSS: `.user-activity-tiles`, `.user-activity-error` (padding inside the flush panel); reuses `.eod-panel` head / date input styles.
 
 **Verification:** `npm run lint` and `npm run build` pass. Backend `test:smoke:user-activity` passes. Browser (Admin, against `pdm_db`): today's panel matches the seeded TEST-EOD tickets (7 raised, 3 updated, 5 closed); 12 Oct shows 1 raised; 12–13 Oct shows 8 raised; a reversed range shows "From date must be on or before To date."; Closed tab header is **Closed time** and TK-0942 (raised 12 Oct, closed 13 Oct) shows 13/10; Open tab still shows **Reported time**.
+
+## Phase 58: Dashboard report date range + period presets
+
+**Objective:** Give the EOD report generator and User-Wise Ticket Activity the same period filter: a dropdown (Today, This Week, Last Week, Current Month, Last Month, 3 Months, 6 Months, Custom range) plus From / To dates, default today, with From ≤ To validation (backend Phase 57 `from` / `to` on `eod-report`).
+
+**Status:** Complete
+
+**Tasks:**
+
+1. `utils/dateRange.js` (new, pure, string-based IST dates): `DATE_PRESETS`, `presetRange(preset, today)` (weeks Monday–Sunday; This Week / Current Month end today; Last Week / Last Month are complete; 3 / 6 Months start the same day 3 / 6 months back, clamped to month end), `detectPreset(from, to, today)` (else `custom`), `rangeDayCount`, `validateRange(from, to, today)` → first message or `''`: both dates required, **From date must be on or before To date.**, To not after today, ≤ `MAX_RANGE_DAYS` (366, same as backend).
+2. `components/dashboard/DateRangeFilter.jsx` (new): period `<select>` (value derived with `detectPreset`, so editing a date shows **Custom range**) + From / To date inputs (`max` today). Props `from`, `to`, `today`, `onChange({ from, to })`, `label` (aria labels `<label> period` / `from date` / `to date`).
+3. `UserActivityPanel`: uses `DateRangeFilter` (`label="Activity"`); range state `{ from, to }`; `validateRange` blocks the request and shows the message inline.
+4. `EodReportPanel`: range state instead of one date; `DateRangeFilter` (`label="Report"`) before Generate; an invalid range shows the message inline and disables **Generate report**; changing the range invalidates in-flight requests and clears the report (unchanged behavior). Caption `Report for <period>`.
+5. `services/dashboard.js` `getEodReport({ from, to })` → `?from=&to=`; response must echo `from` / `to`.
+6. `utils/eodReportText.js`: `formatReportPeriod(from, to)` (`13 Oct 2026` or `01 Oct 2026 – 13 Oct 2026`). One day keeps **END OF DAY REPORT** / `Date:` / DAILY SUMMARY; a range prints **TICKET ACTIVITY REPORT** / `Period: X to Y` / SUMMARY, and empty sections say "… from X to Y".
+7. CSS: the period select in `.eod-panel` heads sizes like the date inputs (auto, min 150px; flexible at ≤760px).
+
+**Verification:** `npm run lint` and `npm run build` pass. A throwaway node script checked 32 cases of `presetRange` / `detectPreset` / `validateRange` / the report header (week starts on Monday, Sunday and Monday edges, Last Month in January and leap February, 31 May − 3 months → 28 Feb, reversed / future / missing / 367-day ranges). Backend `test:smoke:eod-report` (J) and `test:smoke:user-activity` pass. Browser (Admin, `pdm_db`): both panels default to Today with all 8 options; Last Month fills 01–30 Sep 2026 and the activity panel shows 629 / 185 / 665, matching the API; a reversed range shows "From date must be on or before To date." (activity: no table; EOD: Generate disabled); Last Week → Generate prints the TICKET ACTIVITY REPORT header with `Period: 05 Oct 2026 to 11 Oct 2026`.
 
 ---
 
 ## Suggested calendar dependency graph
 
 ```text
-Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46 -> Phase 47 -> Phase 49 -> Phase 50 -> Phase 51 -> Phase 52 -> Phase 53 -> Phase 54 -> Phase 55 -> Phase 56 -> Phase 57
+Phase 0 ──► … ──► Phase 34 ──► Phase 35 ──► Phase 36 ──► Phase 37 ──► Phase 38 ──► Phase 39 ──► Phase 40 ──► Phase 41 ──► Phase 42 -> Phase 43 -> Phase 44 -> Phase 45 -> Phase 46 -> Phase 47 -> Phase 49 -> Phase 50 -> Phase 51 -> Phase 52 -> Phase 53 -> Phase 54 -> Phase 55 -> Phase 56 -> Phase 57 -> Phase 58
 ```
 
 Phases 3–7 can proceed in parallel after Phase 2 if multiple developers, but tickets before devices is preferred for shared Ticket/Device link testing.

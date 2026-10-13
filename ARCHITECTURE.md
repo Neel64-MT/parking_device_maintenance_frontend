@@ -505,10 +505,11 @@ The backend decides which slots appear (only ticketed), the ticket count (ticket
 Dashboard.jsx
   … fleet / panels (unchanged, only when fleet loaded)
   <EodReportPanel />                        always rendered (independent of the fleet request)
-     date = todayIstDate()                  utils/dateTime.js (Asia/Kolkata)
-     Generate ──► getEodReport(date)        services/dashboard.js → api()
-                    GET /api/dashboard/eod-report?date=YYYY-MM-DD   (backend Phase 55, Dashboard v)
-                    { date, timezone, generatedAt, range, summary, raised[], closed[], users[] }
+     { from, to } = todayIstDate()          utils/dateTime.js (Asia/Kolkata); DateRangeFilter (Phase 58)
+     validateRange → inline error, Generate disabled
+     Generate ──► getEodReport({ from, to })   services/dashboard.js → api()
+                    GET /api/dashboard/eod-report?from=&to=   (backend Phase 57, Dashboard v)
+                    { date, from, to, timezone, generatedAt, range, summary, raised[], closed[], users[] }
               ──► report state ──► Tiles (summary)
                                └─► text = buildEodReportText(report)   utils/eodReportText.js (pure)
                                        ├─► <pre class="eod-report"> preview
@@ -519,22 +520,26 @@ Dashboard.jsx
 |-------|----------|
 | Panel | `components/dashboard/EodReportPanel.jsx` |
 | Service | `services/dashboard.js` `getEodReport` (throws on a malformed payload) |
-| Text builder | `utils/eodReportText.js` (`buildEodReportText`, `formatReportDate`, `formatIstStamp`) |
+| Text builder | `utils/eodReportText.js` (`buildEodReportText`, `formatReportDate`, `formatReportPeriod`, `formatIstStamp`) |
+| Period filter | `components/dashboard/DateRangeFilter.jsx` + `utils/dateRange.js` (`DATE_PRESETS`, `presetRange`, `detectPreset`, `validateRange`) — shared with `UserActivityPanel` |
 | Clipboard | `utils/clipboard.js` `writeClipboard` (shared with `CopyTextButton`) |
 | IST date | `utils/dateTime.js` `todayIstDate` |
 
 - Single source of truth: tiles, preview and clipboard all derive from one response object; the text is memoised from it, so the preview is byte-identical to what Copy writes.
-- Stale responses: the fetch is button-triggered, so instead of the effect `cancelled` flag the panel keeps a `requestSeq` ref; only the latest request updates state, and a date change bumps the counter and clears the report.
+- Stale responses: the fetch is button-triggered, so instead of the effect `cancelled` flag the panel keeps a `requestSeq` ref; only the latest request updates state, and a range change bumps the counter and clears the report.
+- Period filter (Phase 58): the dropdown has no state of its own; its value is `detectPreset(from, to, today)`, and picking a preset just sets `{ from, to }` via `presetRange`. Both panels hold only `{ from, to }`.
 - Failure path: `ApiRequestError` → inline `hint-strip auth-error` + `toastApiError`; the previous report is cleared so an error never looks like a zero report.
 
 ### Dashboard user-wise activity + Closed time (Phase 57)
 
 ```text
 Dashboard.jsx
-  <UserActivityPanel />   from / to (todayIstDate) → useEffect (cancelled flag)
+  fleet ? <section.fleet>      (device fleet bar)
+  <UserActivityPanel />   DateRangeFilter → from / to (todayIstDate) → validateRange → useEffect (cancelled flag)
                           → getUserActivity({ from, to })   services/dashboard.js
                           → GET /api/dashboard/user-activity?from=&to=   (backend Phase 56, Dashboard v)
                           → tiles (summary) + table (users[] in backend order)
+  fleet ? <div.grid-2>         (Why devices are down | Road-wise status)
   <EodReportPanel />
 
 TicketList (tab = cls) → <TicketTable time="closed"> → header "Closed time", DateTimeCell(row.closedAt)

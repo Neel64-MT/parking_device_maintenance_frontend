@@ -1128,7 +1128,7 @@ Metrics (computed by the backend only):
 
 ### Phase 57 — Dashboard user-wise activity + Closed tab closed time
 
-A **User-Wise Ticket Activity** panel on the Dashboard (above the EOD report) shows, for an IST date range, how many tickets each user **raised**, **updated** and **closed** (backend Phase 56 `GET /api/dashboard/user-activity?from=&to=`). The All tickets **Closed** tab shows **Closed time** instead of Reported time.
+A **User-Wise Ticket Activity** panel on the Dashboard (directly below the device fleet bar) shows, for an IST date range, how many tickets each user **raised**, **updated** and **closed** (backend Phase 56 `GET /api/dashboard/user-activity?from=&to=`). The All tickets **Closed** tab shows **Closed time** instead of Reported time.
 
 ```text
 ┌ User-Wise Ticket Activity                                    [ from ] [ to ] ┐
@@ -1153,4 +1153,27 @@ The middle card reads "Total Tickets Updated" (not "Total Ticket Updates") becau
 | Title, three cards and column names match the brief; cards stack at ≤760px | See verification |
 | Closed tab header **Closed time**, value = `closedAt` (TK-0942: raised 12/10, shows 13/10) | Pass (browser) |
 | Open / Under Repair tabs and Slot View keep **Reported time** | Pass (browser + code) |
+| `npm run lint` / `npm run build` | Pass |
+
+### Phase 58 — Dashboard report date range + period presets
+
+The **EOD report generator** and **User-Wise Ticket Activity** share one period filter: a dropdown plus From / To dates, defaulting to Today. The EOD report can now cover any range (backend Phase 57 `GET /api/dashboard/eod-report?from=&to=`).
+
+```text
+[ Today ▾ ] [ 13-10-2026 ] [ 13-10-2026 ]   [ Generate report ] [ Copy report ]
+  Today · This Week · Last Week · Current Month · Last Month · 3 Months · 6 Months · Custom range
+```
+
+- **This Week** = Monday to today; **Last Week** = previous Monday to Sunday; **Current Month** = 1st to today; **Last Month** = the whole previous month; **3 / 6 Months** = same day 3 / 6 months ago to today.
+- Editing a date by hand switches the dropdown to **Custom range**.
+- From after To → "From date must be on or before To date." (no request; Generate disabled). To after today and ranges over 366 days are also refused; the backend applies the same rules.
+- A one-day EOD report keeps the **END OF DAY REPORT** text; a range prints **TICKET ACTIVITY REPORT** with `Period: <from> to <to>`.
+
+| Criterion | Result |
+|-----------|--------|
+| Both panels default to Today and list all 8 options | Pass (browser) |
+| Preset dates (week starts Monday, month ends, leap February, 3-month clamp) | Pass (32-case node check) |
+| From ≤ To enforced in the UI and by the API (`400`) | Pass (browser + API + backend smoke) |
+| Last Month activity totals = API (629 / 185 / 665) | Pass (browser) |
+| Last Week EOD → TICKET ACTIVITY REPORT, `Period: 05 Oct 2026 to 11 Oct 2026` | Pass (browser) |
 | `npm run lint` / `npm run build` | Pass |

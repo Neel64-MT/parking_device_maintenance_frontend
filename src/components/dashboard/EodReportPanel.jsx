@@ -7,39 +7,42 @@ import { toast, toastApiError } from '../../context/ToastContext'
 import { ApiRequestError } from '../../services/api'
 import { getEodReport } from '../../services/dashboard'
 import { todayIstDate } from '../../utils/dateTime'
+import { validateRange } from '../../utils/dateRange'
 import { writeClipboard } from '../../utils/clipboard'
-import { buildEodReportText, formatReportDate } from '../../utils/eodReportText'
+import { buildEodReportText, formatReportPeriod } from '../../utils/eodReportText'
+import { DateRangeFilter } from './DateRangeFilter'
 
 /**
- * End of Day report: fetches the backend aggregate for one IST date on demand and shows
- * the exact plain text that Copy report puts on the clipboard.
+ * EOD report: fetches the backend aggregate for an IST period (default today) on demand and
+ * shows the exact plain text that Copy report puts on the clipboard.
  */
 export function EodReportPanel() {
   const today = todayIstDate()
-  const [date, setDate] = useState(today)
+  const [{ from, to }, setRange] = useState({ from: today, to: today })
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  // Only the latest request may update state; a date change also invalidates in-flight ones.
+  // Only the latest request may update state; a period change also invalidates in-flight ones.
   const requestSeq = useRef(0)
 
+  const rangeError = validateRange(from, to, today)
   const text = useMemo(() => (report ? buildEodReportText(report) : ''), [report])
 
-  function changeDate(value) {
+  function changeRange(next) {
     requestSeq.current += 1
-    setDate(value)
+    setRange(next)
     setReport(null)
     setError('')
     setLoading(false)
   }
 
   async function generate() {
-    if (!date) return
+    if (rangeError) return
     const seq = ++requestSeq.current
     setLoading(true)
     setError('')
     try {
-      const data = await getEodReport(date)
+      const data = await getEodReport({ from, to })
       if (seq !== requestSeq.current) return
       setReport(data)
     } catch (err) {
@@ -62,21 +65,17 @@ export function EodReportPanel() {
     }
   }
 
+  const shownError = rangeError || error
+
   return (
     <Panel
       className="eod-panel"
       title="EOD report generator"
-      subtitle="Tickets raised and completed on one day (IST), ready to share"
+      subtitle="Tickets raised and completed in the selected period (IST), ready to share"
       actions={
         <>
-          <input
-            type="date"
-            aria-label="Report date"
-            value={date}
-            max={today}
-            onChange={(e) => changeDate(e.target.value)}
-          />
-          <Button variant="primary" size="sm" onClick={generate} disabled={!date} aria-busy={loading}>
+          <DateRangeFilter from={from} to={to} today={today} onChange={changeRange} label="Report" />
+          <Button variant="primary" size="sm" onClick={generate} disabled={Boolean(rangeError)} aria-busy={loading}>
             {loading ? 'Generating…' : report ? 'Regenerate' : 'Generate report'}
           </Button>
           {report ? (
@@ -87,17 +86,17 @@ export function EodReportPanel() {
         </>
       }
     >
-      {error ? (
+      {shownError ? (
         <div className="hint-strip auth-error" role="alert" style={{ marginBottom: 0 }}>
-          <span>{error}</span>
+          <span>{shownError}</span>
         </div>
       ) : null}
 
       {loading && !report ? <SkeletonText lines={4} /> : null}
 
-      {!loading && !report && !error ? (
+      {!loading && !report && !shownError ? (
         <p className="muted" style={{ margin: 0 }}>
-          Pick a date and click Generate report. Each click fetches the latest data.
+          Pick a period and click Generate report. Each click fetches the latest data.
         </p>
       ) : null}
 
@@ -110,7 +109,7 @@ export function EodReportPanel() {
             <Tile value={report.summary.usersClosed} label="Users who completed" />
           </div>
           <p className="muted eod-caption">
-            Report for {formatReportDate(report.date)}. The preview below is exactly what Copy report copies.
+            Report for {formatReportPeriod(report.from, report.to)}. The preview below is exactly what Copy report copies.
           </p>
           <pre className="eod-report" aria-label="Generated EOD report">
             {text}

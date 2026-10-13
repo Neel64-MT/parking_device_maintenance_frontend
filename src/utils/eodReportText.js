@@ -9,6 +9,11 @@ export function formatReportDate(ymd) {
   return `${String(d).padStart(2, '0')} ${MONTHS[m - 1]} ${y}`
 }
 
+/** '13 Oct 2026' for one day, '01 Oct 2026 – 13 Oct 2026' for a range. */
+export function formatReportPeriod(from, to = from) {
+  return from === to ? formatReportDate(from) : `${formatReportDate(from)} – ${formatReportDate(to)}`
+}
+
 /** ISO timestamp → '13 Oct 2026, 03:45 PM IST'. */
 export function formatIstStamp(iso) {
   const d = new Date(iso)
@@ -54,15 +59,19 @@ const slotIdText = (slotId) => (slotId == null ? '-' : String(slotId))
 
 /** Shareable plain-text EOD report built only from the backend response. */
 export function buildEodReportText(report) {
-  const date = formatReportDate(report.date)
+  const from = report.from || report.date
+  const to = report.to || from
+  const singleDay = from === to
+  const date = singleDay ? formatReportDate(from) : `${formatReportDate(from)} to ${formatReportDate(to)}`
+  const when = singleDay ? `on ${date}` : `from ${date}`
   const { summary } = report
   const out = [
     'PARKING DEVICE MANAGEMENT',
-    'END OF DAY REPORT',
-    `Date: ${date}`,
+    singleDay ? 'END OF DAY REPORT' : 'TICKET ACTIVITY REPORT',
+    singleDay ? `Date: ${date}` : `Period: ${date}`,
     `Generated: ${formatIstStamp(report.generatedAt)}`,
     '',
-    'DAILY SUMMARY',
+    singleDay ? 'DAILY SUMMARY' : 'SUMMARY',
     [
       FENCE,
       `Tickets raised      : ${summary.ticketsRaised}`,
@@ -79,7 +88,7 @@ export function buildEodReportText(report) {
           report.users.map((u) => [u.userName, u.raised, u.closed, u.slots.join(', ') || '-']),
           [null, 'right', 'right'],
         )
-      : `No ticket activity on ${date}`,
+      : `No ticket activity ${when}`,
     '',
     'TICKETS RAISED',
     report.raised.length
@@ -87,7 +96,7 @@ export function buildEodReportText(report) {
           ['Ticket', 'Slot ID', 'Slot Label', 'Raised by'],
           report.raised.map((t) => [t.ticketId, slotIdText(t.slotId), t.slotLabel || '-', t.userName]),
         )
-      : `No tickets raised on ${date}`,
+      : `No tickets raised ${when}`,
     '',
     'TICKETS COMPLETED',
     report.closed.length
@@ -95,7 +104,7 @@ export function buildEodReportText(report) {
           ['Ticket', 'Slot ID', 'Slot Label', 'Completed by'],
           report.closed.map((t) => [t.ticketId, slotIdText(t.slotId), t.slotLabel || '-', t.userName]),
         )
-      : `No tickets completed on ${date}`,
+      : `No tickets completed ${when}`,
   ]
   return out.join('\n')
 }

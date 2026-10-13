@@ -38,14 +38,16 @@ export async function getUserActivity({ from, to }) {
 }
 
 /**
- * End of Day report for one IST calendar date (YYYY-MM-DD). The backend computes every count;
- * a malformed payload throws rather than turning into a misleading zero report.
+ * EOD report for IST days [from, to] (YYYY-MM-DD, both inclusive; from = to for one day).
+ * The backend computes every count; a malformed payload throws rather than turning into a
+ * misleading zero report.
  */
-export async function getEodReport(date) {
-  const data = await api(`/api/dashboard/eod-report?${new URLSearchParams({ date })}`)
+export async function getEodReport({ from, to }) {
+  const data = await api(`/api/dashboard/eod-report?${new URLSearchParams({ from, to })}`)
   const s = data?.summary
   if (
-    !data?.date ||
+    !data?.from ||
+    !data?.to ||
     !s ||
     ![s.ticketsRaised, s.ticketsClosed, s.usersRaised, s.usersClosed].every(Number.isFinite) ||
     !Array.isArray(data.raised) ||
@@ -55,7 +57,9 @@ export async function getEodReport(date) {
     throw new ApiRequestError('Unexpected EOD report response')
   }
   return {
-    date: String(data.date),
+    date: String(data.from),
+    from: String(data.from),
+    to: String(data.to),
     timezone: String(data.timezone || 'Asia/Kolkata'),
     generatedAt: String(data.generatedAt || ''),
     summary: {

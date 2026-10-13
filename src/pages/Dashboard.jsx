@@ -159,7 +159,6 @@ export default function Dashboard() {
         {loading && !fleet ? <DashboardSkeleton /> : null}
 
         {fleet ? (
-          <>
           <section className="fleet">
             <div className="fleet-head">
               <div className="total">{fleet.total}</div>
@@ -194,7 +193,11 @@ export default function Dashboard() {
               })}
             </div>
           </section>
+        ) : null}
 
+        <UserActivityPanel />
+
+        {fleet ? (
         <div className="grid-2">
           <Panel
             title="Why devices are down"
@@ -276,10 +279,8 @@ export default function Dashboard() {
             </div>
           </Panel>
         </div>
-          </>
         ) : null}
 
-        <UserActivityPanel />
         <EodReportPanel />
       </main>
     </>

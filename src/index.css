@@ -1364,7 +1364,8 @@ input:disabled {
   flex-wrap: wrap;
 }
 
-.eod-panel .panel-head input[type='date'] {
+.eod-panel .panel-head input[type='date'],
+.eod-panel .panel-head select {
   width: auto;
   min-width: 150px;
 }
@@ -1375,6 +1376,10 @@ input:disabled {
 
 .eod-caption {
   margin: 0 0 8px;
+}
+
+.eod-panel.user-activity-panel {
+  margin-bottom: 18px;
 }
 
 .user-activity-tiles {
@@ -1413,7 +1418,8 @@ input:disabled {
     width: 100%;
   }
 
-  .eod-panel .panel-head input[type='date'] {
+  .eod-panel .panel-head input[type='date'],
+  .eod-panel .panel-head select {
     flex: 1 1 150px;
   }
 

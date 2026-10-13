@@ -5,7 +5,9 @@ import { SkeletonTable } from '../ui/Skeleton'
 import { ApiRequestError } from '../../services/api'
 import { getUserActivity } from '../../services/dashboard'
 import { todayIstDate } from '../../utils/dateTime'
-import { formatReportDate } from '../../utils/eodReportText'
+import { validateRange } from '../../utils/dateRange'
+import { formatReportPeriod } from '../../utils/eodReportText'
+import { DateRangeFilter } from './DateRangeFilter'
 
 /**
  * Tickets raised, updated and closed per user for an IST date range. The backend does all
@@ -13,16 +15,15 @@ import { formatReportDate } from '../../utils/eodReportText'
  */
 export function UserActivityPanel() {
   const today = todayIstDate()
-  const [from, setFrom] = useState(today)
-  const [to, setTo] = useState(today)
+  const [{ from, to }, setRange] = useState({ from: today, to: today })
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const rangeError = from && to && from > to ? 'From date must be on or before To date.' : ''
+  const rangeError = validateRange(from, to, today)
 
   useEffect(() => {
-    if (!from || !to || from > to) return undefined
+    if (rangeError) return undefined
     let cancelled = false
 
     async function load() {
@@ -44,13 +45,10 @@ export function UserActivityPanel() {
     return () => {
       cancelled = true
     }
-  }, [from, to])
+  }, [from, to, rangeError])
 
   const shownError = rangeError || error
-  const period =
-    data && (data.from === data.to
-      ? formatReportDate(data.from)
-      : `${formatReportDate(data.from)} – ${formatReportDate(data.to)}`)
+  const period = data ? formatReportPeriod(data.from, data.to) : ''
 
   return (
     <Panel
@@ -58,24 +56,7 @@ export function UserActivityPanel() {
       title="User-Wise Ticket Activity"
       subtitle={period ? `Tickets raised, updated and closed · ${period} (IST)` : 'Tickets raised, updated and closed (IST)'}
       flush
-      actions={
-        <>
-          <input
-            type="date"
-            aria-label="Activity from date"
-            value={from}
-            max={today}
-            onChange={(e) => setFrom(e.target.value)}
-          />
-          <input
-            type="date"
-            aria-label="Activity to date"
-            value={to}
-            max={today}
-            onChange={(e) => setTo(e.target.value)}
-          />
-        </>
-      }
+      actions={<DateRangeFilter from={from} to={to} today={today} onChange={setRange} label="Activity" />}
       foot="Updated = different tickets the user added an update to. Closed = tickets the user closed. Totals count each ticket once."
     >
       {shownError ? (
