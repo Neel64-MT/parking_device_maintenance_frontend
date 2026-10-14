@@ -8,7 +8,8 @@ import { DateTimeCell, WhatsappTimeCell } from './WhatsappTimeCell'
  * original All tickets table; links open the existing Ticket Detail route.
  * `showSlot` = Slot Id + Road / slot columns (hidden where the page is already one slot).
  * `person` = which person column to show: raisedBy, assignedTo (Under repair) or closedBy (Closed).
- * `time` = reported (WhatsApp / created time) or closed (`closedAt`, Closed tab).
+ * `time` = reported (WhatsApp / created time), lastUpdate (`lastUpdateAt`, Under repair tab;
+ * falls back to the reported time when the ticket has no update) or closed (`closedAt`, Closed tab).
  */
 const PERSON_COLUMNS = {
   raisedBy: 'Raised by',
@@ -42,7 +43,7 @@ export function TicketTable({
             <th>Issue reported</th>
             <th>Issue found</th>
             <th>{PERSON_COLUMNS[personKey]}</th>
-            <th>{time === 'closed' ? 'Closed time' : 'Reported time'}</th>
+            <th>{time === 'closed' ? 'Closed time' : time === 'lastUpdate' ? 'Last update time' : 'Reported time'}</th>
             <th className="num">Updates</th>
             {showDaysOpen ? <th className="num">Days open</th> : null}
             {showDaysAfterClose ? <th className="num">Days After Close</th> : null}
@@ -102,7 +103,13 @@ export function TicketTable({
                     {row[personKey] || <span className="muted">—</span>}
                   </td>
                   <td>
-                    {time === 'closed' ? <DateTimeCell value={row.closedAt} /> : <WhatsappTimeCell row={row} />}
+                    {time === 'closed' ? (
+                      <DateTimeCell value={row.closedAt} />
+                    ) : time === 'lastUpdate' && row.lastUpdateAt ? (
+                      <DateTimeCell value={row.lastUpdateAt} />
+                    ) : (
+                      <WhatsappTimeCell row={row} />
+                    )}
                   </td>
                   <td className="num">{row.updates}</td>
                   {showDaysOpen ? (
