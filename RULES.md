@@ -288,7 +288,7 @@ Do not modify unrelated Device Detail / Scan / Add flows when wiring sync.
 - Copy through `utils/clipboard.js` `writeClipboard` and the existing `toast`; do not add a clipboard library or another fallback.
 - The panel lives on the Dashboard only and must not depend on the fleet request; do not change the other Dashboard panels for it.
 - User-Wise Ticket Activity (Phase 57): render `GET /api/dashboard/user-activity` as returned (rows, order, totals). Never sum the user rows into totals (Updated totals are distinct tickets) and never derive raised / updated / closed from the ticket list. Send only `from` / `to`; block a reversed range in the UI without calling the API.
-- The All tickets Closed tab time column is **Closed time** from `row.closedAt`; other tabs and Slot View keep **Reported time** (`WhatsappTimeCell`). Choose it with the `TicketTable` `time` prop, never by copying the table.
+- The All tickets Closed tab time column is **Closed time** from `row.closedAt`. The Under Repair tab's **Reported time** is the latest update's time (`row.lastUpdateAt`: that update's WhatsApp time, else when it was logged), falling back to the ticket's reported time when there is no update. The Open tab and Slot View keep the ticket's **Reported time** (`WhatsappTimeCell`). Choose it with the `TicketTable` `time` prop (`reported` / `lastUpdate` / `closed`), never by copying the table.
 ## Notification rules (Phase 39+)
 
 - Consume the backend `/api/notifications` contract; do not add a second notification store or recreate ticket recipient rules in the browser.

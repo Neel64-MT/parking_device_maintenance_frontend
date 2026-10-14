@@ -412,7 +412,7 @@ export default function TicketList() {
             showDaysOpen={showDaysOpen}
             showDaysAfterClose={showDaysAfterClose}
             person={tab === 'urp' ? 'assignedTo' : tab === 'cls' ? 'closedBy' : 'raisedBy'}
-            time={tab === 'cls' ? 'closed' : 'reported'}
+            time={tab === 'cls' ? 'closed' : tab === 'urp' ? 'lastUpdate' : 'reported'}
             linkState={ticketLinkState}
           />
           <TablePagination
