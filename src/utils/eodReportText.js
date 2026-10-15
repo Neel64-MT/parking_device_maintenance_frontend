@@ -55,8 +55,6 @@ function table(headers, rows, align = []) {
   return [FENCE, head, rule, ...rows.map(line), FENCE].join('\n')
 }
 
-const slotIdText = (slotId) => (slotId == null ? '-' : String(slotId))
-
 /** Shareable plain-text EOD report built only from the backend response. */
 export function buildEodReportText(report) {
   const from = report.from || report.date
@@ -93,16 +91,16 @@ export function buildEodReportText(report) {
     'TICKETS RAISED',
     report.raised.length
       ? table(
-          ['Ticket', 'Slot ID', 'Slot Label', 'Raised by'],
-          report.raised.map((t) => [t.ticketId, slotIdText(t.slotId), t.slotLabel || '-', t.userName]),
+          ['Ticket', 'Slot Label', 'Raised by'],
+          report.raised.map((t) => [t.ticketId, t.slotLabel || '-', t.userName]),
         )
       : `No tickets raised ${when}`,
     '',
     'TICKETS COMPLETED',
     report.closed.length
       ? table(
-          ['Ticket', 'Slot ID', 'Slot Label', 'Completed by'],
-          report.closed.map((t) => [t.ticketId, slotIdText(t.slotId), t.slotLabel || '-', t.userName]),
+          ['Ticket', 'Slot Label', 'Completed by'],
+          report.closed.map((t) => [t.ticketId, t.slotLabel || '-', t.userName]),
         )
       : `No tickets completed ${when}`,
   ]

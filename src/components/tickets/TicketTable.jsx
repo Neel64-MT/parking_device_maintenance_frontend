@@ -6,7 +6,8 @@ import { DateTimeCell, WhatsappTimeCell } from './WhatsappTimeCell'
 /**
  * Ticket rows from GET /api/tickets (All tickets, Slot View). Markup matches the
  * original All tickets table; links open the existing Ticket Detail route.
- * `showSlot` = Slot Id + Road / slot columns (hidden where the page is already one slot).
+ * `showSlot` = Slot Label + Road columns (hidden where the page is already one slot). The Slot
+ * Label links to the device by `deviceId`; a device without a label shows its `deviceId`.
  * `person` = which person column to show: raisedBy, assignedTo (Under repair) or closedBy (Closed).
  * `time` = reported (WhatsApp / created time), lastUpdate (`lastUpdateAt`, Under repair tab;
  * falls back to the reported time when the ticket has no update) or closed (`closedAt`, Closed tab).
@@ -38,8 +39,8 @@ export function TicketTable({
         <thead>
           <tr>
             <th>Ticket</th>
-            {showSlot ? <th>Slot Id</th> : null}
-            {showSlot ? <th>Road / slot</th> : null}
+            {showSlot ? <th>Slot Label</th> : null}
+            {showSlot ? <th>Road</th> : null}
             <th>Issue reported</th>
             <th>Issue found</th>
             <th>{PERSON_COLUMNS[personKey]}</th>
@@ -71,16 +72,11 @@ export function TicketTable({
                   {showSlot ? (
                     <td>
                       <Link className="code" to={`/devices/${row.deviceId}`}>
-                        {row.deviceId}
+                        {row.slotLabel || row.deviceId}
                       </Link>
                     </td>
                   ) : null}
-                  {showSlot ? (
-                    <td>
-                      {row.road}
-                      <div className="muted">{row.slot}</div>
-                    </td>
-                  ) : null}
+                  {showSlot ? <td>{row.road}</td> : null}
                   <td>
                     {row.issueReported}
                     {row.issueReportedDetail ? (
