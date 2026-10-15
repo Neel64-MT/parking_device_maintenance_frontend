@@ -18,6 +18,7 @@ function mapTicketRow(row) {
  * `device` (Slot View) limits the list to one slot; omit `tab` to include every status.
  * Returns { rows, tiles, tabCounts: { open, urp, cls }, over3Counts: { open, urp }, pagination }
  * from the envelope (tiles / counts sit beside `data`, not inside it).
+ * Each row has `slotLabel` (shown on screen) and `deviceId` (Slot Id or PD-xxxx, used for links).
  */
 export async function listTickets({
   tab,
