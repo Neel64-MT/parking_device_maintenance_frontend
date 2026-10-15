@@ -527,8 +527,8 @@ export default function TicketDetail() {
     return (
       <>
         <Link to={backToTickets}>{backFromSlot ? 'Slot View' : 'Tickets'}</Link> ›{' '}
-        <Link to={`/devices/${header.deviceId}`}>{header.deviceId}</Link> › {header.road}, Slot{' '}
-        {header.slot}
+        <Link to={`/devices/${header.deviceId}`}>Slot {header.slot || header.deviceId}</Link> ›{' '}
+        {header.road}
       </>
     )
   }, [header, backToTickets, backFromSlot])
@@ -588,14 +588,11 @@ export default function TicketDetail() {
                 <Pill tone={header.statusTone}>{header.status}</Pill>
               </div>
               <div className="sub">
-                    Slot Id{' '}
+                    Slot Label{' '}
                     <Link className="code" to={`/devices/${header.deviceId}`}>
-                      {header.deviceId}
+                      {header.slot || header.deviceId}
                 </Link>{' '}
-                    · <Link to="/devices">{header.road}</Link> ·{' '}
-                    <span className="sub-part">
-                      Slot <b>{header.slot}</b>
-                    </span>
+                    · <Link to="/devices">{header.road}</Link>
               </div>
             </div>
             <div className="push">
@@ -735,7 +732,7 @@ export default function TicketDetail() {
                 <div>
                   <h3>This device before today</h3>
                   <p>
-                        Slot Id {header.deviceId}, {header.road}, Slot {header.slot}
+                        Slot Label {header.slot || header.deviceId}, {header.road}
                   </p>
                 </div>
                     <Link className="link" to={`/devices/${header.deviceId}`}>

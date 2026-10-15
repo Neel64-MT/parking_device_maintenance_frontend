@@ -286,9 +286,8 @@ export default function TicketUpdate() {
                 <div>
                   <h3>{header.id}</h3>
                   <p>
-                    Slot Id {header.deviceId}
+                    Slot Label {header.slot || header.deviceId}
                     {header.road ? ` · ${header.road}` : ''}
-                    {header.slot ? `, Slot ${header.slot}` : ''}
                   </p>
                 </div>
                 <div className="actions">
