@@ -393,7 +393,7 @@ export default function TicketList() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') applyFilters()
               }}
-              placeholder="Ticket, slot id or road"
+              placeholder="Ticket, Slot label or Road"
               aria-label="Search tickets"
             />
           }
