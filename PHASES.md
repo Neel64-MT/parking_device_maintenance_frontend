@@ -1230,6 +1230,21 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 ---
 
+## Phase 59 — Add Device form: five fields + real create, delete action
+
+**Status:** Complete
+
+**Objective:** Redesign `/devices/add` to exactly five fields (Slot Id, Slot Label, MAC Address, QR Number, Parking Location), make it actually create devices (it was a design-preview shell with no POST), and add a device delete action — reusing the same form for Edit.
+
+**Behavior:**
+1. `services/devices.js`: new `createDevice(body)` → `POST /api/devices` and `deleteDevice(id)` → `DELETE /api/devices/:id` (both via `apiEnvelope`).
+2. `pages/devices/DeviceAdd.jsx`: five fields only (removed model/side/landmark/lat/lng/installed/commissioned/**status**/photo/remarks — status stays derived, never a form field). Parking Location `<select>` now stores the road **id** (`r.id`), not the name; loading / empty / error states handled. Client validation (Slot Id, Slot Label, QR, Parking Location required; MAC optional) with per-field messages via `Field` `error`/`errorId`. Add → `createDevice`, success toast, navigate to `/devices`; "Save and add another" resets. Edit reuses the form via `?id=`, diffs only the five fields (Slot Id read-only), prefilled from the `GET /:id` header (incl. new `roadId`).
+3. `pages/devices/DeviceDetail.jsx`: permission-gated (`canPerm(user,'Device list','d')`) **Delete device** button + confirm `Modal` → `deleteDevice` → toast → `/devices`.
+
+**Verification:** `npm run lint` + `npm run build` pass. Backend `test:smoke:device-crud` covers the create/read/update/delete contract. Not changed: device list columns, device history, ticket raise, Slot View, QR scan.
+
+---
+
 ## Suggested calendar dependency graph
 
 ```text

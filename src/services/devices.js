@@ -156,7 +156,31 @@ export async function getDevice(deviceId) {
 }
 
 /**
- * Update device (PATCH /api/devices/:id). Slot Id is not accepted by the API.
+ * Create a device (POST /api/devices). Body: { slotId, slotNumber, slotIdentifier?,
+ * qrNumber?, roadId }. slotId is the user-entered identity (stored as public_id);
+ * slot_id (sync numeric key) stays NULL for manually created devices.
+ */
+export async function createDevice(body) {
+  const envelope = await apiEnvelope('/api/devices', { method: 'POST', body })
+  return {
+    data: envelope.data,
+    message: envelope.message || 'Device created',
+  }
+}
+
+/** Soft-delete a device (DELETE /api/devices/:id). History/tickets are preserved. */
+export async function deleteDevice(deviceId) {
+  const envelope = await apiEnvelope(`/api/devices/${encodeURIComponent(deviceId)}`, {
+    method: 'DELETE',
+  })
+  return {
+    data: envelope.data,
+    message: envelope.message || 'Device deleted',
+  }
+}
+
+/**
+ * Update device (PATCH /api/devices/:id). Slot Id (public_id) is not accepted by the API.
  * Body fields match createSchema.partial() — send only changed keys.
  */
 export async function updateDevice(deviceId, body) {
