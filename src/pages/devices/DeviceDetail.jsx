@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
+import { useAuth } from '../../context/AuthContext'
+import { toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { ApiRequestError } from '../../services/api'
-import { getDevice } from '../../services/devices'
+import { deleteDevice, getDevice } from '../../services/devices'
+import { canPerm } from '../../services/users'
+import { Button } from '../../components/ui/Button'
 import { CopyTextButton } from '../../components/ui/CopyTextButton'
+import { Modal } from '../../components/ui/Modal'
 import { Panel } from '../../components/ui/Panel'
 import { Pill } from '../../components/ui/Pill'
 import { DeviceDetailSkeleton } from '../../components/ui/Skeleton'
@@ -45,9 +50,14 @@ function factDisplayValue(f) {
 
 export default function DeviceDetail() {
   const { deviceId } = useParams()
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const canDelete = canPerm(user, 'Device list', 'd')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -133,6 +143,21 @@ export default function DeviceDetail() {
     return tile?.value || '—'
   }, [lifeTiles])
 
+  async function handleDelete() {
+    if (deleting) return
+    setDeleting(true)
+    try {
+      const { message } = await deleteDevice(deviceId || header.id)
+      toastApiSuccess(message)
+      setConfirmDelete(false)
+      navigate('/devices')
+    } catch (err) {
+      toastApiError(err, 'Could not delete device.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const crumb = useMemo(() => {
     if (!header) return null
     return (
@@ -211,6 +236,11 @@ export default function DeviceDetail() {
                   >
                     Edit device
                   </Link>
+                  {canDelete ? (
+                    <Button variant="danger" onClick={() => setConfirmDelete(true)}>
+                      Delete device
+                    </Button>
+                  ) : null}
                 </div>
               </div>
 
@@ -449,6 +479,29 @@ export default function DeviceDetail() {
             </div>
           </>
         ) : null}
+
+        <Modal
+          open={confirmDelete}
+          title="Delete this device?"
+          subtitle={header ? `${header.id} · ${header.road || header.parkingLocation}` : undefined}
+          onClose={deleting ? undefined : () => setConfirmDelete(false)}
+          closeDisabled={deleting}
+        >
+          <p>
+            The device will be removed from the device list and scans. Its tickets and history are
+            kept. This cannot be undone from here.
+          </p>
+          <div className="form-actions">
+            <Button variant="danger" onClick={handleDelete} disabled={deleting} aria-busy={deleting}>
+              {deleting ? 'Deleting...' : 'Delete device'}
+            </Button>
+            <div className="right">
+              <Button type="button" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </main>
     </>
   )
