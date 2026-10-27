@@ -2,42 +2,24 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
-import { ROAD_OPTIONS } from '../../data/slots'
 import { ApiRequestError } from '../../services/api'
-import { getDevice, updateDevice } from '../../services/devices'
+import { createDevice, getDevice, updateDevice } from '../../services/devices'
 import { listRoadLookups } from '../../services/roads'
 import { Button } from '../../components/ui/Button'
 import { Field } from '../../components/ui/FilterBar'
 import { Panel } from '../../components/ui/Panel'
 
-function toDateInput(value) {
-  if (value == null || value === '') return ''
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) {
-    const s = String(value)
-    return s.length >= 10 ? s.slice(0, 10) : s
-  }
-  return d.toISOString().slice(0, 10)
-}
-
+/** Form → snapshot of the five editable values (Slot Id is identity, tracked separately). */
 function snapshotFromForm(values) {
   return {
     slotLabel: values.slotLabel,
     slotIdentifier: values.slotIdentifier,
     qrNumber: values.qrNumber,
-    road: values.road,
-    side: values.side,
-    landmark: values.landmark,
-    lat: values.lat,
-    lng: values.lng,
-    model: values.model,
-    installed: values.installed,
-    commissioned: values.commissioned,
-    status: values.status,
-    photo: values.photo,
-    remarks: values.remarks,
+    roadId: values.roadId,
   }
 }
+
+const EMPTY_ERRORS = { slotId: '', slotLabel: '', qrNumber: '', roadId: '' }
 
 export default function DeviceAdd() {
   const navigate = useNavigate()
@@ -49,19 +31,11 @@ export default function DeviceAdd() {
   const [slotLabel, setSlotLabel] = useState('')
   const [slotIdentifier, setSlotIdentifier] = useState('')
   const [qrNumber, setQrNumber] = useState('')
-  const [road, setRoad] = useState('')
+  const [roadId, setRoadId] = useState('')
   const [roads, setRoads] = useState([])
-  const [roadOptions, setRoadOptions] = useState(ROAD_OPTIONS)
-  const [side, setSide] = useState('Left')
-  const [landmark, setLandmark] = useState('')
-  const [lat, setLat] = useState('')
-  const [lng, setLng] = useState('')
-  const [model, setModel] = useState('Flap barrier — 4 wheeler')
-  const [installed, setInstalled] = useState('')
-  const [commissioned, setCommissioned] = useState('')
-  const [status, setStatus] = useState('Working')
-  const [photo, setPhoto] = useState('')
-  const [remarks, setRemarks] = useState('')
+  const [roadsLoading, setRoadsLoading] = useState(true)
+  const [roadsError, setRoadsError] = useState(false)
+  const [errors, setErrors] = useState(EMPTY_ERRORS)
   const [loadingEdit, setLoadingEdit] = useState(() => Boolean(editId))
   const [loadError, setLoadError] = useState('')
   const [initialSnapshot, setInitialSnapshot] = useState(null)
@@ -71,12 +45,17 @@ export default function DeviceAdd() {
     let cancelled = false
     listRoadLookups()
       .then((rows) => {
-        if (cancelled || !rows.length) return
-        setRoads(rows)
-        setRoadOptions(rows.map((r) => r.name).filter(Boolean))
+        if (cancelled) return
+        setRoads(Array.isArray(rows) ? rows : [])
+        setRoadsError(false)
       })
       .catch(() => {
-        /* keep ROAD_OPTIONS fallback */
+        if (cancelled) return
+        setRoadsError(true)
+        toast('Could not load parking locations. Try again.', 'error')
+      })
+      .finally(() => {
+        if (!cancelled) setRoadsLoading(false)
       })
     return () => {
       cancelled = true
@@ -95,48 +74,23 @@ export default function DeviceAdd() {
         const data = await getDevice(editId)
         if (cancelled) return
         const h = data?.header || {}
-        const facts = Array.isArray(h.facts) ? h.facts : []
-        const fact = (label) => facts.find((f) => f.label === label)?.value
 
         const next = {
           slotId:
             h.slotId != null && h.slotId !== ''
               ? String(h.slotId)
-              : h.id && !String(h.id).startsWith('PD-')
-                ? String(h.id)
-                : '',
+              : h.publicId || (h.id != null ? String(h.id) : ''),
           slotLabel: h.slotLabel || h.slot || '',
           slotIdentifier: h.slotIdentifier || '',
           qrNumber: h.qrNumber || h.qr || '',
-          road: h.parkingLocation || h.road || '',
-          side: fact('Side of road') && fact('Side of road') !== '—' ? fact('Side of road') : 'Left',
-          landmark: '',
-          lat: '',
-          lng: '',
-          model: fact('Model') || 'Flap barrier — 4 wheeler',
-          installed: toDateInput(fact('Installed')),
-          commissioned: '',
-          status:
-            h.status === 'Under installation' || h.status === 'Not working' ? h.status : 'Working',
-          photo: '',
-          remarks: '',
+          roadId: h.roadId || '',
         }
 
         setSlotId(next.slotId)
         setSlotLabel(next.slotLabel)
         setSlotIdentifier(next.slotIdentifier)
         setQrNumber(next.qrNumber)
-        setRoad(next.road)
-        setSide(next.side)
-        setLandmark(next.landmark)
-        setLat(next.lat)
-        setLng(next.lng)
-        setModel(next.model)
-        setInstalled(next.installed)
-        setCommissioned(next.commissioned)
-        setStatus(next.status)
-        setPhoto(next.photo)
-        setRemarks(next.remarks)
+        setRoadId(next.roadId)
         setInitialSnapshot(snapshotFromForm(next))
       } catch (err) {
         if (!cancelled) {
@@ -156,39 +110,8 @@ export default function DeviceAdd() {
   }, [editId])
 
   const currentSnapshot = useMemo(
-    () =>
-      snapshotFromForm({
-        slotLabel,
-        slotIdentifier,
-        qrNumber,
-        road,
-        side,
-        landmark,
-        lat,
-        lng,
-        model,
-        installed,
-        commissioned,
-        status,
-        photo,
-        remarks,
-      }),
-    [
-      slotLabel,
-      slotIdentifier,
-      qrNumber,
-      road,
-      side,
-      landmark,
-      lat,
-      lng,
-      model,
-      installed,
-      commissioned,
-      status,
-      photo,
-      remarks,
-    ],
+    () => snapshotFromForm({ slotLabel, slotIdentifier, qrNumber, roadId }),
+    [slotLabel, slotIdentifier, qrNumber, roadId],
   )
 
   const isDirty = useMemo(() => {
@@ -214,48 +137,56 @@ export default function DeviceAdd() {
     navigate('/devices')
   }
 
-  function roadIdForName(name) {
-    const row = roads.find((r) => r.name === name)
-    return row?.id || null
+  /** Validate the required fields. Slot Id is skipped in edit (identity is read-only). */
+  function validate() {
+    const next = { ...EMPTY_ERRORS }
+    if (!isEdit && !slotId.trim()) next.slotId = 'Slot Id is required.'
+    if (!slotLabel.trim()) next.slotLabel = 'Slot Label is required.'
+    if (!qrNumber.trim()) next.qrNumber = 'QR Number is required.'
+    if (!roadId) next.roadId = 'Select a parking location.'
+    setErrors(next)
+    return !next.slotId && !next.slotLabel && !next.qrNumber && !next.roadId
   }
 
-  /** Build PATCH body with only changed fields (createSchema.partial). */
+  /** PATCH body with only changed fields (createSchema.partial). Slot Id is immutable. */
   function buildPatchBody() {
     if (!initialSnapshot) return null
     const body = {}
     const cur = currentSnapshot
     const prev = initialSnapshot
-
-    if (cur.road !== prev.road) {
-      const roadId = roadIdForName(cur.road)
-      if (!roadId) {
-        toast('Select a valid parking location.', 'error')
-        return null
-      }
-      body.roadId = roadId
-    }
-    if (cur.slotLabel !== prev.slotLabel) body.slotNumber = cur.slotLabel.trim()
-    if (cur.slotIdentifier !== prev.slotIdentifier) body.slotIdentifier = cur.slotIdentifier
-    if (cur.qrNumber !== prev.qrNumber) body.qrNumber = cur.qrNumber.trim()
-    if (cur.side !== prev.side) body.sideOfRoad = cur.side
-    if (cur.landmark !== prev.landmark) body.landmark = cur.landmark
-    if (cur.lat !== prev.lat) body.latitude = cur.lat
-    if (cur.lng !== prev.lng) body.longitude = cur.lng
-    if (cur.model !== prev.model) body.model = cur.model
-    if (cur.installed !== prev.installed) body.installedOn = cur.installed
-    if (cur.commissioned !== prev.commissioned) body.commissionedOn = cur.commissioned
-    if (cur.status !== prev.status) body.installStatus = cur.status
-    if (cur.photo !== prev.photo) body.photoUrl = cur.photo
-    if (cur.remarks !== prev.remarks) body.remarks = cur.remarks
-
+    if (cur.roadId !== prev.roadId) body.roadId = cur.roadId
+    if (cur.slotLabel.trim() !== prev.slotLabel.trim()) body.slotNumber = cur.slotLabel.trim()
+    if (cur.slotIdentifier.trim() !== prev.slotIdentifier.trim())
+      body.slotIdentifier = cur.slotIdentifier.trim()
+    if (cur.qrNumber.trim() !== prev.qrNumber.trim()) body.qrNumber = cur.qrNumber.trim()
     return body
+  }
+
+  function resetForm() {
+    setSlotId('')
+    setSlotLabel('')
+    setSlotIdentifier('')
+    setQrNumber('')
+    setRoadId('')
+    setErrors(EMPTY_ERRORS)
   }
 
   async function handleSubmit(e, mode) {
     e.preventDefault()
     if (loadingEdit || saving) return
 
+    // Trim all text inputs before validating and saving, and reflect it in the form.
+    const trimmedSlotId = slotId.trim()
+    const trimmedSlotLabel = slotLabel.trim()
+    const trimmedSlotIdentifier = slotIdentifier.trim()
+    const trimmedQrNumber = qrNumber.trim()
+    if (trimmedSlotId !== slotId) setSlotId(trimmedSlotId)
+    if (trimmedSlotLabel !== slotLabel) setSlotLabel(trimmedSlotLabel)
+    if (trimmedSlotIdentifier !== slotIdentifier) setSlotIdentifier(trimmedSlotIdentifier)
+    if (trimmedQrNumber !== qrNumber) setQrNumber(trimmedQrNumber)
+
     if (isEdit) {
+      if (!validate()) return
       if (!isDirty || !editId) return
       const body = buildPatchBody()
       if (!body || !Object.keys(body).length) return
@@ -273,36 +204,43 @@ export default function DeviceAdd() {
       return
     }
 
-    if (mode === 'another') {
-      toast('Design preview — device saved. Form ready for another.', 'success')
-      setSlotId('')
-      setSlotLabel('')
-      setSlotIdentifier('')
-      setQrNumber('')
-      setRoad('')
-      setLandmark('')
-      setLat('')
-      setLng('')
-      setInstalled('')
-      setCommissioned('')
-      setPhoto('')
-      setRemarks('')
-      return
+    if (!validate()) return
+
+    setSaving(true)
+    try {
+      const { message } = await createDevice({
+        slotId: trimmedSlotId,
+        slotNumber: trimmedSlotLabel,
+        slotIdentifier: trimmedSlotIdentifier || undefined,
+        qrNumber: trimmedQrNumber,
+        roadId,
+      })
+      toastApiSuccess(message)
+      if (mode === 'another') {
+        resetForm()
+      } else {
+        navigate('/devices')
+      }
+    } catch (err) {
+      toastApiError(err, 'Could not create device.')
+    } finally {
+      setSaving(false)
     }
-    toast('Design preview — device saved.', 'success')
   }
 
-  const saveDisabled = loadingEdit || saving || (isEdit && !isDirty)
+  const disabled = loadingEdit || saving
+  const saveDisabled = disabled || (isEdit && !isDirty)
+  const noRoads = !roadsLoading && !roadsError && roads.length === 0
 
   return (
     <>
       <PageMeta
         pageId="device-add"
-        title={isEdit ? 'Edit device' : 'Add device'}
+        title={isEdit ? 'Edit Device' : 'Add Device'}
         crumb={crumb}
       />
 
-      <main className="page" style={{ maxWidth: 980 }}>
+      <main className="page" style={{ maxWidth: 760 }}>
         {loadError ? (
           <div className="hint-strip auth-error" role="alert" style={{ marginBottom: 16 }}>
             <span>{loadError}</span>
@@ -316,17 +254,23 @@ export default function DeviceAdd() {
           }}
         >
           <Panel
-            title="Slot and QR"
-            subtitle="Slot Id is the identity used on tickets and history. QR is what a technician scans on site."
+            title="Device"
+            subtitle={
+              isEdit
+                ? 'Update this device’s slot, identifiers, and parking location.'
+                : 'Register a new parking device by its Slot Id, labels, and parking location.'
+            }
           >
             <div className="form-grid">
               <Field
                 label="Slot Id"
                 required
+                error={errors.slotId}
+                errorId="err-slotId"
                 hint={
                   isEdit
                     ? 'Slot Id cannot be changed after the device is created.'
-                    : 'Primary identity after Device Sync. Used on ticket list and device history.'
+                    : 'Identity used on tickets and device history.'
                 }
               >
                 <input
@@ -334,192 +278,109 @@ export default function DeviceAdd() {
                   value={slotId}
                   onChange={(e) => setSlotId(e.target.value)}
                   placeholder="e.g. 10428"
-                  disabled={isEdit || loadingEdit || saving}
+                  disabled={isEdit || disabled}
                   readOnly={isEdit}
+                  aria-invalid={Boolean(errors.slotId)}
+                  aria-describedby={errors.slotId ? 'err-slotId' : undefined}
                 />
               </Field>
+
               <Field
                 label="Slot Label"
                 required
-                hint="Label painted on site / slot_number (e.g. CG-33)."
+                error={errors.slotLabel}
+                errorId="err-slotLabel"
+                hint="Label painted on site (e.g. 3-169)."
               >
                 <input
                   type="text"
                   value={slotLabel}
                   onChange={(e) => setSlotLabel(e.target.value)}
-                  placeholder="e.g. CG-33"
-                  disabled={loadingEdit || saving}
+                  placeholder="e.g. 3-169"
+                  disabled={disabled}
+                  aria-invalid={Boolean(errors.slotLabel)}
+                  aria-describedby={errors.slotLabel ? 'err-slotLabel' : undefined}
                 />
               </Field>
+
               <Field
-                label="MAC address"
-                hint="Hardware MAC from Device Sync (stored as slot identifier)."
+                label="MAC Address"
+                error=""
+                hint="Hardware MAC / slot identifier scanned on site (optional)."
               >
                 <input
                   type="text"
                   value={slotIdentifier}
                   onChange={(e) => setSlotIdentifier(e.target.value)}
                   placeholder="e.g. AA:BB:CC:DD:EE:FF"
-                  disabled={loadingEdit || saving}
+                  disabled={disabled}
                 />
               </Field>
+
               <Field
                 label="QR Number"
                 required
-                hint="Printed and pasted on the machine body. Print the label after saving."
+                error={errors.qrNumber}
+                errorId="err-qrNumber"
+                hint="Printed on the machine body (e.g. AMCD5979)."
               >
                 <input
                   type="text"
                   value={qrNumber}
                   onChange={(e) => setQrNumber(e.target.value)}
-                  placeholder="e.g. QR-…"
-                  disabled={loadingEdit || saving}
+                  placeholder="e.g. AMCD5979"
+                  disabled={disabled}
+                  aria-invalid={Boolean(errors.qrNumber)}
+                  aria-describedby={errors.qrNumber ? 'err-qrNumber' : undefined}
                 />
               </Field>
-              <Field label="Model">
-                <select
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  disabled={loadingEdit || saving}
-                >
-                  <option>Flap barrier — 4 wheeler</option>
-                  <option>Flap barrier — 2 wheeler</option>
-                </select>
-              </Field>
-            </div>
-          </Panel>
 
-          <Panel
-            title="Parking location"
-            subtitle="Parking Location comes from Masters → Road (or Device Sync locations)"
-            link="Add a road"
-            linkTo="/masters/roads/add"
-          >
-            <div className="form-grid">
-              <Field label="Parking Location" required>
+              <Field
+                label="Parking Location"
+                required
+                className="span-2"
+                error={errors.roadId || (roadsError ? 'Could not load parking locations.' : '')}
+                errorId="err-roadId"
+                hint={
+                  noRoads
+                    ? 'No parking locations yet — add a road first.'
+                    : 'Choose the road this device sits on.'
+                }
+                hintAfter={
+                  noRoads ? (
+                    <Link to="/masters/roads/add">Add a road</Link>
+                  ) : null
+                }
+              >
                 <select
-                  value={road}
-                  onChange={(e) => setRoad(e.target.value)}
-                  disabled={loadingEdit || saving}
+                  value={roadId}
+                  onChange={(e) => setRoadId(e.target.value)}
+                  disabled={disabled || roadsLoading || roadsError || noRoads}
+                  aria-invalid={Boolean(errors.roadId)}
+                  aria-describedby={errors.roadId ? 'err-roadId' : undefined}
                 >
-                  <option value="">Select parking location</option>
-                  {roadOptions.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
+                  <option value="">
+                    {roadsLoading
+                      ? 'Loading locations…'
+                      : roadsError
+                        ? 'Unavailable'
+                        : 'Select parking location'}
+                  </option>
+                  {roads.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label="Side of road">
-                <select
-                  value={side}
-                  onChange={(e) => setSide(e.target.value)}
-                  disabled={loadingEdit || saving}
-                >
-                  <option>Left</option>
-                  <option>Right</option>
-                </select>
-              </Field>
-              <Field label="Nearest landmark">
-                <input
-                  type="text"
-                  value={landmark}
-                  onChange={(e) => setLandmark(e.target.value)}
-                  placeholder="Helps the technician find the slot"
-                  disabled={loadingEdit || saving}
-                />
-              </Field>
-              <Field label="Latitude">
-                <input
-                  type="text"
-                  value={lat}
-                  onChange={(e) => setLat(e.target.value)}
-                  placeholder="23.0225"
-                  disabled={loadingEdit || saving}
-                />
-              </Field>
-              <Field label="Longitude">
-                <input
-                  type="text"
-                  value={lng}
-                  onChange={(e) => setLng(e.target.value)}
-                  placeholder="72.5714"
-                  disabled={loadingEdit || saving}
-                />
-              </Field>
-            </div>
-          </Panel>
-
-          <section className="panel">
-            <div className="panel-head">
-              <div>
-                <h3>Installation</h3>
-                <p>When the device went live on this slot</p>
-              </div>
-            </div>
-            <div className="panel-body">
-              <div className="form-grid">
-                <Field label="Installation date" required>
-                  <input
-                    type="date"
-                    value={installed}
-                    onChange={(e) => setInstalled(e.target.value)}
-                    disabled={loadingEdit || saving}
-                  />
-                </Field>
-                <Field label="Commissioned on">
-                  <input
-                    type="date"
-                    value={commissioned}
-                    onChange={(e) => setCommissioned(e.target.value)}
-                    disabled={loadingEdit || saving}
-                  />
-                </Field>
-                <Field
-                  label="Status"
-                  required
-                  hint="After go-live the status changes on its own from open tickets, not by hand."
-                >
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    disabled={loadingEdit || saving}
-                  >
-                    <option>Working</option>
-                    <option>Under installation</option>
-                    <option>Not working</option>
-                  </select>
-                </Field>
-                <Field label="Installation photo" className="span-2">
-                  <input
-                    type="text"
-                    value={photo}
-                    onChange={(e) => setPhoto(e.target.value)}
-                    placeholder="Upload — geo-tagged photo of the installed slot"
-                    disabled={loadingEdit || saving}
-                  />
-                </Field>
-                <Field label="Remarks" className="span-2">
-                  <textarea
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="Site conditions worth recording — waterlogging point, tight slot, heavy two-wheeler entry, and so on."
-                    disabled={loadingEdit || saving}
-                  />
-                </Field>
-              </div>
             </div>
 
             <div className="form-actions">
               <Button type="submit" variant="primary" disabled={saveDisabled} aria-busy={saving}>
-                {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Save device'}
+                {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Save Device'}
               </Button>
               {!isEdit ? (
-                <Button
-                  type="button"
-                  onClick={(e) => handleSubmit(e, 'another')}
-                  disabled={loadingEdit || saving}
-                >
+                <Button type="button" onClick={(e) => handleSubmit(e, 'another')} disabled={disabled}>
                   Save and add another
                 </Button>
               ) : null}
@@ -529,7 +390,7 @@ export default function DeviceAdd() {
                 </Button>
               </div>
             </div>
-          </section>
+          </Panel>
         </form>
       </main>
     </>
