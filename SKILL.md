@@ -294,10 +294,12 @@ Part replacement panel: date, part name, ticket. No serials.
 
 ### Devices — add
 
-Slot Id, Slot Label, Slot Identifier, QR Number, Parking Location (road).
-Edit uses the same form with `?id=` and live `getDevice` prefill.
-Link to add road if missing. Replacement parts are captured on tickets,
-never on this form.
+Exactly five fields: **Slot Id, Slot Label, MAC Address (slot identifier), QR Number, Parking Location (road)** — nothing else (Phase 59). Slot Id / Slot Label / QR / Parking Location are required; MAC is optional. The Parking Location `<select>` stores the road **id** (not the name). Add calls `createDevice` → `POST /api/devices`; success toast → `/devices`; validation shows per-field messages and blocks duplicate submits. Edit reuses the same form with `?id=` and live `getDevice` prefill (Slot Id read-only; prefill the location from the header's `roadId`); it diffs only the five fields.
+Device **status is never a form field** — it is derived from open tickets; do not add it back. Install metadata (model/dates/geo/photo/remarks) is not on this form but still lives on the model and the detail page. Link to add road if missing. Replacement parts are captured on tickets, never on this form.
+
+### Devices — delete
+
+Soft delete only, from the device history page, gated on `canPerm(user, 'Device list', 'd')`: a confirm `Modal` → `deleteDevice` → `DELETE /api/devices/:id` → toast → `/devices`. Tickets and history are preserved; the device just drops out of lists/scans. Never offer a hard delete.
 
 ### Devices — scan QR
 
