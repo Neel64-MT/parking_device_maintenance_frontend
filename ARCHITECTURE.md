@@ -75,6 +75,8 @@ React Router. Paths mirror original filenames without `.html`. Auth routes: `/lo
 
 - **Phase 52 — Under Repair tab, clickable cards, tab transition:** TicketList tabs `open` (no update yet) / `urp` (at least one update) / `cls` from backend `tabCounts`; summary cards are `.tile-link` buttons mapping to tab + status + `age=over3` (`viewForTile`, `over3Counts`); status select only on Under Repair. `Tabs` gets a sliding `.tabs-ink`; the TicketList Panel is keyed by tab and slides in by direction (`prefers-reduced-motion` respected).
 
+- **Phase 60 — Delete ticket:** `deleteTicket(id)` → `DELETE /api/tickets/:id` in `services/tickets.js` (mirrors `deleteDevice`), gated with `canPerm(user, 'All tickets', 'd')` (granted to all roles; backend-enforced). `TicketTable` gains `canDelete` / `onDelete(row)` / `deletingId` props rendering a danger Delete button in the row actions; `TicketList` and `SlotDetail` own the confirm `Modal` + `deleteTarget` / `deletingId` state and, on success, bump a `refreshKey` that re-runs their fetch effects (SlotDetail re-runs `getSlot` too) so the row disappears and counts refresh with filters/pagination intact. `TicketDetail` renders its own gated Delete button + confirm `Modal` and navigates back to the list on success. Backend soft-deletes (`tickets.deleted_at`); failures keep the ticket (no optimistic removal).
+
 ```mermaid
 flowchart LR
   Scan[QR scan or Detail] --> Form[TicketAddUpdateForm]

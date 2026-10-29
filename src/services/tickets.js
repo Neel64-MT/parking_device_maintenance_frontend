@@ -216,3 +216,20 @@ export async function closeTicket(ticketId, body) {
     body,
   })
 }
+
+/**
+ * Soft-delete a ticket (DELETE /api/tickets/:id). Requires All tickets `d`.
+ * History (events, issues, parts) is preserved; the ticket drops out of every list,
+ * count, Slot View, dashboard and report. A deleted / unknown ticket returns 404.
+ * @param {string} ticketId public id (TK-xxxx) or uuid
+ * @returns {Promise<{ data: { id: string }, message: string }>}
+ */
+export async function deleteTicket(ticketId) {
+  const envelope = await apiEnvelope(`/api/tickets/${encodeURIComponent(ticketId)}`, {
+    method: 'DELETE',
+  })
+  return {
+    data: envelope.data,
+    message: envelope.message || 'Ticket deleted',
+  }
+}

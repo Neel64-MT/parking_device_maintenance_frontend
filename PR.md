@@ -1177,3 +1177,22 @@ The **EOD report generator** and **User-Wise Ticket Activity** share one period 
 | Last Month activity totals = API (629 / 185 / 665) | Pass (browser) |
 | Last Week EOD → TICKET ACTIVITY REPORT, `Period: 05 Oct 2026 to 11 Oct 2026` | Pass (browser) |
 | `npm run lint` / `npm run build` | Pass |
+
+### Phase 60 — Delete ticket (all roles)
+
+Every authenticated role can delete a ticket through the UI (`DELETE /api/tickets/:id`, `All tickets` `d`, granted to all roles; backend-enforced). The action reuses the device/user/role delete pattern — a danger button, a confirm `Modal` that names the ticket, a busy state, and success/error toasts.
+
+- **Where:** ticket **detail** page action bar; a **Delete** button in each row's actions on the **All tickets** list and on a **Slot detail**'s ticket table. Gated by `canPerm(user, 'All tickets', 'd')`.
+- **Confirm:** `Modal` titled "Delete this ticket?", names the ticket id, locked (`closeDisabled`) while the request runs; the Delete button shows "Deleting…" and is disabled to prevent duplicate requests.
+- **On success:** success toast; detail navigates back to the list, list/slot re-fetch so the row disappears and tiles / tab counts / slot counts update, **with search, filters, pagination and sort preserved**.
+- **On failure:** error toast (surfaces the backend message); the ticket **stays** in the view.
+- Deleted tickets no longer appear in ticket lists, counts, Slot View, dashboard or EOD/work reports.
+
+| Criterion | Result |
+|-----------|--------|
+| Delete offered to every role with `All tickets` `d` (default: all) on detail + list + slot rows | Pass |
+| Confirm dialog names the ticket; cancel keeps it; button disabled while deleting | Pass |
+| Success removes the row and refreshes counts; filters/pagination preserved | Pass |
+| Failure keeps the ticket in the UI with an error toast | Pass |
+| Backend enforcement (revoked `d` → 403; deleted ticket absent everywhere) | Pass (backend `smoke-ticket-delete`) |
+| `npm run lint` / `npm run build` | Pass |
