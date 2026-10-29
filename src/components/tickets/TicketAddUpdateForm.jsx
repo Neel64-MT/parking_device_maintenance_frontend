@@ -14,8 +14,6 @@ import {
   rowsToIssuePairs,
 } from './ticketIssueRowsHelpers'
 import { TicketResolveIssues } from './TicketResolveIssues'
-import { WhatsappTimeField } from './WhatsappTimeField'
-import { localInputToIso } from '../../utils/dateTime'
 import { Button } from '../ui/Button'
 import { Field } from '../ui/FilterBar'
 import { PartChips } from '../ui/PartChips'
@@ -79,7 +77,6 @@ export function TicketAddUpdateForm({
   const [updPartIds, setUpdPartIds] = useState([])
   const [updPartsChanged, setUpdPartsChanged] = useState(false)
   const [updVisitedBy, setUpdVisitedBy] = useState('')
-  const [updWhatsappAt, setUpdWhatsappAt] = useState('')
   const [updSubmitting, setUpdSubmitting] = useState(false)
   const [partsItems, setPartsItems] = useState([])
   const [partsLoading, setPartsLoading] = useState(true)
@@ -102,7 +99,6 @@ export function TicketAddUpdateForm({
     setUpdPartIds([])
     setUpdPartsChanged(false)
     setUpdVisitedBy(defaultVisitedBy)
-    setUpdWhatsappAt('')
   }
 
   function resetIssueSelection() {
@@ -303,8 +299,6 @@ export function TicketAddUpdateForm({
       if (resolve.categoryIds.length) body.resolveCategoryIds = resolve.categoryIds
       if (resolve.issueIds.length) body.resolveIssueIds = resolve.issueIds
       if (canClose && closeTicket) body.closeTicket = true
-      const whatsappAt = localInputToIso(updWhatsappAt)
-      if (whatsappAt) body.whatsappAt = whatsappAt
 
       const saved = await addTicketUpdate(ticketId, body)
 
@@ -378,13 +372,6 @@ export function TicketAddUpdateForm({
           />
         </Field>
       </div>
-
-      <WhatsappTimeField
-        value={updWhatsappAt}
-        onChange={setUpdWhatsappAt}
-        disabled={updSubmitting}
-        style={{ marginTop: 12 }}
-      />
 
       <div style={{ marginTop: 12 }}>
         <Field

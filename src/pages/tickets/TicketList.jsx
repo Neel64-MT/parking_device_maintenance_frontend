@@ -2,18 +2,19 @@ import { useEffect, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
-import { toast } from '../../context/ToastContext'
+import { toast, toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { DEFAULT_PAGE_SIZE } from '../../constants/pagination'
 import { ISSUE_MASTER } from '../../data/issueMaster'
 import { ROAD_OPTIONS } from '../../data/slots'
 import { TICKET_TAB_META, TICKET_TABS } from '../../data/tickets'
 import { ApiRequestError } from '../../services/api'
-import { listTickets } from '../../services/tickets'
+import { deleteTicket, listTickets } from '../../services/tickets'
 import { canPerm, homePathForUser, isFieldTicketUpdater } from '../../services/users'
 import { TicketTable } from '../../components/tickets/TicketTable'
 import { Button } from '../../components/ui/Button'
 import { Field, FilterBar } from '../../components/ui/FilterBar'
 import { JumpLinks } from '../../components/ui/JumpLinks'
+import { Modal } from '../../components/ui/Modal'
 import { Panel } from '../../components/ui/Panel'
 import { SkeletonTiles } from '../../components/ui/Skeleton'
 import { TablePagination } from '../../components/ui/TablePagination'
@@ -89,6 +90,7 @@ function isTileSelected(label, tab, applied) {
 export default function TicketList() {
   const { user } = useAuth()
   const canView = canPerm(user, 'All tickets', 'v')
+  const canDelete = canPerm(user, 'All tickets', 'd')
   const canRaise = canPerm(user, 'Raise ticket', 'v')
   const canViewWorkReport = canPerm(user, 'Work report', 'v')
   const showUpdateTicketLink =
@@ -123,6 +125,10 @@ export default function TicketList() {
   const [over3Counts, setOver3Counts] = useState({ open: 0, urp: 0 })
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  // Bumped after a successful delete to re-run the fetch with the same filters/page.
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
   const [pane, setPane] = useState({ tab, dir: '' })
   if (pane.tab !== tab) {
     setPane({
@@ -198,7 +204,23 @@ export default function TicketList() {
     return () => {
       cancelled = true
     }
-  }, [canView, tab, applied, page, limit])
+  }, [canView, tab, applied, page, limit, refreshKey])
+
+  async function confirmDeleteTicket() {
+    if (!deleteTarget || deletingId) return
+    setDeletingId(deleteTarget.id)
+    try {
+      const { message } = await deleteTicket(deleteTarget.id)
+      toastApiSuccess(message)
+      setDeleteTarget(null)
+      // Re-fetch with the current tab/filters/page so rows, tiles and tab counts all refresh.
+      setRefreshKey((k) => k + 1)
+    } catch (err) {
+      toastApiError(err, 'Could not delete ticket.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   function setTabParam(nextTab) {
     setSearchParams(
@@ -414,6 +436,9 @@ export default function TicketList() {
             person={tab === 'urp' ? 'assignedTo' : tab === 'cls' ? 'closedBy' : 'raisedBy'}
             time={tab === 'cls' ? 'closed' : tab === 'urp' ? 'lastUpdate' : 'reported'}
             linkState={ticketLinkState}
+            canDelete={canDelete}
+            onDelete={(row) => setDeleteTarget(row)}
+            deletingId={deletingId}
           />
           <TablePagination
             page={pagination.page || page}
@@ -427,6 +452,31 @@ export default function TicketList() {
         </Panel>
       </main>
 
+      <Modal
+        open={Boolean(deleteTarget)}
+        title="Delete this ticket?"
+        subtitle={deleteTarget ? `${deleteTarget.id} · ${deleteTarget.road}` : undefined}
+        onClose={deletingId ? undefined : () => setDeleteTarget(null)}
+        closeDisabled={Boolean(deletingId)}
+      >
+        <p>
+          Ticket {deleteTarget?.id} will be removed from all ticket lists, counts, Slot View and
+          reports. Its history is kept. This cannot be undone from here.
+        </p>
+        <div className="modal-actions">
+          <Button type="button" onClick={() => setDeleteTarget(null)} disabled={Boolean(deletingId)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={confirmDeleteTicket}
+            disabled={Boolean(deletingId)}
+            aria-busy={Boolean(deletingId)}
+          >
+            {deletingId ? 'Deleting…' : 'Delete ticket'}
+          </Button>
+        </div>
+      </Modal>
     </>
   )
 }

@@ -2,14 +2,17 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
+import { toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { DEFAULT_PAGE_SIZE } from '../../constants/pagination'
 import { ApiRequestError } from '../../services/api'
 import { getSlot } from '../../services/slotView'
-import { listTickets } from '../../services/tickets'
+import { deleteTicket, listTickets } from '../../services/tickets'
 import { canPerm, homePathForUser } from '../../services/users'
 import { TicketTable } from '../../components/tickets/TicketTable'
 import { groupIssuesForDisplay } from '../../components/tickets/ticketIssueRowsHelpers'
+import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
+import { Modal } from '../../components/ui/Modal'
 import { Panel } from '../../components/ui/Panel'
 import { Pill } from '../../components/ui/Pill'
 import { SkeletonText } from '../../components/ui/Skeleton'
@@ -74,6 +77,7 @@ export default function SlotDetail() {
   const canView = canPerm(user, 'Slot View', 'v')
   /** Ticket rows and ticket pages are gated on All tickets v, separately from Slot View. */
   const canViewTickets = canPerm(user, 'All tickets', 'v')
+  const canDeleteTickets = canPerm(user, 'All tickets', 'd')
   const canViewDevice = canPerm(user, 'Device history', 'v')
 
   const [detail, setDetail] = useState(null)
@@ -91,6 +95,11 @@ export default function SlotDetail() {
   })
   const [ticketsLoading, setTicketsLoading] = useState(true)
   const [ticketsError, setTicketsError] = useState('')
+  // Bumped after a delete so both the slot header (ticketCount, unresolvedIssues) and the
+  // ticket table re-fetch.
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
 
   useEffect(() => {
     if (!canView || !slotId) return undefined
@@ -116,7 +125,7 @@ export default function SlotDetail() {
     return () => {
       cancelled = true
     }
-  }, [canView, slotId])
+  }, [canView, slotId, refreshKey])
 
   useEffect(() => {
     if (!canView || !canViewTickets || !slotId) return undefined
@@ -144,7 +153,23 @@ export default function SlotDetail() {
     return () => {
       cancelled = true
     }
-  }, [canView, canViewTickets, slotId, page, limit])
+  }, [canView, canViewTickets, slotId, page, limit, refreshKey])
+
+  async function confirmDeleteTicket() {
+    if (!deleteTarget || deletingId) return
+    setDeletingId(deleteTarget.id)
+    try {
+      const { message } = await deleteTicket(deleteTarget.id)
+      toastApiSuccess(message)
+      setDeleteTarget(null)
+      // Refresh both the slot header counts and the ticket table.
+      setRefreshKey((k) => k + 1)
+    } catch (err) {
+      toastApiError(err, 'Could not delete ticket.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   const slot = detail?.slot
   const unresolvedIssues = useMemo(() => detail?.unresolvedIssues || [], [detail])
@@ -268,6 +293,9 @@ export default function SlotDetail() {
                   showSlot={false}
                   linkState={linkState}
                   emptyText="No tickets raised for this slot yet."
+                  canDelete={canDeleteTickets}
+                  onDelete={(row) => setDeleteTarget(row)}
+                  deletingId={deletingId}
                 />
                 <TablePagination
                   page={pagination.page || page}
@@ -290,6 +318,32 @@ export default function SlotDetail() {
           </>
         ) : null}
       </main>
+
+      <Modal
+        open={Boolean(deleteTarget)}
+        title="Delete this ticket?"
+        subtitle={deleteTarget ? `${deleteTarget.id} · ${deleteTarget.road || slot?.road || ''}` : undefined}
+        onClose={deletingId ? undefined : () => setDeleteTarget(null)}
+        closeDisabled={Boolean(deletingId)}
+      >
+        <p>
+          Ticket {deleteTarget?.id} will be removed from all ticket lists, counts, Slot View and
+          reports. Its history is kept. This cannot be undone from here.
+        </p>
+        <div className="modal-actions">
+          <Button type="button" onClick={() => setDeleteTarget(null)} disabled={Boolean(deletingId)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={confirmDeleteTicket}
+            disabled={Boolean(deletingId)}
+            aria-busy={Boolean(deletingId)}
+          >
+            {deletingId ? 'Deleting…' : 'Delete ticket'}
+          </Button>
+        </div>
+      </Modal>
     </>
   )
 }

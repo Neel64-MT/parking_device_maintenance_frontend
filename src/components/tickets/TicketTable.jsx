@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Button } from '../ui/Button'
 import { Pill } from '../ui/Pill'
 import { SkeletonTable } from '../ui/Skeleton'
 import { DateTimeCell, WhatsappTimeCell } from './WhatsappTimeCell'
@@ -18,6 +19,18 @@ const PERSON_COLUMNS = {
   closedBy: 'Closed by',
 }
 
+/** Bin icon for the row delete action (same glyph as Issue / Part master). */
+function TrashIcon() {
+  return (
+    <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  )
+}
+
 export function TicketTable({
   rows,
   loading,
@@ -28,6 +41,9 @@ export function TicketTable({
   time = 'reported',
   linkState,
   emptyText = 'No tickets match this view.',
+  canDelete = false,
+  onDelete,
+  deletingId = null,
 }) {
   const personKey = PERSON_COLUMNS[person] ? person : 'raisedBy'
   const colCount =
@@ -124,6 +140,20 @@ export function TicketTable({
                       <Link className="btn btn-sm" to={`/tickets/${row.id}`} state={linkState}>
                         Open
                       </Link>
+                      {canDelete && onDelete ? (
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          className="btn-icon"
+                          onClick={() => onDelete(row)}
+                          disabled={deletingId === row.id}
+                          aria-busy={deletingId === row.id}
+                          title="Delete ticket"
+                          aria-label={`Delete ticket ${row.id}`}
+                        >
+                          <TrashIcon />
+                        </Button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>

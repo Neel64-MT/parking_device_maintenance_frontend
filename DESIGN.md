@@ -370,6 +370,19 @@ Reuse AuthLayout + Panel + Field + `.hint-strip` / `.auth-error` (no new visual 
 | Removed | `row.you` marker (nothing can be “you” in your own list) |
 | Row actions | Edit/Password keep the `canEdit` gate; the muted `—` now shows only when neither `e` nor `d` |
 
+### Phase 60 — Delete ticket
+
+| Item | Pattern |
+|------|---------|
+| Where | Ticket **detail** action bar, and each row's actions on the **All tickets** list and **Slot detail** ticket table |
+| Delete button | `canPerm(user, 'All tickets', 'd')` (granted to all roles by default). **Row action:** an icon-only danger button (`Button variant="danger" size="sm" className="btn-icon"` with the shared `TrashIcon`, `title`/`aria-label="Delete ticket <id>"`) beside **Open** in the table `td.act`. **Detail:** full-size `Button variant="danger"` "Delete ticket" in the action bar |
+| Table wiring | `TicketTable` takes `canDelete` / `onDelete(row)` / `deletingId`; the parent owns the confirm `Modal` + `deleteTarget` state (never pass `user` into the table) |
+| Confirm | Existing `Modal` (title "Delete this ticket?"), names the ticket id, `closeDisabled` while busy; footer is `div.modal-actions` (`[Cancel] [Delete ticket]` grouped right, same as the Issue/Part-master confirms — not the `form-actions` split) |
+| Busy state | `deleting` / `deletingId` → button reads "Deleting…", disabled to block duplicate requests; the deleting row's button shows busy |
+| Success | `toastApiSuccess`; detail `navigate(backToTickets)`; list / slot re-fetch via a `refreshKey` bump — **filters, pagination and sort preserved**; slot detail also re-runs `getSlot` so counts update |
+| Failure | `toastApiError(err, 'Could not delete ticket.')`; the ticket **stays** in the view (no optimistic removal) |
+| Semantics | Soft delete — the ticket disappears from lists, counts, Slot View, dashboard and reports; history is kept server-side |
+
 ## Phase 25 — Forgot password role gate + 404
 
 | Item | Pattern |
