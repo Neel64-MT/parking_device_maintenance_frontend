@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { PageMeta } from '../../context/PageMetaContext'
 import { useAuth } from '../../context/AuthContext'
+import { toastApiError, toastApiSuccess } from '../../context/ToastContext'
 import { ApiRequestError } from '../../services/api'
-import { getTicket } from '../../services/tickets'
+import { deleteTicket, getTicket } from '../../services/tickets'
 import { canPerm, homePathForUser } from '../../services/users'
 import { TicketAddUpdateForm } from '../../components/tickets/TicketAddUpdateForm'
 import { groupIssuesForDisplay } from '../../components/tickets/ticketIssueRowsHelpers'
@@ -416,10 +417,12 @@ function mapWorkHistory(events) {
 export default function TicketDetail() {
   const { ticketId } = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const canView = canPerm(user, 'All tickets', 'v')
   const canUpdateTicketView = canPerm(user, 'Update ticket', 'v')
   const canUpdateTicketEdit = canPerm(user, 'Update ticket', 'e')
+  const canDelete = canPerm(user, 'All tickets', 'd')
   const backToTickets = ticketsListReturnPath(location.state?.from)
   const backFromSlot = backToTickets.startsWith('/slot-view/')
 
@@ -432,6 +435,23 @@ export default function TicketDetail() {
   const [updMode, setUpdMode] = useState('update')
   const [previewImages, setPreviewImages] = useState(null)
   const [viewingUpdate, setViewingUpdate] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete() {
+    if (deleting || !header) return
+    setDeleting(true)
+    try {
+      const { message } = await deleteTicket(header.id)
+      toastApiSuccess(message)
+      setConfirmDelete(false)
+      navigate(backToTickets)
+    } catch (err) {
+      toastApiError(err, 'Could not delete ticket.')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   function openAddUpdateModal(mode = 'update') {
     setUpdMode(mode)
@@ -609,6 +629,11 @@ export default function TicketDetail() {
                     >
                 Close ticket
               </Link>
+                  ) : null}
+                  {canDelete ? (
+                    <Button variant="danger" onClick={() => setConfirmDelete(true)}>
+                      Delete ticket
+                    </Button>
                   ) : null}
             </div>
           </div>
@@ -835,6 +860,27 @@ export default function TicketDetail() {
         onClose={() => setPreviewImages(null)}
         title="Ticket photos"
       />
+
+      <Modal
+        open={confirmDelete}
+        title="Delete this ticket?"
+        subtitle={header ? `${header.id} · ${header.road}` : undefined}
+        onClose={deleting ? undefined : () => setConfirmDelete(false)}
+        closeDisabled={deleting}
+      >
+        <p>
+          Ticket {header?.id} will be removed from all ticket lists, counts, Slot View and reports.
+          Its history is kept. This cannot be undone from here.
+        </p>
+        <div className="modal-actions">
+          <Button type="button" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleDelete} disabled={deleting} aria-busy={deleting}>
+            {deleting ? 'Deleting…' : 'Delete ticket'}
+          </Button>
+        </div>
+      </Modal>
     </>
   )
 }

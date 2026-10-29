@@ -1243,6 +1243,23 @@ Phases are ordered by dependency. **Do not start Phase 1 until planning is appro
 
 **Verification:** `npm run lint` + `npm run build` pass. Backend `test:smoke:device-crud` covers the create/read/update/delete contract. Not changed: device list columns, device history, ticket raise, Slot View, QR scan.
 
+## Phase 60 — Delete ticket (all roles)
+
+**Status:** Complete
+
+**Objective:** Add a Delete ticket action for every authenticated role (gated by `All tickets` `d`, granted to all roles by default) on the ticket detail page and in the ticket-list / Slot-detail row actions, reusing the device-delete confirm-modal + toast pattern.
+
+**Tasks:**
+1. `services/tickets.js`: new `deleteTicket(id)` → `DELETE /api/tickets/:id` via `apiEnvelope`, returning `{ data, message }`.
+2. `components/tickets/TicketTable.jsx`: optional `canDelete` + `onDelete(row)` + `deletingId` props render a danger **Delete** button beside **Open** in the actions cell (disabled + "Deleting…" while that row is in flight).
+3. `pages/tickets/TicketDetail.jsx`: permission-gated (`canPerm(user,'All tickets','d')`) **Delete ticket** button in the action bar → confirm `Modal` (names the ticket) → `deleteTicket` → success toast → navigate back to the list; failure toast keeps the ticket.
+4. `pages/tickets/TicketList.jsx`: hosts one confirm `Modal` + `deleteTarget`/`deletingId`; on success re-fetches via a `refreshKey` bump so rows, tiles and tab counts refresh **with the current tab, filters and page preserved**; the row is removed only after success.
+5. `pages/slots/SlotDetail.jsx`: same row-delete wiring; a `refreshKey` re-runs **both** the slot header (`getSlot` → `ticketCount`, `unresolvedIssues`) and the ticket-table effects.
+
+**Out of scope:** Dashboard and Slot View *list* refresh lazily on next load (unchanged). No optimistic removal — the UI only drops the ticket after the API confirms.
+
+**Verification:** `npm run lint` + `npm run build` pass. Backend `test:smoke:ticket-delete` covers the API contract, exclusion from all views, idempotency, re-raise, and role enforcement (`PR.md` Phase 60 criteria).
+
 ---
 
 ## Suggested calendar dependency graph
