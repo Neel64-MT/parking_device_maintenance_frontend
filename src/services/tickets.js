@@ -26,6 +26,9 @@ export async function listTickets({
   road = '',
   status = '',
   category = '',
+  raisedBy = '',
+  assignedTo = '',
+  closedBy = '',
   age = '',
   device = '',
   page = 1,
@@ -40,6 +43,9 @@ export async function listTickets({
   if (road) params.set('road', road)
   if (status) params.set('status', status)
   if (category) params.set('category', category)
+  if (raisedBy) params.set('raisedBy', raisedBy)
+  if (assignedTo) params.set('assignedTo', assignedTo)
+  if (closedBy) params.set('closedBy', closedBy)
   if (age) params.set('age', age)
   params.set('page', String(safePage))
   params.set('limit', String(safeLimit))

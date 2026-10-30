@@ -9,7 +9,12 @@ import { ROAD_OPTIONS } from '../../data/slots'
 import { TICKET_TAB_META, TICKET_TABS } from '../../data/tickets'
 import { ApiRequestError } from '../../services/api'
 import { deleteTicket, listTickets } from '../../services/tickets'
-import { canPerm, homePathForUser, isFieldTicketUpdater } from '../../services/users'
+import {
+  canPerm,
+  homePathForUser,
+  isFieldTicketUpdater,
+  listTicketPeopleLookups,
+} from '../../services/users'
 import { TicketTable } from '../../components/tickets/TicketTable'
 import { Button } from '../../components/ui/Button'
 import { Field, FilterBar } from '../../components/ui/FilterBar'
@@ -25,7 +30,15 @@ const FILTER_DEFAULTS = {
   road: 'All roads',
   status: 'All',
   category: 'All categories',
+  person: 'All',
   age: '',
+}
+
+/** Caption of the per-tab person dropdown; all three share one roster of field-facing users. */
+const PERSON_LABEL = {
+  open: 'Raised By',
+  urp: 'Assigned to',
+  cls: 'Closed by',
 }
 
 const URP_STATUS_OPTIONS = [
@@ -102,10 +115,14 @@ export default function TicketList() {
   const [road, setRoad] = useState(FILTER_DEFAULTS.road)
   const [status, setStatus] = useState(() => statusForTab(tab, FILTER_DEFAULTS.status))
   const [category, setCategory] = useState(FILTER_DEFAULTS.category)
+  // One dropdown value shared across tabs — only the active tab's person filter is sent.
+  const [person, setPerson] = useState(FILTER_DEFAULTS.person)
+  const [peopleOptions, setPeopleOptions] = useState([])
   const [applied, setApplied] = useState(() => ({
     road: FILTER_DEFAULTS.road,
     status: statusForTab(tab, FILTER_DEFAULTS.status),
     category: FILTER_DEFAULTS.category,
+    person: FILTER_DEFAULTS.person,
     age: FILTER_DEFAULTS.age,
     q: '',
   }))
@@ -166,12 +183,16 @@ export default function TicketList() {
         setLoading(true)
       }
       try {
+        const personValue = applied.person !== 'All' ? applied.person : ''
         const result = await listTickets({
           tab,
           q: applied.q,
           road: applied.road,
           status: statusForTab(tab, applied.status),
           category: applied.category,
+          raisedBy: tab === 'open' ? personValue : '',
+          assignedTo: tab === 'urp' ? personValue : '',
+          closedBy: tab === 'cls' ? personValue : '',
           age: ageForTab(tab, applied.age),
           page,
           limit,
@@ -206,6 +227,22 @@ export default function TicketList() {
     }
   }, [canView, tab, applied, page, limit, refreshKey])
 
+  // Person dropdown options (raisers / workers / closers) load once; failure leaves them empty.
+  useEffect(() => {
+    if (!canView) return undefined
+    let cancelled = false
+    listTicketPeopleLookups()
+      .then((opts) => {
+        if (!cancelled) setPeopleOptions(opts)
+      })
+      .catch(() => {
+        /* dropdown stays empty; the "Everyone" option still works */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [canView])
+
   async function confirmDeleteTicket() {
     if (!deleteTarget || deletingId) return
     setDeletingId(deleteTarget.id)
@@ -237,10 +274,13 @@ export default function TicketList() {
     const nextTab = parseTab(id)
     setTabParam(nextTab)
     setStatus(FILTER_DEFAULTS.status)
+    // Each tab has its own person list, so clear the selection when the tab changes.
+    setPerson(FILTER_DEFAULTS.person)
     setPage(1)
     setApplied((prev) => ({
       ...prev,
       status: FILTER_DEFAULTS.status,
+      person: FILTER_DEFAULTS.person,
       age: ageForTab(nextTab, prev.age),
     }))
   }
@@ -250,8 +290,14 @@ export default function TicketList() {
     if (!view) return
     setTabParam(view.tab)
     setStatus(view.status)
+    setPerson(FILTER_DEFAULTS.person)
     setPage(1)
-    setApplied((prev) => ({ ...prev, status: view.status, age: view.age }))
+    setApplied((prev) => ({
+      ...prev,
+      status: view.status,
+      person: FILTER_DEFAULTS.person,
+      age: view.age,
+    }))
   }
 
   function applyFilters() {
@@ -262,6 +308,7 @@ export default function TicketList() {
       road,
       status: nextStatus,
       category,
+      person,
       age: ageForTab(tab, prev.age),
       q: query,
     }))
@@ -271,12 +318,14 @@ export default function TicketList() {
     setRoad(FILTER_DEFAULTS.road)
     setStatus(FILTER_DEFAULTS.status)
     setCategory(FILTER_DEFAULTS.category)
+    setPerson(FILTER_DEFAULTS.person)
     setQuery('')
     setPage(1)
     setApplied({
       road: FILTER_DEFAULTS.road,
       status: FILTER_DEFAULTS.status,
       category: FILTER_DEFAULTS.category,
+      person: FILTER_DEFAULTS.person,
       age: FILTER_DEFAULTS.age,
       q: '',
     })
@@ -389,6 +438,16 @@ export default function TicketList() {
               </select>
             </Field>
           ) : null}
+          <Field label={PERSON_LABEL[tab]}>
+            <select value={person} onChange={(e) => setPerson(e.target.value)}>
+              <option value="All">Everyone</option>
+              {peopleOptions.map((p) => (
+                <option key={p.id || p.name} value={p.name}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </Field>
           <Field label="Issue category">
             <select value={category} onChange={(e) => setCategory(e.target.value)}>
               <option>All categories</option>

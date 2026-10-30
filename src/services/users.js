@@ -144,6 +144,24 @@ export async function listTechnicianLookups() {
   }))
 }
 
+/**
+ * Roster for the All tickets person filters (`GET /api/lookups/ticket-people`).
+ * Requires All tickets `v`. One shared list of Active field-facing users
+ * (Technician / Site attendant / Engineer / Electrician); `name` is the filter value.
+ * @returns {Promise<{ id: string, name: string, role: string }[]>}
+ */
+export async function listTicketPeopleLookups() {
+  const data = await api('/api/lookups/ticket-people')
+  const people = Array.isArray(data?.people) ? data.people : []
+  return people
+    .map((p) => ({
+      id: String(p.id || ''),
+      name: String(p.name || ''),
+      role: String(p.role || ''),
+    }))
+    .filter((p) => p.name)
+}
+
 /** Check a permission code string for a flag letter (v/c/e/a/x/d). */
 export function canPerm(user, screen, flag) {
   const code = user?.permissions?.[screen] || '......'
