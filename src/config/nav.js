@@ -37,25 +37,19 @@ export const MENU = [
     screen: 'Slot View',
   },
   {
+    id: 'ticket-list',
     label: 'Tickets',
     icon: 'ticket',
-    children: [
-      {
-        id: 'ticket-list',
-        label: 'All tickets',
-        icon: 'ticket-list',
-        path: '/tickets',
-        match: ['ticket-raise', 'ticket-update', 'ticket-close', 'ticket-detail'],
-        screen: 'All tickets',
-      },
-      {
-        id: 'ticket-report',
-        label: 'Work report',
-        icon: 'report',
-        path: '/tickets/report',
-        screen: 'Work report',
-      },
-    ],
+    path: '/tickets',
+    match: ['ticket-raise', 'ticket-update', 'ticket-close', 'ticket-detail'],
+    screen: 'All tickets',
+  },
+  {
+    id: 'ticket-report',
+    label: 'Work report',
+    icon: 'report',
+    path: '/tickets/report',
+    screen: 'Work report',
   },
   {
     id: 'device-list',
@@ -119,7 +113,6 @@ export function isMenuItemOn(item, pageId) {
 /**
  * Drop menu leaves (and empty parent groups) the user cannot view.
  * Visibility is permission matrix View (`v`) only — no role-name hardcoding.
- * If Tickets has only All tickets left, promote it to a top-level link.
  */
 export function filterMenuByView(menu, canView) {
   function allow(item) {
@@ -132,14 +125,6 @@ export function filterMenuByView(menu, canView) {
       if (item.children) {
         const children = item.children.filter(allow)
         if (!children.length) return null
-        if (
-          item.label === 'Tickets' &&
-          children.length === 1 &&
-          children[0].id === 'ticket-list'
-        ) {
-          const leaf = children[0]
-          return { ...leaf, icon: leaf.icon || item.icon }
-        }
         return { ...item, children }
       }
       if (!allow(item)) return null
